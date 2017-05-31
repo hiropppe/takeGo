@@ -1,5 +1,5 @@
 {
-  "current_epoch": 58, 
+  "current_epoch": 60, 
   "max_validation": 1000000000, 
   "train_val_test": [
     0.95, 
@@ -364,16 +364,28 @@
       "loss": 1.6014633698992404, 
       "val_acc": 0.5252344083489114, 
       "val_loss": 1.631750941145386
+    }, 
+    {
+      "acc": 0.5312893011403513, 
+      "loss": 1.6009932999480705, 
+      "val_acc": 0.5251841779884304, 
+      "val_loss": 1.6317438390453887
+    }, 
+    {
+      "acc": 0.5312874611993236, 
+      "loss": 1.6008444816587002, 
+      "val_acc": 0.5251747942947143, 
+      "val_loss": 1.6316799833918996
     }
   ], 
   "batch_size": 16, 
   "epochs": 1000, 
   "decay_every": 8000000, 
-  "current_batch": 50103508, 
+  "current_batch": 51801932, 
   "training_data": "./SL_policy_kgspro_training_results_lrdecay/feature_planes.hdf5", 
   "epoch_length": 13587389, 
-  "best_epoch": 58, 
-  "generator_seed": 1152250917, 
-  "generator_sample": 78807280, 
+  "best_epoch": 60, 
+  "generator_seed": 3606246271, 
+  "generator_sample": 2717920, 
   "learning_rate": 0.003
 }

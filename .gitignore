@@ -70,6 +70,7 @@ target/
 *.h5
 *.hdf5
 *.sgf
+!params/policy/*.hdf5
 
 #others
 *.swp
