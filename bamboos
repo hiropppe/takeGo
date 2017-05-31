@@ -1,0 +1,87 @@
+import numpy as np
+
+import os
+import sys
+
+from AlphaGo import ai
+from AlphaGo import timer
+
+from AlphaGo.models import tf_policy
+
+from interface.gtp_wrapper import GTPGameConnector, ExtendedGtpEngine
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description='Run GTP')
+    parser.add_argument("policy_checkpoint_directory",
+                        help="Policy network checkpoint directory")
+    parser.add_argument("--filters", type=int, default=192,
+                        help="Number of filters")
+    parser.add_argument("--n-playout", type=int, default=10,
+                        help="Number of simulation for each play")
+    parser.add_argument("--time", "-t", type=str, default='2000 50 180 6',
+                        help="Time settings supporting Canadian byo-yomi. \
+                              Main time, Byo-yomi time and Byo-yomi stone")
+    parser.add_argument("--server", default=False, action="store_true",
+                        help="Server mode")
+    parser.add_argument("--player", "-p", type=str, default='mcts', choices=['mcts', 'prob', 'greedy'],
+                        help="Choice player type (Default: mcts)")
+    parser.add_argument("--policy-temp", type=float, default=0.67,
+                        help="Distribution temperature of players using policies (Default: 0.67)")
+    parser.add_argument("--greedy-start", type=int, default=None,
+                        help="Greedy start option for ProbabilisticPolicyPlayer (Default: None)")
+
+    args = parser.parse_args()
+
+    # value net is not implemented yet
+    value_net = None
+
+    policy_net = tf_policy.CNNPolicy(checkpoint_dir=args.policy_checkpoint_directory,
+                                     filters=args.filters)
+    policy_net.init_graph()
+    policy_net.start_session()
+    policy_net.load_model()
+
+    # fast rollout is not implemented yet
+    fast_policy_net = policy_net
+
+    m, ms, b, bs = [(int)(t) for t in args.time.split()]
+
+    if args.player == 'mcts':
+        print('Loading MCTS player')
+        player = ai.MCTSPlayer(value_net,
+                               policy_net,
+                               fast_policy_net,
+                               timer=timer.Canadian(m, ms, b, bs),
+                               n_playout=args.n_playout)
+    elif args.player == 'prob':
+        print('Loading Probabilistic player')
+        player = ai.ProbabilisticPolicyPlayer(policy_net,
+                                              temperature=args.policy_temp,
+                                              greedy_start=args.greedy_start)
+    elif args.player == 'greedy':
+        print('Loading Greedy player')
+        player = ai.GreedyPolicyPlayer(policy_net)
+
+    gtp_game = GTPGameConnector(player)
+    gtp_engine = ExtendedGtpEngine(gtp_game, name='RocAlphaGo', version='0.0')
+
+    if args.server:
+        from flask import Flask
+        from flask import request
+
+        app = Flask(__name__)
+
+        @app.route('/gtp')
+        def gtp():
+            cmd = request.args.get('cmd')
+            print(cmd)
+            engine_reply = gtp_engine.send(cmd)
+            print(engine_reply)
+            return engine_reply
+
+        app.run(host="0.0.0.0", debug=False)
+    else:
+        from interface.gtp_wrapper import run_gtp
+        run_gtp(player)
