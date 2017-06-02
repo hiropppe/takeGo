@@ -162,7 +162,7 @@ cdef void clear_pattern(pattern_t *pat):
 #      pat[POS(board.board_start + 4, y)].large_list[MD_5] |= 0x00C0000000;
 
 
-cdef void update_md2_stone(pattern_t *pat, int pos, char color):
+cdef void update_md2_stone(pattern_t *pat, int pos, char color) nogil:
     pat[pos + NW].list[<int>MD_2] |= update_mask[0][<int>color];
     pat[pos +  N].list[<int>MD_2] |= update_mask[1][<int>color];
     pat[pos + NE].list[<int>MD_2] |= update_mask[2][<int>color];
@@ -177,7 +177,7 @@ cdef void update_md2_stone(pattern_t *pat, int pos, char color):
     pat[pos + WW].list[<int>MD_2] |= update_mask[11][<int>color];
 
 
-cdef void update_md2_empty(pattern_t *pat, int pos):
+cdef void update_md2_empty(pattern_t *pat, int pos) nogil:
     pat[pos + NW].list[<int>MD_2] &= 0xFF3FFF;
     pat[pos +  N].list[<int>MD_2] &= 0xFFCFFF;
     pat[pos + NE].list[<int>MD_2] &= 0xFFF3FF;
@@ -243,7 +243,7 @@ cdef unsigned int pat3_rotate90(unsigned int pat3):
     return ((pat3 & 0x0003) << 10) | ((pat3 & 0x0C0C) << 4) | ((pat3 & 0x3030) >> 4) | ((pat3 & 0x00C0) << 6) | ((pat3 & 0x0300) >> 6) | ((pat3 & 0xC000) >> 10)
 
 
-cdef unsigned int pat3(pattern_t *pat, int pos):
+cdef unsigned int pat3(pattern_t *pat, int pos) nogil:
     return (pat[pos].list[<int>MD_2] & 0xFFFF)
 
 

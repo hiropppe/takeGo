@@ -17,6 +17,10 @@ cimport pattern as pat
 cimport printer 
 cimport policy_feature
 
+from bamboo.go.zobrist_hash cimport HASH_PASS, HASH_BLACK, HASH_WHITE, HASH_KO
+from bamboo.go.zobrist_hash cimport hash_bit
+
+
 pure_board_size = PURE_BOARD_SIZE
 pure_board_max = PURE_BOARD_MAX
 
@@ -42,31 +46,31 @@ max_moves = MAX_MOVES
 default_komi = KOMI
 
 
-cdef void fill_n_char (char *arr, int size, char v):
+cdef void fill_n_char (char *arr, int size, char v) nogil:
     cdef int i
     for i in range(size):
         arr[i] = v
 
 
-cdef void fill_n_unsigned_char (unsigned char *arr, int size, unsigned char v):
+cdef void fill_n_unsigned_char (unsigned char *arr, int size, unsigned char v) nogil:
     cdef int i
     for i in range(size):
         arr[i] = v
 
 
-cdef void fill_n_short (short *arr, int size, short v):
+cdef void fill_n_short (short *arr, int size, short v) nogil:
     cdef int i
     for i in range(size):
         arr[i] = v
 
 
-cdef void fill_n_int (int *arr, int size, int v):
+cdef void fill_n_int (int *arr, int size, int v) nogil:
     cdef int i
     for i in range(size):
         arr[i] = v
 
 
-cdef game_state_t *allocate_game():
+cdef game_state_t *allocate_game() nogil:
     cdef game_state_t *game
 
     game = <game_state_t *>malloc(sizeof(game_state_t))
@@ -75,12 +79,12 @@ cdef game_state_t *allocate_game():
     return game
 
 
-cdef void free_game(game_state_t *game):
+cdef void free_game(game_state_t *game) nogil:
     if game:
         free(game)
 
 
-cdef void copy_game(game_state_t *dst, game_state_t *src):
+cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
     #memcpy(dst.record, src.record, sizeof(move_t) * max_records)
     #memcpy(dst.prisoner, src.prisoner, sizeof(int) * S_MAX)
     memcpy(dst.board, src.board, sizeof(char) * board_max)
@@ -141,7 +145,7 @@ cdef void initialize_board(game_state_t *game, bint rollout):
     initialize_eye()
 
 
-cdef bint do_move(game_state_t *game, int pos):
+cdef bint do_move(game_state_t *game, int pos) nogil:
     cdef bint is_legal
     is_legal = put_stone(game, pos, game.current_color)
     if is_legal:
@@ -149,7 +153,7 @@ cdef bint do_move(game_state_t *game, int pos):
     return is_legal
 
 
-cdef bint put_stone(game_state_t *game, int pos, char color):
+cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
     cdef char other = FLIP_COLOR(color)
     cdef int connection = 0
     cdef int connect[4]
@@ -162,7 +166,7 @@ cdef bint put_stone(game_state_t *game, int pos, char color):
     if not is_legal(game, pos, color):
         return False
 
-    connect[:] = [0, 0, 0, 0]
+    fill_n_int(connect, 4, 0)
 
     game.capture_num[<int>color] = 0
 
@@ -171,10 +175,14 @@ cdef bint put_stone(game_state_t *game, int pos, char color):
         game.record[game.moves].pos = pos
 
     if pos == PASS:
+        game.current_hash ^= hash_bit[game.pass_count][<int>HASH_PASS]
+        game.pass_count += 1
         game.moves += 1
         return True
 
     game.board[pos] = color
+
+    game.current_hash ^= hash_bit[pos][<int>color]
 
     game.candidates[pos] = 0
 
@@ -214,7 +222,7 @@ cdef bint put_stone(game_state_t *game, int pos, char color):
     return True
 
 
-cdef void connect_string(game_state_t *game, int pos, char color, int connection, int string_id[4]):
+cdef void connect_string(game_state_t *game, int pos, char color, int connection, int string_id[4]) nogil:
     cdef int min_string_id = string_id[0]
     cdef string_t *string[3]
     cdef int connections = 0
@@ -243,7 +251,7 @@ cdef void connect_string(game_state_t *game, int pos, char color, int connection
         merge_string(game, &game.string[min_string_id], string, connections)
 
 
-cdef void merge_string(game_state_t *game, string_t *dst, string_t *src[3], int n):
+cdef void merge_string(game_state_t *game, string_t *dst, string_t *src[3], int n) nogil:
     cdef int tmp, pos, prev, neighbor
     cdef int string_id = game.string_id[dst.origin]
     cdef int removed_string_id
@@ -281,7 +289,7 @@ cdef void merge_string(game_state_t *game, string_t *dst, string_t *src[3], int 
         src[i].flag = False
 
 
-cdef void add_stone(game_state_t *game, int pos, char color, int string_id):
+cdef void add_stone(game_state_t *game, int pos, char color, int string_id) nogil:
     cdef string_t *add_string
     cdef int lib_add = 0
     cdef int other = FLIP_COLOR(color)
@@ -309,7 +317,7 @@ cdef void add_stone(game_state_t *game, int pos, char color, int string_id):
             add_neighbor(&game.string[string_id], neighbor_string_id, 0)
 
 
-cdef void add_stone_to_string(game_state_t *game, string_t *string, int pos, int head):
+cdef void add_stone_to_string(game_state_t *game, string_t *string, int pos, int head) nogil:
     cdef int string_pos
 
     # print 'AddStoneToString', pos, string.origin, head
@@ -340,7 +348,7 @@ cdef void add_stone_to_string(game_state_t *game, string_t *string, int pos, int
     string.size += 1
 
 
-cdef void make_string(game_state_t *game, int pos, char color):
+cdef void make_string(game_state_t *game, int pos, char color) nogil:
     cdef string_t *new_string
     cdef int string_id = 1
     cdef int lib_add = 0
@@ -385,7 +393,7 @@ cdef void make_string(game_state_t *game, int pos, char color):
     new_string.flag = True
 
 
-cdef int remove_string(game_state_t *game, string_t *string):
+cdef int remove_string(game_state_t *game, string_t *string) nogil:
     cdef int next
     cdef int neighbor
     cdef int pos = string.origin
@@ -436,7 +444,7 @@ cdef int remove_string(game_state_t *game, string_t *string):
     return string.size
 
 
-cdef int add_liberty(string_t *string, int pos, int head):
+cdef int add_liberty(string_t *string, int pos, int head) nogil:
     cdef int lib
 
     # print 'AddLiberty', pos, head
@@ -457,7 +465,7 @@ cdef int add_liberty(string_t *string, int pos, int head):
     return pos
 
 
-cdef void remove_liberty(string_t *string, int pos):
+cdef void remove_liberty(string_t *string, int pos) nogil:
     cdef int lib = 0
 
     # print 'RemoveLiberty', pos, string.lib[pos]
@@ -474,7 +482,7 @@ cdef void remove_liberty(string_t *string, int pos):
     string.libs -= 1
 
 
-cdef void add_neighbor(string_t *string, int string_id, int head):
+cdef void add_neighbor(string_t *string, int string_id, int head) nogil:
     cdef int neighbor = 0
 
     # print 'AddNeighbor', string.neighbor[neighbor], string_id, head
@@ -493,7 +501,7 @@ cdef void add_neighbor(string_t *string, int string_id, int head):
     string.neighbors += 1
 
 
-cdef void remove_neighbor_string(string_t *string, int string_id):
+cdef void remove_neighbor_string(string_t *string, int string_id) nogil:
     cdef int neighbor = 0
 
     # print 'RemoveNeighborString', string.neighbor[string_id], string_id
@@ -510,7 +518,7 @@ cdef void remove_neighbor_string(string_t *string, int string_id):
     string.neighbors -= 1
 
 
-cdef void get_neighbor4(int neighbor4[4], int pos):
+cdef void get_neighbor4(int neighbor4[4], int pos) nogil:
     neighbor4[0] = NORTH(pos, board_size)
     neighbor4[1] = WEST(pos)
     neighbor4[2] = EAST(pos)
@@ -519,7 +527,8 @@ cdef void get_neighbor4(int neighbor4[4], int pos):
 
 cdef void init_board_position():
     cdef int i, x, y, p,
-    cdef int neighbor4[4], n, nx, ny, n_pos, n_size
+    cdef int neighbor4[4]
+    cdef int n, nx, ny, n_pos, n_size
 
     global onboard_pos, board_x, board_y
 
@@ -863,7 +872,7 @@ cdef void set_board_size(int size):
     initialize_const()
 
 
-cdef int get_neighbor4_empty(game_state_t *game, int pos):
+cdef int get_neighbor4_empty(game_state_t *game, int pos) nogil:
     # return nb4_empty[pat.pat3(game.pat, pos)]
     cdef int neighbor4[4]
     cdef int empty = 0
@@ -874,7 +883,7 @@ cdef int get_neighbor4_empty(game_state_t *game, int pos):
     return empty
 
 
-cdef bint is_legal(game_state_t *game, int pos, char color):
+cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
     if game.board[pos] != S_EMPTY:
         return False
     """
@@ -889,7 +898,7 @@ cdef bint is_legal(game_state_t *game, int pos, char color):
     return True
 
 
-cdef bint is_legal_not_eye(game_state_t *game, int pos, char color):
+cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
     if game.board[pos] != S_EMPTY:
         game.candidates[pos] = False
         return False
@@ -910,7 +919,7 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color):
     return False
 
 
-cdef bint is_suicide(game_state_t *game, int pos, char color):
+cdef bint is_suicide(game_state_t *game, int pos, char color) nogil:
     cdef int neighbor4[4]
     cdef int other = FLIP_COLOR(color)
     cdef int i, neighbor_pos, neighbor_id
@@ -930,6 +939,10 @@ cdef bint is_suicide(game_state_t *game, int pos, char color):
     return True
 
 
+cdef int calculate_score(game_state_t *game) nogil:
+    return 0
+
+
 cpdef test_playout(int n_playout=1, int move_limit=500):
     """ benchmark playout speed
     """
@@ -941,7 +954,8 @@ cpdef test_playout(int n_playout=1, int move_limit=500):
     cdef list copy_speeds = [0]
     cdef float total_po_sec
     cdef list po_overheads = [0]
-    cdef game_state_t *game, *clone
+    cdef game_state_t *game
+    cdef game_state_t *clone
     cdef policy_feature.policy_feature_t *feature
 
     import itertools

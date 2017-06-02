@@ -208,6 +208,26 @@ typedef struct {
 //unsigned char eye_condition[PAT3_MAX];
 
 
+/*****************
+ * ZobristHash.h *
+ *****************/
+enum hash {
+  HASH_PASS,
+  HASH_BLACK,
+  HASH_WHITE,
+  HASH_KO,
+};
+
+const unsigned int UCT_HASH_SIZE = 16384;
+
+typedef struct {
+  unsigned long long hash;
+  int color;
+  int moves;
+  bool flag;
+} node_hash_t;
+
+
 /***********
  * Point.h *
  ***********/
@@ -219,3 +239,115 @@ const char gogui_x[] = {
   'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 
   'U', 'V', 'W', 'X', 'Y', 'Z' 
 };
+
+
+/*****************
+ * UctSearch.h *
+ *****************/
+const int THREAD_MAX = 32;              // 使用するスレッド数の最大値
+const int MAX_NODES = 1000000;          // UCTのノードの配列のサイズ
+const double ALL_THINKING_TIME = 90.0;  // 持ち時間(デフォルト)
+const int CONST_PLAYOUT = 10000;        // 1手あたりのプレイアウト回数(デフォルト)
+const double CONST_TIME = 10.0;         // 1手あたりの思考時間(デフォルト)
+const int PLAYOUT_SPEED = 1000;         // 初期盤面におけるプレイアウト速度
+
+// 思考時間の割り振り
+const int TIME_RATE_9 = 20;
+const int TIME_C_13 = 30;
+const int TIME_MAXPLY_13 = 30;
+const int TIME_C_19 = 60;
+const int TIME_MAXPLY_19 = 80;
+
+// CriticalityとOwnerを計算する間隔
+const int CRITICALITY_INTERVAL = 100;
+
+// 先頭打着緊急度
+const double FPU = 5.0;
+
+// Progressive Widening
+const double PROGRESSIVE_WIDENING = 1.8;
+
+// ノード展開の閾値
+const int EXPAND_THRESHOLD_9  = 20;
+const int EXPAND_THRESHOLD_13 = 25;
+const int EXPAND_THRESHOLD_19 = 40;
+
+// 候補手の最大数(盤上全体 + パス)
+const int UCT_CHILD_MAX = PURE_BOARD_MAX + 1;
+
+// 未展開のノードのインデックス
+const int NOT_EXPANDED = -1;
+
+// パスのインデックス
+const int PASS_INDEX = 0;
+
+// UCB Bonusに関する定数
+const double BONUS_EQUIVALENCE = 1000;
+const double BONUS_WEIGHT = 0.35;
+
+// パスする勝率の閾値
+const double PASS_THRESHOLD = 0.90;
+// 投了する勝率の閾値
+const double RESIGN_THRESHOLD = 0.20;
+
+// Virtual Loss (Best Parameter)
+const int VIRTUAL_LOSS = 3;
+
+const int EXPANSION_THRESHOLD = 40;
+const int EXPLORATION_CONSTANT = 5;
+const int MIXING_PARAMETER = 0.5;
+
+/*
+enum SEARCH_MODE {
+  CONST_PLAYOUT_MODE, // 1手のプレイアウト回数を固定したモード
+  CONST_TIME_MODE,    // 1手の思考時間を固定したモード
+  TIME_SETTING_MODE,  // 持ち時間ありのモード
+};
+
+typedef struct {
+  game_info_t *game; // 探索対象の局面
+  int thread_id;   // スレッド識別番号
+  int color;       // 探索する手番
+} thread_arg_t;
+
+typedef struct{
+  std::atomic<int> colors[3];  // その箇所を領地にした回数
+} statistic_t;
+
+typedef struct {
+  int pos;  // 着手する座標
+  std::atomic<int> move_count;  // 探索回数
+  std::atomic<int> win;         // 勝った回数
+  int index;   // インデックス
+  double rate; // 着手のレート
+  bool flag;   // Progressive Wideningのフラグ
+  bool open;   // 常に探索候補に入れるかどうかのフラグ
+  bool ladder; // シチョウのフラグ
+} child_node_t;
+
+//  9x9  : 1828bytes
+// 13x13 : 3764bytes
+// 19x19 : 7988bytes
+typedef struct {
+  int previous_move1;                 // 1手前の着手
+  int previous_move2;                 // 2手前の着手
+  std::atomic<int> move_count;
+  std::atomic<int> win;
+  int width;                          // 探索幅
+  int child_num;                      // 子ノードの数
+  child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
+  statistic_t statistic[BOARD_MAX];   // 統計情報 
+  bool seki[BOARD_MAX];
+} uct_node_t;
+
+typedef struct {
+  int num;   // 次の手の探索回数
+  int halt;  // 探索を打ち切る回数
+  std::atomic<int> count;       // 現在の探索回数
+} po_info_t;
+
+typedef struct {
+  int index;    // ノードのインデックス
+  double rate;  // その手のレート
+} rate_order_t;
+*/

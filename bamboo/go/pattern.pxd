@@ -50,8 +50,8 @@ cdef int EE
 cdef void clear_pattern(pattern_t *pat)
 
 # update
-cdef void update_md2_stone(pattern_t *pat, int pos, char color)
-cdef void update_md2_empty(pattern_t *pat, int pos)
+cdef void update_md2_stone(pattern_t *pat, int pos, char color) nogil
+cdef void update_md2_empty(pattern_t *pat, int pos) nogil
 
 # symmetric 
 cdef void pat3_transpose8(unsigned int pat3, unsigned int *transp)
@@ -70,7 +70,7 @@ cdef unsigned int pat3_horizontal_mirror(unsigned int pat3)
 cdef unsigned int pat3_rotate90(unsigned int pat3)
 
 # search pattern
-cdef unsigned int pat3(pattern_t *pat, int pos)
+cdef unsigned int pat3(pattern_t *pat, int pos) nogil
 
 # print pattern
 cdef void print_input_pat3(unsigned int pat3)
