@@ -22,9 +22,7 @@ extensions = [Extension('bamboo.go.board', sources=['bamboo/go/board.pyx'], lang
               Extension('bamboo.gtp.gtp_connector', sources=["bamboo/gtp/gtp_connector.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.go.test_board', sources=["bamboo/go/test_board.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.go.test_ladder', sources=["bamboo/go/test_ladder.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
-              Extension('bamboo.go.test_policy_feature', sources=["bamboo/go/test_policy_feature.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
-              Extension('cython_tests.engine', sources=["cython_tests/engine.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
-              Extension('cython_tests.counter', sources=["cython_tests/counter.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"], extra_link_args=['-lgomp'])]
+              Extension('bamboo.go.test_policy_feature', sources=["bamboo/go/test_policy_feature.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"])]
 
 core.setup(
   ext_modules=cythonize(extensions),
