@@ -22,6 +22,7 @@ extensions = [Extension('bamboo.go.board', sources=['bamboo/go/board.pyx'], lang
               Extension('bamboo.rollout.sgf2hdf5', sources=["bamboo/rollout/sgf2hdf5.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.rollout.pattern', sources=["bamboo/rollout/pattern.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.rollout.preprocess', sources=["bamboo/rollout/preprocess.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
+              Extension('bamboo.rollout.pattern_harvest', sources=["bamboo/rollout/pattern_harvest.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.ai.greedy', sources=["bamboo/ai/greedy.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.gtp.gtp_connector', sources=["bamboo/gtp/gtp_connector.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.go.test_board', sources=["bamboo/go/test_board.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),

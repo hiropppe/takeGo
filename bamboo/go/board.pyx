@@ -9,6 +9,7 @@ cimport numpy as np
 from libc.stdlib cimport malloc, free
 from libc.string cimport memset, memcpy
 from libc.math cimport exp as cexp
+from libc.stdio cimport printf
 
 from libcpp.string cimport string as cppstring
 
@@ -170,7 +171,6 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
     fill_n_int(connect, 4, 0)
 
     game.capture_num[<int>color] = 0
-    game.updated_string_num[<int>color] = 0
 
     if game.moves < max_records:
         game.record[game.moves].color = color

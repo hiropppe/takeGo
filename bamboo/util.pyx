@@ -5,7 +5,7 @@ import re
 import sgf
 
 from bamboo.go.board cimport S_BLACK, S_WHITE, PASS, OB_SIZE, BOARD_MAX
-from bamboo.go.board cimport POS
+from bamboo.go.board cimport POS, FLIP_COLOR
 from bamboo.go.board cimport game_state_t, board_size
 from bamboo.go.board cimport allocate_game, set_board_size, initialize_const, clear_const, initialize_board, free_game, put_stone
 
@@ -37,11 +37,12 @@ cdef class SGFIterator(object):
         self.current_moves = 0
         self.next_move = 0
 
-        set_board_size(bsize)
+        set_board_size(19)
         initialize_board(self.game, False)
 
     def __dealloc__(self):
-        free_game(self.game)
+        #free_game(self.game)
+        pass
 
     cdef int read(self, object sgf_string) except? -1:
         sgf_string = re.sub(r'\s', '', sgf_string)
@@ -72,6 +73,7 @@ cdef class SGFIterator(object):
         cdef int pos = self.moves[self.current_moves][0]
         cdef char color = self.moves[self.current_moves][1]
         put_stone(self.game, pos, color)
+        #self.game.current_color = FLIP_COLOR(color)
         self.current_moves += 1
         if self.has_next():
             self.next_move = self.moves[self.current_moves][0]
