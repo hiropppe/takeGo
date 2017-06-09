@@ -30,10 +30,14 @@ cdef extern from "ray.h":
     int Y(int pos, int board_size) nogil
     int CORRECT_X(int pos, int board_size, int ob_size) nogil
     int CORRECT_Y(int pos, int board_size, int ob_size) nogil
+    int NORTH_WEST(int pos, int board_size) nogil
     int NORTH(int pos, int board_size) nogil
+    int NORTH_EAST(int pos, int board_size) nogil
     int WEST(int pos) nogil
     int EAST(int pos) nogil
+    int SOUTH_WEST(int pos, int board_size) nogil
     int SOUTH(int pos, int board_size) nogil
+    int SOUTH_EAST(int pos, int board_size) nogil
 
     char FLIP_COLOR(char color) nogil
 
@@ -75,28 +79,32 @@ cdef extern from "ray.h":
 
     ctypedef struct game_state_t:
         char current_color
-        move_t *record
+        move_t record[1083]     # MAX_RECORDS
         int moves
-        int *prisoner
+        int prisoner[4]         # S_MAX
         int ko_pos
         int ko_move
 
         unsigned long long current_hash
 
-        char *board
-        int *birth_move
+        char board[529]         # BOARD_MAX
+        int birth_move[529]     # BOARD_MAX
 
         int pass_count
 
-        pattern_t *pat
+        pattern_t pat[529]      # BOARD_MAX
 
-        string_t *string
-        int *string_id
-        int *string_next
+        string_t string[288]    # MAX_STRING
+        int string_id[483]      # STRING_POS_MAX
+        int string_next[483]    # STRING_POS_MAX
 
-        int *candidates
+        int candidates[529]     # BOARD_MAX
 
-        int *capture_num
+        int capture_num[3]      # S_OB
+        int capture_pos[3][361] # S_OB, PURE_BOARD_MAX
+
+        int updated_string_num[3]       # S_OB
+        int updated_string_id[3][483]   # S_OB, PURE_BOARD_MAX
 
         bint rollout
 
@@ -138,6 +146,7 @@ cdef int *board_dis_y
 cdef int[:, ::1] move_dis
 
 cdef int *onboard_pos
+cdef int *onboard_index
 
 cdef int *corner
 cdef int[:, ::1] corner_neighbor
@@ -154,6 +163,7 @@ cdef void fill_n_short (short *arr, int size, short v) nogil
 cdef void fill_n_int (int *arr, int size, int v) nogil
 
 cdef void initialize_const() 
+cdef void clear_const()
 cdef void set_board_size(int size)
 
 cdef game_state_t *allocate_game() nogil
@@ -177,6 +187,7 @@ cdef void remove_liberty(string_t *string, int pos) nogil
 cdef void add_neighbor(string_t *string, int id, int head) nogil
 cdef void remove_neighbor_string(string_t *string, int id) nogil
 cdef void get_neighbor4(int neighbor4[4], int pos) nogil
+cdef void get_neighbor8(int neighbor8[8], int pos) nogil
 cdef void init_board_position()
 cdef void init_line_number()
 cdef void init_move_distance()

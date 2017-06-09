@@ -46,7 +46,9 @@ cdef int SE
 cdef int WW
 cdef int EE
 
+
 # init
+cdef void init_const()
 cdef void clear_pattern(pattern_t *pat)
 
 # update

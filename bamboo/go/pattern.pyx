@@ -6,18 +6,6 @@ from libcpp.string cimport string as cppstring
 
 cimport board 
 
-N = -board.board_size
-S = board.board_size
-W = 1
-E = -1
-NN = N + N
-NW = N + E
-NE = N + W
-SS = S + S
-SW = S + E
-SE = S + W
-WW = W + W
-EE = E + E
 
 cdef unsigned int update_mask[40][3]
 
@@ -67,6 +55,23 @@ update_mask[:] = [
   [ 0, 0x00001000, 0x00002000 ], # 39->31
   [ 0, 0x00004000, 0x00008000 ], # 40->32
 ]
+
+
+cdef void init_const():
+    global N, S, W, E, NN, NE, SS, SW, SE, WW, EE
+
+    N = -board.board_size
+    S = board.board_size
+    W = 1
+    E = -1
+    NN = N + N
+    NW = N + E
+    NE = N + W
+    SS = S + S
+    SW = S + E
+    SE = S + W
+    WW = W + W
+    EE = E + E
 
 
 cdef void clear_pattern(pattern_t *pat):

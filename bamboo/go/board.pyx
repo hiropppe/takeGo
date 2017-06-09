@@ -122,6 +122,7 @@ cdef void initialize_board(game_state_t *game, bint rollout):
 
     fill_n_char(game.board, BOARD_MAX, 0)
     fill_n_int(game.birth_move, BOARD_MAX, 0)
+    fill_n_int(game.capture_num, S_OB, 0)
     fill_n_int(game.candidates, BOARD_MAX, 0)
 
     for y in range(board_size):
@@ -169,6 +170,7 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
     fill_n_int(connect, 4, 0)
 
     game.capture_num[<int>color] = 0
+    game.updated_string_num[<int>color] = 0
 
     if game.moves < max_records:
         game.record[game.moves].color = color
@@ -198,10 +200,13 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
             remove_liberty(neighbor_string, pos)
             connect[connection] = neighbor_string_id
             connection += 1
+            memorize_updated_string(game, neighbor_string_id)
         elif game.board[neighbor_pos] == other:
             remove_liberty(neighbor_string, pos)
             if game.string[game.string_id[neighbor_pos]].libs == 0:
                 prisoner += remove_string(game, neighbor_string)
+            else:
+                memorize_updated_string(game, neighbor_string_id)
 
     game.prisoner[<int>color] += prisoner
 
@@ -316,6 +321,8 @@ cdef void add_stone(game_state_t *game, int pos, char color, int string_id) nogi
             add_neighbor(&game.string[neighbor_string_id], string_id, 0)
             add_neighbor(&game.string[string_id], neighbor_string_id, 0)
 
+    memorize_updated_string(game, string_id)
+
 
 cdef void add_stone_to_string(game_state_t *game, string_t *string, int pos, int head) nogil:
     cdef int string_pos
@@ -392,21 +399,35 @@ cdef void make_string(game_state_t *game, int pos, char color) nogil:
 
     new_string.flag = True
 
+    memorize_updated_string(game, string_id)
+
 
 cdef int remove_string(game_state_t *game, string_t *string) nogil:
     cdef int next
     cdef int neighbor
     cdef int pos = string.origin
+    cdef int color = <int>game.current_color
     cdef int remove_string_id = game.string_id[pos]
     cdef int remove_color = game.board[pos]
+    cdef int *capture_num = &game.capture_num[color]
+    cdef int *capture_pos = game.capture_pos[color]
+    cdef int lib
 
     # print 'RemoveString', remove_string_id
+
+    neighbor = string.neighbor[0]
+    while neighbor != NEIGHBOR_END:
+        memorize_updated_string(game, neighbor)
+        neighbor = string.neighbor[neighbor]
 
     while True:
         game.board[pos] = S_EMPTY
 
         if not game.rollout:
             game.birth_move[pos] = 0
+
+        capture_num[0] += 1
+        capture_pos[capture_num[0]] = pos 
 
         pat.update_md2_empty(game.pat, pos)
 
@@ -525,17 +546,30 @@ cdef void get_neighbor4(int neighbor4[4], int pos) nogil:
     neighbor4[3] = SOUTH(pos, board_size)
 
 
+cdef void get_neighbor8(int neighbor8[8], int pos) nogil:
+    neighbor8[0] = NORTH_WEST(pos, board_size)
+    neighbor8[1] = NORTH(pos, board_size)
+    neighbor8[2] = NORTH_EAST(pos, board_size)
+    neighbor8[3] = WEST(pos)
+    neighbor8[4] = EAST(pos)
+    neighbor8[5] = SOUTH_WEST(pos, board_size)
+    neighbor8[6] = SOUTH(pos, board_size)
+    neighbor8[7] = SOUTH_EAST(pos, board_size)
+
+
 cdef void init_board_position():
     cdef int i, x, y, p,
     cdef int neighbor4[4]
     cdef int n, nx, ny, n_pos, n_size
 
-    global onboard_pos, board_x, board_y
+    global onboard_index, onboard_pos, board_x, board_y
 
+    free(onboard_index)
     free(onboard_pos)
     free(board_x)
     free(board_y)
 
+    onboard_index = <int *>malloc(board_max * sizeof(int))
     onboard_pos = <int *>malloc(pure_board_max * sizeof(int))
     board_x = <int *>malloc(board_max * sizeof(int))
     board_y = <int *>malloc(board_max * sizeof(int))
@@ -544,6 +578,7 @@ cdef void init_board_position():
     for y in range(board_start, board_end + 1):
         for x in range(board_start, board_end + 1):
             p = POS(x, y, board_size)
+            onboard_index[p] = i
             onboard_pos[i] = p
             board_x[p] = x
             board_y[p] = y
@@ -660,15 +695,15 @@ cdef void initialize_eye():
     cdef int i, j
 
     """
-      眼のパターンはそれぞれ1か所あたり2ビットで表現
-        123
-        4*5
-        678
+      眼のパターンはそれぞれ1か所あたり最大2ビットで表現
+        012
+        3*4
+        567
       それぞれの番号×2ビットだけシフトさせる
-        O:自分の石
-        X:相手の石
-        +:空点
-        #:盤外
+        +:空点      0
+        O:自分の石  1
+        X:相手の石 10
+        #:盤外     11
     """
     eye_pat3[:] = [
       # +OO     XOO     +O+     XO+
@@ -807,22 +842,39 @@ cdef void initialize_eye():
 
 
 cdef void initialize_const():
-    global komi
+    #global komi
 
-    komi = <double *>malloc(S_OB * sizeof(double))
-    komi[0] = default_komi
-    komi[<int>S_BLACK] = default_komi + 1.0
-    komi[<int>S_WHITE] = default_komi - 1.0
+    #komi = <double *>malloc(S_OB * sizeof(double))
+    #komi[0] = default_komi
+    #komi[<int>S_BLACK] = default_komi + 1.0
+    #komi[<int>S_WHITE] = default_komi - 1.0
 
     init_board_position()
 
-    init_line_number()
+    #init_line_number()
 
-    init_move_distance()
+    #init_move_distance()
 
-    init_board_position_id()
+    #init_board_position_id()
 
-    init_corner()
+    #init_corner()
+
+
+cdef void clear_const():
+    global komi
+    global onboard_pos, board_x, board_y
+
+    if komi:
+        free(komi)
+
+    if onboard_pos:
+        free(onboard_pos)
+
+    if board_x:
+        free(board_x)
+
+    if board_y:
+        free(board_y)
 
 
 cdef void set_board_size(int size):
@@ -941,6 +993,24 @@ cdef bint is_suicide(game_state_t *game, int pos, char color) nogil:
 
 cdef int calculate_score(game_state_t *game) nogil:
     return 0
+
+
+cdef void memorize_updated_string(game_state_t *game, int string_id) nogil:
+    """ Memorized string_id for incremental rollout feature calculation.
+        Number of memorized string is cleared after feature calculation.
+    """
+    cdef int *updated_string_num
+    cdef int *updated_string_id
+
+    updated_string_num = &game.updated_string_num[<int>S_BLACK]
+    updated_string_id = game.updated_string_id[<int>S_BLACK]
+    updated_string_id[updated_string_num[0]] = string_id
+    updated_string_num[0] += 1
+
+    updated_string_num = &game.updated_string_num[<int>S_WHITE]
+    updated_string_id = game.updated_string_id[<int>S_WHITE]
+    updated_string_id[updated_string_num[0]] = string_id
+    updated_string_num[0] += 1
 
 
 cpdef test_playout(int n_playout=1, int move_limit=500):
