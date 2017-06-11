@@ -8,6 +8,7 @@ from bamboo.go.board cimport S_BLACK, S_WHITE, PASS, OB_SIZE, BOARD_MAX
 from bamboo.go.board cimport POS, FLIP_COLOR
 from bamboo.go.board cimport game_state_t, board_size
 from bamboo.go.board cimport allocate_game, set_board_size, initialize_const, clear_const, initialize_board, free_game, put_stone
+from bamboo.go.printer cimport print_board
 
 # for board location indexing
 LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -28,33 +29,24 @@ def _parse_sgf_move(node_value):
         return POS(x+OB_SIZE, y+OB_SIZE, board_size)
 
 
-cdef class SGFIterator(object):
+cdef class SGFMoveIterator:
 
-    def __cinit__(self, int bsize):
-        self.bsize = bsize
+    def __cinit__(self, object sgf_string):
         self.game = allocate_game()
         self.moves = list()
-        self.current_moves = 0
-        self.next_move = 0
+        self.i = 0
+        self.next_move = None
 
-        set_board_size(19)
-        initialize_board(self.game, False)
-
-    def __dealloc__(self):
-        #free_game(self.game)
-        pass
-
-    cdef int read(self, object sgf_string) except? -1:
         sgf_string = re.sub(r'\s', '', sgf_string)
         if sgf_string[0] == '(' and sgf_string[1] != ';':
             sgf_string = sgf_string[:1] + ';' + sgf_string[1:]
         collection = sgf.parse(sgf_string)
-        game = collection[0]
+        sgf_game = collection[0]
 
-        self.sgf_init_gamestate(game.root)
+        self.sgf_init_game(sgf_game.root)
 
-        if game.rest is not None:
-            for node in game.rest:
+        if sgf_game.rest is not None:
+            for node in sgf_game.rest:
                 props = node.properties
                 if 'W' in props:
                     pos = _parse_sgf_move(props['W'][0])
@@ -63,25 +55,38 @@ cdef class SGFIterator(object):
                     pos = _parse_sgf_move(props['B'][0])
                     self.moves.append((pos, S_BLACK))
 
-        self.current_moves = 0
-        self.next_move = self.moves[self.current_moves][0]
+        self.i = 0
+        self.next_move = self.moves[self.i]
 
-    cdef bint has_next(self):
-        return self.current_moves < len(self.moves)
+    def __dealloc__(self):
+        free_game(self.game)
 
-    cdef game_state_t *move_next(self):
-        cdef int pos = self.moves[self.current_moves][0]
-        cdef char color = self.moves[self.current_moves][1]
-        put_stone(self.game, pos, color)
-        #self.game.current_color = FLIP_COLOR(color)
-        self.current_moves += 1
-        if self.has_next():
-            self.next_move = self.moves[self.current_moves][0]
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        cdef bint is_legal
+        if self.i >= len(self.moves):
+            raise StopIteration()
+
+        move = self.moves[self.i]
+
+        is_legal = put_stone(self.game, move[0], move[1])
+        if is_legal:
+            self.game.current_color = FLIP_COLOR(self.game.current_color)
         else:
-            self.next_move = BOARD_MAX
-        return self.game
+            print_board(self.game)
+            raise RuntimeError()
+        self.i += 1
 
-    cdef int sgf_init_gamestate(self, object sgf_root) except? -1:
+        if self.i < len(self.moves):
+            self.next_move = self.moves[self.i]
+        else:
+            self.next_move = None 
+
+        return move
+
+    cdef int sgf_init_game(self, object sgf_root) except? -1:
         """Helper function to set up a GameState object from the root node
         of an SGF file
         """
@@ -89,8 +94,8 @@ cdef class SGFIterator(object):
         s_size = props.get('SZ', ['19'])[0]
         s_player = props.get('PL', ['B'])[0]
 
-        if int(s_size) != self.bsize:
-            raise SizeMismatchError()
+        set_board_size(int(s_size))
+        initialize_board(self.game, False)
 
         # handle 'add black' property
         if 'AB' in props:

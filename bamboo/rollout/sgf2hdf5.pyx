@@ -13,7 +13,7 @@ from scipy.sparse import lil_matrix, csr_matrix
 from tqdm import tqdm
 
 from bamboo.util import SizeMismatchError
-from bamboo.util cimport SGFIterator
+from bamboo.util cimport SGFMoveIterator
 from bamboo.go.board cimport PASS, POS, CORRECT_X, CORRECT_Y, game_state_t, pure_board_size, set_board_size, pure_board_max, free_game
 from bamboo.rollout.pattern cimport init_nakade, init_x33, init_d12
 from bamboo.rollout.preprocess cimport RolloutFeature
@@ -53,14 +53,15 @@ cdef class GameConverter(object):
         If this game's size does not match bsize, a SizeMismatchError is raised
         """
         cdef game_state_t *game
-        cdef SGFIterator sgf_iter = SGFIterator(self.bsize)
+        cdef SGFMoveIterator sgf_iter
 
         with open(file_name, 'r') as file_object:
-            sgf_iter.read(file_object.read())
+            sgf_iter = SGFMoveIterator(file_object.read())
+
+        game = sgf_iter.game
         #import time
         lil_tensor = lil_matrix((pure_board_max, self.n_features))
-        while sgf_iter.has_next():
-            game = sgf_iter.move_next()
+        for move in sgf_iter:
             #print_board(game)
             if sgf_iter.next_move != PASS:
                 #s = time.time()

@@ -168,10 +168,6 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
     if not is_legal(game, pos, color):
         return False
 
-    fill_n_int(connect, 4, 0)
-
-    game.capture_num[<int>color] = 0
-
     if game.moves < max_records:
         game.record[game.moves].color = color
         game.record[game.moves].pos = pos
@@ -181,6 +177,10 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
         game.pass_count += 1
         game.moves += 1
         return True
+
+    fill_n_int(connect, 4, 0)
+
+    game.capture_num[<int>color] = 0
 
     game.board[pos] = color
 
@@ -936,6 +936,9 @@ cdef int get_neighbor4_empty(game_state_t *game, int pos) nogil:
 
 
 cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
+    if pos == PASS:
+        return True
+
     if game.board[pos] != S_EMPTY:
         return False
     """
@@ -951,6 +954,9 @@ cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
 
 
 cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
+    if pos == PASS:
+        return True
+
     if game.board[pos] != S_EMPTY:
         game.candidates[pos] = False
         return False

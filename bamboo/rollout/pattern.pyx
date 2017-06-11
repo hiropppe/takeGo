@@ -5,6 +5,7 @@ from libcpp.string cimport string as cppstring
 from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, S_OB
 from bamboo.go.board cimport game_state_t, string_t, get_neighbor8
 from bamboo.go.zobrist_hash cimport mt
+from bamboo.go.printer cimport print_board
 
 
 class IllegalState(Exception):
@@ -52,9 +53,9 @@ cdef unsigned int calculate_x33_bit(game_state_t *game, int pos, int color) exce
                     vertex = WHITE3
                 else:
                     raise IllegalState()
-        elif game.board[pos] == S_EMPTY:
+        elif game.board[neighbor_pos] == S_EMPTY:
             vertex = EMPTY
-        elif game.board[pos] == S_OB:
+        elif game.board[neighbor_pos] == S_OB:
             vertex = OB
         else:
             raise IllegalState()
@@ -69,10 +70,10 @@ cdef unsigned int calculate_x33_bit(game_state_t *game, int pos, int color) exce
 
 cdef void print_x33(unsigned int pat3):
     cdef char stone[8]
-    cdef char color[2]
+    cdef char color[3]
     cdef list buf = []
     stone = ['+', 'B', 'B', 'B', 'W', 'W', 'W', '#']
-    color = ['x', 'o']
+    color = ['*', 'b', 'w']
     buf.append("\n")
     buf.append("{:s}{:s}{:s}\n".format(cppstring(1, stone[(pat3 >> 2) & 0x7]), cppstring(1, stone[(pat3 >> (2+3)) & 0x7]), cppstring(1, stone[(pat3 >> (2+6)) & 0x7])))
     buf.append("{:s}{:s}{:s}\n".format(cppstring(1, stone[(pat3 >> (2+9)) & 0x7]), cppstring(1, color[pat3 & 0x3]), cppstring(1, stone[(pat3 >> (2+12)) & 0x7])))
