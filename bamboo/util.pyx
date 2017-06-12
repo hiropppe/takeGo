@@ -1,8 +1,9 @@
 import os
 import itertools
 import numpy as np
-import re
 import sgf
+
+from bamboo.util_error import SizeMismatchError
 
 from bamboo.go.board cimport S_BLACK, S_WHITE, PASS, OB_SIZE, BOARD_MAX
 from bamboo.go.board cimport POS, FLIP_COLOR
@@ -12,10 +13,6 @@ from bamboo.go.printer cimport print_board
 
 # for board location indexing
 LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-
-
-class SizeMismatchError(Exception):
-    pass
 
 
 def _parse_sgf_move(node_value):
@@ -31,15 +28,13 @@ def _parse_sgf_move(node_value):
 
 cdef class SGFMoveIterator:
 
-    def __cinit__(self, object sgf_string):
+    def __cinit__(self, int bsize, object sgf_string):
+        self.bsize = bsize
         self.game = allocate_game()
         self.moves = list()
         self.i = 0
         self.next_move = None
 
-        sgf_string = re.sub(r'\s', '', sgf_string)
-        if sgf_string[0] == '(' and sgf_string[1] != ';':
-            sgf_string = sgf_string[:1] + ';' + sgf_string[1:]
         collection = sgf.parse(sgf_string)
         sgf_game = collection[0]
 
@@ -72,11 +67,12 @@ cdef class SGFMoveIterator:
         move = self.moves[self.i]
 
         is_legal = put_stone(self.game, move[0], move[1])
-        if is_legal:
-            self.game.current_color = FLIP_COLOR(self.game.current_color)
-        else:
-            print_board(self.game)
-            raise RuntimeError()
+        self.game.current_color = FLIP_COLOR(self.game.current_color)
+        #if is_legal:
+        #    self.game.current_color = FLIP_COLOR(self.game.current_color)
+        #else:
+        #    print_board(self.game)
+        #    raise RuntimeError()
         self.i += 1
 
         if self.i < len(self.moves):
@@ -93,6 +89,9 @@ cdef class SGFMoveIterator:
         props = sgf_root.properties
         s_size = props.get('SZ', ['19'])[0]
         s_player = props.get('PL', ['B'])[0]
+
+        if self.bsize != int(s_size):
+            raise SizeMismatchError()
 
         set_board_size(int(s_size))
         initialize_board(self.game, False)

@@ -11,12 +11,14 @@ from bamboo.go.printer cimport print_board
 class IllegalState(Exception):
     pass
 
-cdef void initialize_hash():
-    cdef int i
-    for i in range(8):
-        hash_bit[i] = mt()
 
-cdef unsigned int calculate_x33_bit(game_state_t *game, int pos, int color) except? -1:
+cdef void initialize_hash():
+    cdef int i, j
+    for i in range(8):
+        for j in range(7):
+            hash_bit[i][j] = mt()
+
+cdef unsigned long long x33_bit(game_state_t *game, int pos, int color) except? -1:
     cdef int neighbor8[8]
     cdef int neighbor_pos
     cdef int string_id
@@ -24,62 +26,115 @@ cdef unsigned int calculate_x33_bit(game_state_t *game, int pos, int color) exce
     cdef int string_color
     cdef int string_libs
     cdef int i
-    cdef int vertex
-    cdef int pat = 0 
+    cdef unsigned long long color_pat = 0 
+    cdef unsigned long long lib_pat = 0
+    cdef unsigned long long pat
 
     get_neighbor8(neighbor8, pos)
 
     for i in range(8):
         neighbor_pos = neighbor8[i]
         string_id = game.string_id[neighbor_pos]
-        # string exists
         if string_id:
             string = &game.string[string_id]
             if string.color == S_BLACK:
-                if string.libs == 1:
-                    vertex = BLACK1
-                elif string.libs == 2:
-                    vertex = BLACK2
-                elif string.libs >= 3:
-                    vertex = BLACK3
-                else:
-                    raise IllegalState()
+                color_pat |= (BLACK << i*2)
             else:
-                if string.libs == 1:
-                    vertex = WHITE1
-                elif string.libs == 2:
-                    vertex = WHITE2
-                elif string.libs >= 3:
-                    vertex = WHITE3
-                else:
-                    raise IllegalState()
-        elif game.board[neighbor_pos] == S_EMPTY:
-            vertex = EMPTY
+                color_pat |= (WHITE << i*2)
+
+            if string.libs == 1:
+                lib_pat |= (1 << i*2)
+            elif string.libs == 2:
+                lib_pat |= (2 << i*2)
+            else:
+                lib_pat |= (3 << i*2)
         elif game.board[neighbor_pos] == S_OB:
-            vertex = OB
+            color_pat |= (OB << i*2)
         else:
-            raise IllegalState()
-        #printf('%d', vertex)
-        pat |= (vertex << (i*3))
-    #printf(' ')
+            pass
 
-    pat = (pat << 2) | color
-
+    pat = (color_pat << 18) | (lib_pat << 2) | color
     return pat
 
+cdef void x33_trans8(unsigned long long pat, unsigned long long *trans):
+    trans[0] = pat
+    trans[1] = x33_rot90(pat)
+    trans[2] = x33_rot90(trans[1])
+    trans[3] = x33_rot90(trans[2])
+    trans[4] = x33_fliplr(pat)
+    trans[5] = x33_flipud(pat)
+    trans[6] = x33_transp(pat)
+    trans[7] = x33_fliplr(trans[1])
 
-cdef void print_x33(unsigned int pat3):
-    cdef char stone[8]
-    cdef char color[3]
-    cdef list buf = []
-    stone = ['+', 'B', 'B', 'B', 'W', 'W', 'W', '#']
-    color = ['*', 'b', 'w']
+
+cdef void x33_trans16(unsigned long long pat, unsigned long long *trans):
+    trans[0] = pat
+    trans[1] = x33_rot90(pat)
+    trans[2] = x33_rot90(trans[1])
+    trans[3] = x33_rot90(trans[2])
+    trans[4] = x33_fliplr(pat)
+    trans[5] = x33_flipud(pat)
+    trans[6] = x33_transp(pat)
+    trans[7] = x33_fliplr(trans[1])
+    trans[8] = x33_rev(trans[0])
+    trans[9] = x33_rev(trans[1])
+    trans[10] = x33_rev(trans[2])
+    trans[11] = x33_rev(trans[3])
+    trans[12] = x33_rev(trans[4])
+    trans[13] = x33_rev(trans[5])
+    trans[14] = x33_rev(trans[6])
+    trans[15] = x33_rev(trans[7])
+
+
+cpdef unsigned long long x33_rev(unsigned long long pat):
+    return ((((pat >> 19) & 0x5555) | (((pat >> 18) & 0x5555) << 1)) << 18) | ((pat >> 2 & 0xffff) << 2) | (~pat & 0x3)
+
+
+cpdef unsigned long long x33_rot90(unsigned long long pat):
+    pass
+
+cpdef unsigned long long x33_fliplr(unsigned long long pat):
+    pass
+
+cpdef unsigned long long x33_flipud(unsigned long long pat):
+    pass
+
+
+cpdef unsigned long long x33_transp(unsigned long long pat):
+    pass
+
+
+cpdef void print_x33(unsigned long long pat3):
+    buf = []
+    stone = ['+', 'B', 'W', '#']
+    color = ['*', 'x', 'o']
+    liberty = [0, 1, 2, 3]
     buf.append("\n")
-    buf.append("{:s}{:s}{:s}\n".format(cppstring(1, stone[(pat3 >> 2) & 0x7]), cppstring(1, stone[(pat3 >> (2+3)) & 0x7]), cppstring(1, stone[(pat3 >> (2+6)) & 0x7])))
-    buf.append("{:s}{:s}{:s}\n".format(cppstring(1, stone[(pat3 >> (2+9)) & 0x7]), cppstring(1, color[pat3 & 0x3]), cppstring(1, stone[(pat3 >> (2+12)) & 0x7])))
-    buf.append("{:s}{:s}{:s}\n".format(cppstring(1, stone[(pat3 >> (2+15)) & 0x7]), cppstring(1, stone[(pat3 >> (2+18)) & 0x7]), cppstring(1, stone[(pat3 >> (2+21)) & 0x7])))
-    #buf.append("color={:s}\n".format(cppstring(1, color[pat3 & 0x3])))
-    print ''.join(buf)
+    buf.append("{:s}{:s}{:s}    {:d}{:d}{:d}\n".format(
+        stone[(pat3 >> 18) & 0x3],
+        stone[(pat3 >> 20) & 0x3],
+        stone[(pat3 >> 22) & 0x3],
+        liberty[(pat3 >> 2) & 0x3],
+        liberty[(pat3 >> 4) & 0x3],
+        liberty[(pat3 >> 6) & 0x3]
+        ))
+    buf.append("{:s}{:s}{:s}    {:d} {:d}\n".format(
+        stone[(pat3 >> 24) & 0x3],
+        color[pat3 & 0x3],
+        stone[(pat3 >> 26) & 0x3],
+        liberty[(pat3 >> 8) & 0x3],
+        liberty[(pat3 >> 10) & 0x3]
+        ))
+    buf.append("{:s}{:s}{:s}    {:d}{:d}{:d}\n".format(
+        stone[(pat3 >> 28) & 0x3],
+        stone[(pat3 >> 30) & 0x3],
+        stone[(pat3 >> 32) & 0x3],
+        liberty[(pat3 >> 12) & 0x3],
+        liberty[(pat3 >> 14) & 0x3],
+        liberty[(pat3 >> 16) & 0x3]
+        ))
+    print(''.join(buf))
+
 
 cdef int init_nakade(object nakade_file):
     cdef int nakade_size = 8192

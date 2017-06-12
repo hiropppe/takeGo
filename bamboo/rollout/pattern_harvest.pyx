@@ -1,22 +1,29 @@
 import os
+import pandas as pd
+import sgf
 import sys
+import traceback
+import warnings
+
+from tqdm import tqdm
 
 from libc.stdio cimport printf
+
+from bamboo.util_error import SizeMismatchError
 
 from bamboo.util cimport SGFMoveIterator
 from bamboo.go.board cimport PASS, CORRECT_X, CORRECT_Y, OB_SIZE
 from bamboo.go.board cimport game_state_t, string_t, liberty_end, board_size 
 from bamboo.go.board cimport allocate_game, free_game, onboard_index, set_board_size, initialize_board
 from bamboo.go.printer cimport print_board
-from bamboo.rollout.pattern cimport calculate_x33_bit, print_x33
+from bamboo.rollout.pattern cimport x33_bit, print_x33
 
 from collections import Counter, defaultdict
 
-cdef unsigned int pat3[361]
+cdef unsigned long long pat3[361]
 
-pat_freq = Counter()
-move_freq = Counter()
-move_ratio = defaultdict(float)
+freq_dict = defaultdict(int)
+move_dict = defaultdict(int)
 
 def harvest_pattern(file_name):    
     cdef game_state_t *game
@@ -27,10 +34,10 @@ def harvest_pattern(file_name):
     cdef int string_id
     cdef string_t *string
     cdef int center
-    cdef int pat
+    cdef unsigned long long pat
 
     with open(file_name, 'r') as file_object:
-        sgf_iter = SGFMoveIterator(file_object.read())
+        sgf_iter = SGFMoveIterator(19, file_object.read())
 
     game = sgf_iter.game
     for move in sgf_iter:
@@ -42,30 +49,30 @@ def harvest_pattern(file_name):
                 string = &game.string[string_id]
                 center = string.lib[0]
                 while center != liberty_end:
-                    pat = calculate_x33_bit(game, center, <int>game.current_color)
+                    pat = x33_bit(game, center, <int>game.current_color)
                     if pat3[onboard_index[center]] != pat:
                         pat3[onboard_index[center]] = pat
-                        pat_freq[pat] += 1
+                        freq_dict[pat] += 1
                         if sgf_iter.next_move and sgf_iter.next_move[0] == center:
-                            move_freq[pat] += 1
-                            move_ratio[pat] = move_freq[pat]/float(pat_freq[pat])
+                            move_dict[pat] += 1
+                        else:
+                            move_dict[pat] += 0 
                     center = string.lib[center]
         updated_string_num[0] = 0
 
-    from operator import itemgetter
-    for pat, freq in sorted(move_ratio.items(), key=itemgetter(1), reverse=True):
-        print('Put {:s} {:.3f}'.format(bin(pat), freq))
-        print_x33(pat)
-	
 
-def main():
+def main(cmd_line_args=None):
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--outfile", "-o", help="Destination to write data", required=True)  # noqa: E501
     parser.add_argument("--directory", "-d", help="Directory containing SGF files to process. if not present, expects files from stdin", default=None)  # noqa: E501
     parser.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
-    args = parser.parse_args()
+
+    if cmd_line_args is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(cmd_line_args)
 
     def _is_sgf(fname):
         return fname.strip()[-4:] == ".sgf"
@@ -79,5 +86,28 @@ def main():
     else:
         sgf_files = (f.strip() for f in sys.stdin if _is_sgf(f))
 
-    for sgf in sgf_files:
-        harvest_pattern(sgf, args.outfile)
+    for sgf_file in tqdm(sgf_files):
+        try:
+            harvest_pattern(sgf_file)
+        except SizeMismatchError:
+            pass
+        except sgf.ParseException:
+            if args.verbose:
+                err, msg, _ = sys.exc_info()
+                sys.stderr.write("{} {}\n".format(err, msg))
+                sys.stderr.write(traceback.format_exc())
+            else:
+                warnings.warn('ParseException at {:s}\n'.format(sgf_file))
+        except RuntimeError:
+            if args.verbose:
+                err, msg, _ = sys.exc_info()
+                sys.stderr.write("{} {}\n".format(err, msg))
+                sys.stderr.write(traceback.format_exc())
+            else:
+                warnings.warn('RuntimeError at {:s}\n'.format(sgf_file))
+
+    df = pd.DataFrame({'freq': freq_dict, 'move_freq': move_dict})
+    df['move_ratio'] = df['move_freq']/df['freq']
+    sorted_df = df.sort_values(by='move_freq', ascending=False)
+    print(sorted_df)
+    df.to_csv(args.outfile)

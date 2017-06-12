@@ -27,7 +27,8 @@ extensions = [Extension('bamboo.go.board', sources=['bamboo/go/board.pyx'], lang
               Extension('bamboo.gtp.gtp_connector', sources=["bamboo/gtp/gtp_connector.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.go.test_board', sources=["bamboo/go/test_board.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.go.test_ladder', sources=["bamboo/go/test_ladder.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
-              Extension('bamboo.go.test_policy_feature', sources=["bamboo/go/test_policy_feature.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"])]
+              Extension('bamboo.go.test_policy_feature', sources=["bamboo/go/test_policy_feature.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
+              Extension('bamboo.rollout.test_x33_pattern', sources=["bamboo/rollout/test_x33_pattern.pyx"], language="c++", extra_compile_args=["-std=c++11"])]
 
 core.setup(
   ext_modules=cythonize(extensions),
