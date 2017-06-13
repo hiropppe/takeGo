@@ -925,14 +925,7 @@ cdef void set_board_size(int size):
 
 
 cdef int get_neighbor4_empty(game_state_t *game, int pos) nogil:
-    # return nb4_empty[pat.pat3(game.pat, pos)]
-    cdef int neighbor4[4]
-    cdef int empty = 0
-    get_neighbor4(neighbor4, pos)
-    for i in range(4):
-        if game.board[neighbor4[i]] == S_EMPTY:
-            empty += 1
-    return empty
+    return nb4_empty[pat.pat3(game.pat, pos)]
 
 
 cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
@@ -941,13 +934,8 @@ cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
 
     if game.board[pos] != S_EMPTY:
         return False
-    """
-    print game.pat[pos].list[0]
-    print game.pat[pos].list[0] & 0xFFFF
-    print nb4_empty[game.pat[pos].list[0] & 0xFFFF]
-    """
-    #if nb4_empty[pat.pat3(game.pat, pos)] == 0 and is_suicide(game, pos, color):
-    if get_neighbor4_empty(game, pos) == 0 and is_suicide(game, pos, color):
+
+    if nb4_empty[pat.pat3(game.pat, pos)] == 0 and is_suicide(game, pos, color):
         return False
 
     return True

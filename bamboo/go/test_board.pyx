@@ -355,12 +355,7 @@ def test_is_legal_nb4_empty_is_zero():
                                  ". . . . . . .|")
 
     game.current_color = board.S_BLACK
-    printer.print_board(game)
-    pat3 = pat.pat3(game.pat, moves['a'])
-    pat.print_input_pat3(pat3)
 
-    # eq_(board.get_neighbor4_empty(game, moves['a']), 0)
-    # eq_(board.is_suicide(game, moves['a'], board.S_WHITE), True)
     eq_(board.is_legal(game, moves['a'], board.S_WHITE), False)
     board.free_game(game)
 

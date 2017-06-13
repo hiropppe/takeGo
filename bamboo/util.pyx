@@ -1,9 +1,13 @@
 import os
 import itertools
 import numpy as np
+import re
 import sgf
+import sys
+import traceback
+import warnings
 
-from bamboo.util_error import SizeMismatchError
+from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove
 
 from bamboo.go.board cimport S_BLACK, S_WHITE, PASS, OB_SIZE, BOARD_MAX
 from bamboo.go.board cimport POS, FLIP_COLOR
@@ -26,17 +30,41 @@ def _parse_sgf_move(node_value):
         return POS(x+OB_SIZE, y+OB_SIZE, board_size)
 
 
+cpdef convert_to_simple_sgf(sgf_string):
+    size = ''.join(re.findall(r'SZ\[.+?\]', sgf_string, flags=re.IGNORECASE))
+    player = ''.join(re.findall(r'PL\[.+?\]', sgf_string, flags=re.IGNORECASE))
+    kiryoku = ''.join(re.findall(r'[BW]R\[.+?\]', sgf_string, flags=re.IGNORECASE))
+    add_stone = ''.join(re.findall(r'A[BW](?:\[[a-z]+\]\s*)+', sgf_string, flags=re.IGNORECASE))
+    moves = ''.join(re.findall(r';[WB]\[[a-z]+?\]', sgf_string, flags=re.IGNORECASE))
+    return '(;{:s}{:s}{:s}{:s}{:s})'.format(size, player, kiryoku, add_stone, moves)
+
+
 cdef class SGFMoveIterator:
 
-    def __cinit__(self, int bsize, object sgf_string):
+    def __cinit__(self, int bsize, object sgf_string, bint ignore_not_legal=True, bint verbose=False):
         self.bsize = bsize
         self.game = allocate_game()
         self.moves = list()
         self.i = 0
         self.next_move = None
+        self.ignore_not_legal = ignore_not_legal
+        self.verbose = verbose
 
-        collection = sgf.parse(sgf_string)
+        sgf_string = convert_to_simple_sgf(sgf_string)
+        try:
+            collection = sgf.parse(sgf_string)
+        except sgf.ParseException:
+            if self.verbose:
+                err, msg, _ = sys.exc_info()
+                sys.stderr.write("{:s} {:s}\n{:s}".format(err, msg, sgf_string))
+                sys.stderr.write(traceback.format_exc())
+            else:
+                warnings.warn('ParseException\n{:s}\n'.format(sgf_string))
+            raise
+
         sgf_game = collection[0]
+        if len(sgf_game.nodes) > 500:
+            raise TooManyMove()
 
         self.sgf_init_game(sgf_game.root)
 
@@ -67,12 +95,10 @@ cdef class SGFMoveIterator:
         move = self.moves[self.i]
 
         is_legal = put_stone(self.game, move[0], move[1])
-        self.game.current_color = FLIP_COLOR(self.game.current_color)
-        #if is_legal:
-        #    self.game.current_color = FLIP_COLOR(self.game.current_color)
-        #else:
-        #    print_board(self.game)
-        #    raise RuntimeError()
+        if self.ignore_not_legal or is_legal:
+            self.game.current_color = FLIP_COLOR(self.game.current_color)
+        else:
+            raise IllegalMove()
         self.i += 1
 
         if self.i < len(self.moves):
