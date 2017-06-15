@@ -16,10 +16,12 @@ from bamboo.go.board cimport game_state_t, pure_board_max, onboard_index, onboar
 from bamboo.go.board cimport get_neighbor4, get_neighbor8
 from bamboo.go.pattern cimport N, S, W, E, NN, NW, NE, SS, SW, SE, WW, EE
 
+from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
+
 
 cdef class RolloutFeature:
 
-    def __cinit__(self, int nakade_size=8192, int x33_size=69338, int d12_size=32207):
+    def __cinit__(self, int nakade_size=0, int x33_size=0, int d12_size=0):
         self.response_size = 1
         self.save_atari_size = 1
         self.neighbor_size = 8
@@ -80,11 +82,13 @@ cdef class RolloutFeature:
         """ Move matches 3 × 3 pattern around move
         """
         cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
-        cdef int pat_id
-        # lookup pattern index
-        pat_id = self.x33_start
+        cdef unsigned long long hash
+        cdef int pat_ix
 
-        feature.tensor[onboard_index[pos]][NON_RESPONSE_PAT] = pat_id
+        hash = x33_hash(game, pos, <int>game.current_color)
+        if x33_hashmap.find(hash) != x33_hashmap.end():
+            pat_ix = self.x33_start + x33_hashmap[hash]
+            feature.tensor[onboard_index[pos]][NON_RESPONSE_PAT] = pat_ix
 
     cdef void update_d12(self, game_state_t *game, int pos) nogil:
         """ Move matches 12-point diamond pattern near previous move
@@ -165,6 +169,7 @@ cdef class RolloutFeature:
         feature.is_neighbor8_set = True
 
     cdef void update_lil(self, game_state_t *game, object lil_matrix):
+        cdef int current_color = <int>game.current_color
         cdef int pos, color
         cdef int updated_string_num
         cdef int *updated_string_id
@@ -179,15 +184,18 @@ cdef class RolloutFeature:
         color = game.record[game.moves - 1].color
 
         # clear neighbor and response if passed ?
+        """
         if pos != PASS:
             self.update_neighbor_lil(game, pos, lil_matrix)
             self.update_d12_lil(game, pos, lil_matrix)
-
-        updated_string_num = game.updated_string_num[color]
-        updated_string_id = game.updated_string_id[color]
+        """
+        updated_string_num = game.updated_string_num[current_color]
+        updated_string_id = game.updated_string_id[current_color]
         for i in range(updated_string_num):
             updated_string = &game.string[updated_string_id[i]]
+            """
             self.update_save_atari_lil(game, updated_string, lil_matrix)
+            """
             update_pos = updated_string.lib[0]
             while update_pos != liberty_end:
                 self.update_3x3_lil(game, update_pos, lil_matrix)
@@ -199,11 +207,13 @@ cdef class RolloutFeature:
     cdef void update_3x3_lil(self, game_state_t *game, int pos, object lil_matrix):
         """ Move matches 3 × 3 pattern around move
         """
+        cdef unsigned long long hash
         cdef int pat_id
-        # lookup pattern index
-        pat_id = self.x33_start
 
-        lil_matrix[onboard_index[pos], pat_id] = 1
+        hash = x33_hash(game, pos, <int>game.current_color)
+        if x33_hashmap.find(hash) != x33_hashmap.end():
+            pat_id = self.x33_start + x33_hashmap[hash]
+            lil_matrix[onboard_index[pos], pat_id] = 1
 
     cdef void update_d12_lil(self, game_state_t *game, int pos, object lil_matrix):
         """ Move matches 12-point diamond pattern near previous move
@@ -291,6 +301,9 @@ cdef class RolloutFeature:
         cdef rollout_feature_t *black_feature = &self.feature_planes[<int>S_BLACK]
         cdef rollout_feature_t *white_feature = &self.feature_planes[<int>S_WHITE]
         cdef int i, j
+
+        black_feature.color = <int>S_BLACK
+        white_feature.color = <int>S_WHITE
 
         for i in range(PURE_BOARD_MAX):
             for j in range(6):

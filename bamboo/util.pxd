@@ -1,7 +1,7 @@
 from bamboo.go.board cimport game_state_t
 
 
-cpdef convert_to_simple_sgf(sgf_string)
+cpdef min_sgf_extract(sgf_string)
 
 
 cdef class SGFMoveIterator:

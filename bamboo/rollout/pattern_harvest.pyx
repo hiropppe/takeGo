@@ -9,14 +9,14 @@ from tqdm import tqdm
 
 from libc.stdio cimport printf
 
-from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove
+from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.util cimport SGFMoveIterator
 from bamboo.go.board cimport PASS, CORRECT_X, CORRECT_Y, OB_SIZE
 from bamboo.go.board cimport game_state_t, string_t, liberty_end, board_size 
 from bamboo.go.board cimport allocate_game, free_game, onboard_index, set_board_size, initialize_board
 from bamboo.go.printer cimport print_board
-from bamboo.rollout.pattern cimport x33_bits, print_x33
+from bamboo.rollout.pattern cimport x33_bits, x33_trans8_min, x33_trans16_min, print_x33
 
 from collections import Counter, defaultdict
 
@@ -25,7 +25,7 @@ cdef unsigned long long pat3[361]
 freq_dict = defaultdict(int)
 move_dict = defaultdict(int)
 
-def harvest_pattern(file_name):    
+def harvest_pattern(file_name, verbose=False):    
     cdef game_state_t *game
     cdef SGFMoveIterator sgf_iter
     cdef int *updated_string_num
@@ -34,31 +34,38 @@ def harvest_pattern(file_name):
     cdef int string_id
     cdef string_t *string
     cdef int center
-    cdef unsigned long long pat
+    cdef unsigned long long pat, pat8_min, pat16_min
 
     with open(file_name, 'r') as file_object:
         sgf_iter = SGFMoveIterator(19, file_object.read())
 
     game = sgf_iter.game
-    for move in sgf_iter:
-        if move[0] != PASS:
-            updated_string_num = &game.updated_string_num[<int>game.current_color]
-            updated_string_id = game.updated_string_id[<int>game.current_color]
-            for i in range(updated_string_num[0]):
-                string_id = updated_string_id[i]
-                string = &game.string[string_id]
-                center = string.lib[0]
-                while center != liberty_end:
-                    pat = x33_bits(game, center, <int>game.current_color)
-                    if pat3[onboard_index[center]] != pat:
-                        pat3[onboard_index[center]] = pat
-                        freq_dict[pat] += 1
-                        if sgf_iter.next_move and sgf_iter.next_move[0] == center:
-                            move_dict[pat] += 1
-                        else:
-                            move_dict[pat] += 0 
-                    center = string.lib[center]
-        updated_string_num[0] = 0
+    try:
+        for i, move in enumerate(sgf_iter):
+            if move[0] != PASS:
+                updated_string_num = &game.updated_string_num[<int>game.current_color]
+                updated_string_id = game.updated_string_id[<int>game.current_color]
+                for i in range(updated_string_num[0]):
+                    string_id = updated_string_id[i]
+                    string = &game.string[string_id]
+                    center = string.lib[0]
+                    while center != liberty_end:
+                        pat = x33_bits(game, center, <int>game.current_color)
+                        if pat3[onboard_index[center]] != pat:
+                            pat3[onboard_index[center]] = pat
+                            freq_dict[pat] += 1
+                            if sgf_iter.next_move and sgf_iter.next_move[0] == center:
+                                move_dict[pat] += 1
+                            else:
+                                move_dict[pat] += 0 
+                        center = string.lib[center]
+            updated_string_num[0] = 0
+    except IllegalMove:
+        warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
+        if verbose:
+            err, msg, _ = sys.exc_info()
+            sys.stderr.write("{} {}\n".format(err, msg))
+            sys.stderr.write(traceback.format_exc())
 
 
 def main(cmd_line_args=None):
@@ -67,6 +74,7 @@ def main(cmd_line_args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--outfile", "-o", help="Destination to write data", required=True)  # noqa: E501
     parser.add_argument("--directory", "-d", help="Directory containing SGF files to process. if not present, expects files from stdin", default=None)  # noqa: E501
+    parser.add_argument("--recurse", "-R", help="Set to recurse through directories searching for SGF files", default=False, action="store_true")  # noqa: E501
     parser.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
 
     if cmd_line_args is None:
@@ -77,47 +85,80 @@ def main(cmd_line_args=None):
     def _is_sgf(fname):
         return fname.strip()[-4:] == ".sgf"
 
+    def _walk_all_sgfs(root):
+        """a helper function/generator to get all SGF files in subdirectories of root
+        """
+        for (dirpath, dirname, files) in os.walk(root):
+            for filename in files:
+                if _is_sgf(filename):
+                    # yield the full (relative) path to the file
+                    yield os.path.join(dirpath, filename)
+
     def _list_sgfs(path):
         files = os.listdir(path)
         return [os.path.join(path, f) for f in files if _is_sgf(f)]
 
     if args.directory:
-        sgf_files = _list_sgfs(args.directory)
+        if args.recurse:
+            sgf_files = _walk_all_sgfs(args.directory)
+        else:
+            sgf_files = _list_sgfs(args.directory)
     else:
-        sgf_files = (f.strip() for f in sys.stdin if _is_sgf(f))
+        sgf_files = [f.strip() for f in sys.stdin if _is_sgf(f)]
 
     n_parse_error = 0
-    n_runtime_error = 0
     n_not19 = 0
-    for sgf_file in tqdm(sgf_files):
+    n_too_few_move = 0
+    n_too_many_move = 0
+    n_other_error = 0
+    for i, sgf_file in tqdm(enumerate(sgf_files)):
         try:
             harvest_pattern(sgf_file)
         except sgf.ParseException:
             n_parse_error += 1
+            warnings.warn('ParseException. {:s}'.format(sgf_file))
             if args.verbose:
                 err, msg, _ = sys.exc_info()
                 sys.stderr.write("{} {}\n".format(err, msg))
                 sys.stderr.write(traceback.format_exc())
-            else:
-                warnings.warn('ParseException at {:s}\n'.format(sgf_file))
         except SizeMismatchError:
             n_not19 += 1
-        except IllegalMove:
-            n_runtime_error += 1
+        except TooFewMove as e:
+            n_too_few_move += 1
+            warnings.warn('Too few move. {:d} less than 50. {:s}'.format(e.n_moves, sgf_file))
+        except TooManyMove as e:
+            n_too_many_move += 1
+            warnings.warn('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, sgf_file))
+        except KeyboardInterrupt:
+            break
+        except:
+            n_other_error += 1
+            warnings.warn('Unexpected error. {:s}'.format(sgf_file))
             if args.verbose:
                 err, msg, _ = sys.exc_info()
                 sys.stderr.write("{} {}\n".format(err, msg))
                 sys.stderr.write(traceback.format_exc())
-            else:
-                warnings.warn('Unexpected error at {:s}\n'.format(sgf_file))
-        except TooManyMove:
-            warnings.warn('Too many move. more than 500')
 
-    print('Total {:d} Parse Err {:d} Other Err {:d}'.format(len(sgf_files)-n_not19,
-        n_parse_error, n_runtime_error))
+    print('Total {:d}/{:d} (Not19 {:d} ParseErr {:d} TooFewMove {:d} TooManyMove {:d} Other {:d})'.format(
+        i+1 - n_parse_error - n_not19 - n_too_few_move - n_too_many_move - n_other_error,
+        i+1,
+        n_parse_error,
+        n_not19,
+        n_too_few_move,
+        n_too_many_move,
+        n_other_error))
 
     df = pd.DataFrame({'freq': freq_dict, 'move_freq': move_dict})
+    # add move_ratio
     df['move_ratio'] = df['move_freq']/df['freq']
-    sorted_df = df.sort_values(by=['move_ratio', 'freq'], ascending=False)
-    print(sorted_df)
+    # add min8, min16 pat
+    min8 = []
+    min16 = []
+    for i, row in df.iterrows():
+        min8.append(x33_trans8_min(row.name))
+        min16.append(x33_trans16_min(row.name))
+    assert df.shape[0] == len(min8) == len(min16), 'Size mismatch'
+    df['min8'] = min8
+    df['min16'] = min16
     df.to_csv(args.outfile)
+    print(df)

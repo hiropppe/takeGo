@@ -7,7 +7,7 @@ import sys
 import traceback
 import warnings
 
-from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove
+from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.go.board cimport S_BLACK, S_WHITE, PASS, OB_SIZE, BOARD_MAX
 from bamboo.go.board cimport POS, FLIP_COLOR
@@ -30,7 +30,7 @@ def _parse_sgf_move(node_value):
         return POS(x+OB_SIZE, y+OB_SIZE, board_size)
 
 
-cpdef convert_to_simple_sgf(sgf_string):
+cpdef min_sgf_extract(sgf_string):
     size = ''.join(re.findall(r'SZ\[.+?\]', sgf_string, flags=re.IGNORECASE))
     player = ''.join(re.findall(r'PL\[.+?\]', sgf_string, flags=re.IGNORECASE))
     kiryoku = ''.join(re.findall(r'[BW]R\[.+?\]', sgf_string, flags=re.IGNORECASE))
@@ -50,21 +50,22 @@ cdef class SGFMoveIterator:
         self.ignore_not_legal = ignore_not_legal
         self.verbose = verbose
 
-        sgf_string = convert_to_simple_sgf(sgf_string)
+        sgf_string = min_sgf_extract(sgf_string)
         try:
             collection = sgf.parse(sgf_string)
         except sgf.ParseException:
+            warnings.warn('ParseException\n{:s}\n'.format(sgf_string))
             if self.verbose:
                 err, msg, _ = sys.exc_info()
                 sys.stderr.write("{:s} {:s}\n{:s}".format(err, msg, sgf_string))
                 sys.stderr.write(traceback.format_exc())
-            else:
-                warnings.warn('ParseException\n{:s}\n'.format(sgf_string))
             raise
 
         sgf_game = collection[0]
+        if len(sgf_game.nodes) < 50:
+            raise TooFewMove(len(sgf_game.nodes))
         if len(sgf_game.nodes) > 500:
-            raise TooManyMove()
+            raise TooManyMove(len(sgf_game.nodes))
 
         self.sgf_init_game(sgf_game.root)
 

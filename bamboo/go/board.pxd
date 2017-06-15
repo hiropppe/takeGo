@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 cdef extern from "common.h":
-    int MAX(int x, int y)
-    int MIN(int x, int y)
+    int MAX(int x, int y) nogil
+    int MIN(int x, int y) nogil
 
 cdef extern from "ray.h":
     int PURE_BOARD_SIZE
@@ -66,9 +66,9 @@ cdef extern from "ray.h":
     ctypedef struct string_t:
         char color
         int libs
-        short *lib
+        short lib[483]
         int neighbors
-        short *neighbor
+        short neighbor[288]
         int origin
         int size
         bint flag

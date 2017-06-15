@@ -79,10 +79,12 @@ const int BOARD_END = (PURE_BOARD_SIZE + OB_SIZE - 1);  // 盤の終点
 
 const int STRING_LIB_MAX = (BOARD_SIZE * (PURE_BOARD_SIZE + OB_SIZE));  // 1つの連の持つ呼吸点の最大数
 const int STRING_POS_MAX = (BOARD_SIZE * (PURE_BOARD_SIZE + OB_SIZE));  // 連が持ちうる座標の最大値
+const int STRING_EMPTY_MAX = (BOARD_SIZE * (PURE_BOARD_SIZE + OB_SIZE));
 
 const int STRING_END = (STRING_POS_MAX - 1); // 連の終端を表す値
 const int NEIGHBOR_END = (MAX_NEIGHBOR - 1);  // 隣接する敵連の終端を表す値
 const int LIBERTY_END = (STRING_LIB_MAX - 1); // 呼吸点の終端を表す値
+const int STRING_EMPTY_END = (STRING_EMPTY_MAX - 1);
 
 const int MAX_RECORDS = (PURE_BOARD_MAX * 3); // 記録する着手の最大数 
 const int MAX_MOVES = (MAX_RECORDS - 1);      // 着手数の最大値
@@ -150,6 +152,8 @@ typedef struct {
     short lib[STRING_LIB_MAX];     // 連の持つ呼吸点の座標
     int neighbors;                 // 隣接する敵の連の数
     short neighbor[MAX_NEIGHBOR];  // 隣接する敵の連の連番号
+    int empties;                   // 連の周りの空座標数
+    short empty[STRING_EMPTY_MAX];   // 連の周りの空座標
     int origin;                    // 連の始点の座標
     int size;                      // 連を構成する石の数
     bool flag;                     // 連の存在フラグ
@@ -182,18 +186,12 @@ typedef struct {
     int candidates[BOARD_MAX];  // 候補手かどうかのフラグ 
 //  bool seki[BOARD_MAX];
   
-//  unsigned int tactical_features1[BOARD_MAX];  // 戦術的特徴 
-//  unsigned int tactical_features2[BOARD_MAX];  // 戦術的特徴 
-
     int capture_num[S_OB];                   // 前の着手で打ち上げた石の数
     int capture_pos[S_OB][PURE_BOARD_MAX];   // 前の着手で石を打ち上げた座標 
 
     int updated_string_num[S_OB];                // 前の着手で更新された連の数
     int updated_string_id[S_OB][STRING_POS_MAX]; // 前の着手で更新された連のID
 
-//  long long rate[2][BOARD_MAX];           // シミュレーション時の各座標のレート 
-//  long long sum_rate_row[2][BOARD_SIZE];  // シミュレーション時の各列のレートの合計値  
-//  long long sum_rate[2];                  // シミュレーション時の全体のレートの合計値
     bool rollout;
 } game_state_t;
 
