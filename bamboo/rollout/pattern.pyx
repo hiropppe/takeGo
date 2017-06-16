@@ -6,7 +6,7 @@ from libcpp.string cimport string as cppstring
 
 from bamboo.go.board cimport MIN
 from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, S_OB
-from bamboo.go.board cimport game_state_t, string_t, get_neighbor8
+from bamboo.go.board cimport game_state_t, string_t, get_neighbor8_in_order
 from bamboo.go.zobrist_hash cimport mt
 from bamboo.go.printer cimport print_board
 
@@ -74,7 +74,7 @@ cpdef void put_d12_hash(unsigned long long bits, int id):
 cpdef void put_x33_hash(unsigned long long bits, int id):
     cdef unsigned long long hash
     hash = x33_hash_from_bits(bits)
-    printf('put hash:%llu of bits:%llu as %d\n', hash, bits, id)
+    #printf('put hash:%llu of bits:%llu as %d\n', hash, bits, id)
     x33_hashmap[hash] = id
 
 
@@ -86,7 +86,7 @@ cdef unsigned long long x33_hash(game_state_t *game, int pos, int color) nogil e
     cdef unsigned long long x33_hash = 0
     cdef int i
 
-    get_neighbor8(neighbor8, pos)
+    get_neighbor8_in_order(neighbor8, pos)
 
     for i in range(8):
         neighbor_pos = neighbor8[i]
@@ -119,7 +119,7 @@ cdef unsigned long long x33_bits(game_state_t *game, int pos, int color) except?
     cdef int lib_pat = 0
     cdef int i
 
-    get_neighbor8(neighbor8, pos)
+    get_neighbor8_in_order(neighbor8, pos)
 
     for i in range(8):
         neighbor_pos = neighbor8[i]
@@ -212,33 +212,73 @@ cpdef unsigned long long x33_transp(unsigned long long pat):
     return ((pat & 0xC300C30) << 4) | ((pat & 0xC000C0) << 6) | ((pat & <unsigned long long>0xC300C300) >> 4) | ((pat & 0x30003000) >> 6) | (pat & <unsigned long long>0x3000F000F)
 
 
-cpdef void print_x33(unsigned long long pat3):
+cpdef void print_x33(unsigned long long pat3, bint show_bits=True, bint show_board=True):
     buf = []
     stone = ['+', 'B', 'W', '#']
     color = ['?', 'x', 'o']
     liberty = [0, 1, 2, 3]
-    buf.append("\n")
-    buf.append("{:s}{:s}{:s}    {:d}{:d}{:d}\n".format(
-        stone[(pat3 >> 18) & 0x3],
-        stone[(pat3 >> 20) & 0x3],
-        stone[(pat3 >> 22) & 0x3],
-        liberty[(pat3 >> 2) & 0x3],
-        liberty[(pat3 >> 4) & 0x3],
-        liberty[(pat3 >> 6) & 0x3]
-        ))
-    buf.append("{:s}{:s}{:s}    {:d} {:d}\n".format(
-        stone[(pat3 >> 24) & 0x3],
-        color[pat3 & 0x3],
-        stone[(pat3 >> 26) & 0x3],
-        liberty[(pat3 >> 8) & 0x3],
-        liberty[(pat3 >> 10) & 0x3]
-        ))
-    buf.append("{:s}{:s}{:s}    {:d}{:d}{:d}\n".format(
-        stone[(pat3 >> 28) & 0x3],
-        stone[(pat3 >> 30) & 0x3],
-        stone[(pat3 >> 32) & 0x3],
-        liberty[(pat3 >> 12) & 0x3],
-        liberty[(pat3 >> 14) & 0x3],
-        liberty[(pat3 >> 16) & 0x3]
-        ))
+    if show_bits:
+        buf.append("0b{:s}".format(bin(pat3)[2:].rjust(18, '0')))
+    if show_board:
+        if show_bits:
+            buf.append("\n")
+        buf.append("{:s}{:s}{:s}    {:d}{:d}{:d}\n".format(
+            stone[(pat3 >> 18) & 0x3],
+            stone[(pat3 >> 20) & 0x3],
+            stone[(pat3 >> 22) & 0x3],
+            liberty[(pat3 >> 2) & 0x3],
+            liberty[(pat3 >> 4) & 0x3],
+            liberty[(pat3 >> 6) & 0x3]
+            ))
+        buf.append("{:s}{:s}{:s}    {:d} {:d}\n".format(
+            stone[(pat3 >> 24) & 0x3],
+            color[pat3 & 0x3],
+            stone[(pat3 >> 26) & 0x3],
+            liberty[(pat3 >> 8) & 0x3],
+            liberty[(pat3 >> 10) & 0x3]
+            ))
+        buf.append("{:s}{:s}{:s}    {:d}{:d}{:d}\n".format(
+            stone[(pat3 >> 28) & 0x3],
+            stone[(pat3 >> 30) & 0x3],
+            stone[(pat3 >> 32) & 0x3],
+            liberty[(pat3 >> 12) & 0x3],
+            liberty[(pat3 >> 14) & 0x3],
+            liberty[(pat3 >> 16) & 0x3]
+            ))
     print(''.join(buf))
+
+
+cpdef void print_x33_trans8(unsigned long long pat, bint show_bits=True, bint show_board=True):
+    cdef unsigned long long trans[8]
+    cdef unsigned long long tmp_pat
+    cdef int i, j
+
+    x33_trans16(pat, trans)
+
+    for i in range(8):
+        for j in range(i+1, 8):
+            if trans[j] < trans[i]:
+                tmp = trans[j]
+                trans[j] = trans[i]
+                trans[i] = tmp
+
+    for i in range(8):
+        print_x33(trans[i], show_bits, show_board)
+
+
+cpdef void print_x33_trans16(unsigned long long pat, bint show_bits=True, bint show_board=True):
+    cdef unsigned long long trans[16]
+    cdef unsigned long long tmp_pat
+    cdef int i, j
+
+    x33_trans16(pat, trans)
+
+    for i in range(16):
+        for j in range(i+1, 16):
+            if trans[j] < trans[i]:
+                tmp = trans[j]
+                trans[j] = trans[i]
+                trans[i] = tmp
+
+    for i in range(16):
+        print_x33(trans[i], show_bits, show_board)

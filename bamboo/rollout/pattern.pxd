@@ -39,4 +39,7 @@ cpdef unsigned long long x33_fliplr(unsigned long long pat)
 cpdef unsigned long long x33_flipud(unsigned long long pat)
 cpdef unsigned long long x33_transp(unsigned long long pat)
 
-cpdef void print_x33(unsigned long long pat)
+cpdef void print_x33(unsigned long long pat, bint show_bits=?, bint show_board=?)
+cpdef void print_x33_trans8(unsigned long long pat, bint show_bits=?, bint show_board=?)
+cpdef void print_x33_trans16(unsigned long long pat, bint show_bits=?, bint show_board=?)
+

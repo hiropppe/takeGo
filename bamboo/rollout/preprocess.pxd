@@ -38,6 +38,8 @@ cdef class RolloutFeature:
 
     cdef void update_d12(self, game_state_t *game, int pos) nogil
 
+    cdef void clear_onehot_index(self, game_state_t *game, int pos) nogil
+
     """ function to generate sparse feature for training
     """
     cdef void update_lil(self, game_state_t *game, object lil_matrix)
@@ -49,7 +51,6 @@ cdef class RolloutFeature:
     cdef void update_3x3_lil(self, game_state_t *game, int pos, object lil_matrix)
 
     cdef void update_d12_lil(self, game_state_t *game, int pos, object lil_matrix)
-
 
     cdef void clear_updated_string_cache(self, game_state_t *game) nogil
 

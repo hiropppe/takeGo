@@ -196,6 +196,7 @@ cdef void remove_empty(string_t *string, int pos) nogil
 
 cdef void get_neighbor4(int neighbor4[4], int pos) nogil
 cdef void get_neighbor8(int neighbor8[8], int pos) nogil
+cdef void get_neighbor8_in_order(int neighbor8[8], int pos) nogil
 
 cdef void init_board_position()
 cdef void init_line_number()

@@ -12,8 +12,8 @@ from libc.stdio cimport printf
 from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.util cimport SGFMoveIterator
-from bamboo.go.board cimport PASS, CORRECT_X, CORRECT_Y, OB_SIZE
-from bamboo.go.board cimport game_state_t, string_t, liberty_end, board_size 
+from bamboo.go.board cimport PASS, CORRECT_X, CORRECT_Y, OB_SIZE, STRING_EMPTY_END
+from bamboo.go.board cimport game_state_t, string_t, board_size 
 from bamboo.go.board cimport allocate_game, free_game, onboard_index, set_board_size, initialize_board
 from bamboo.go.printer cimport print_board
 from bamboo.rollout.pattern cimport x33_bits, x33_trans8_min, x33_trans16_min, print_x33
@@ -48,8 +48,8 @@ def harvest_pattern(file_name, verbose=False):
                 for i in range(updated_string_num[0]):
                     string_id = updated_string_id[i]
                     string = &game.string[string_id]
-                    center = string.lib[0]
-                    while center != liberty_end:
+                    center = string.empty[0]
+                    while center != STRING_EMPTY_END:
                         pat = x33_bits(game, center, <int>game.current_color)
                         if pat3[onboard_index[center]] != pat:
                             pat3[onboard_index[center]] = pat
@@ -58,7 +58,7 @@ def harvest_pattern(file_name, verbose=False):
                                 move_dict[pat] += 1
                             else:
                                 move_dict[pat] += 0 
-                        center = string.lib[center]
+                        center = string.empty[center]
             updated_string_num[0] = 0
     except IllegalMove:
         warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))

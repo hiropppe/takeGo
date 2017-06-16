@@ -47,7 +47,9 @@ cdef class RolloutFeature:
         pass
 
     cdef void update(self, game_state_t *game) nogil:
-        cdef int pos, color
+        cdef int current_color = <int>game.current_color
+        cdef int prev_pos, prev_color
+        cdef int prev2_pos, prev2_color
         cdef int updated_string_num
         cdef int *updated_string_id
         cdef string_t *updated_string
@@ -57,16 +59,20 @@ cdef class RolloutFeature:
         if game.moves == 0:
             return
 
-        pos = game.record[game.moves - 1].pos
-        color = game.record[game.moves - 1].color
+        prev_pos = game.record[game.moves - 1].pos
+        self.clear_onehot_index(game, prev_pos)
+
+        if game.moves > 1:
+            prev2_pos = game.record[game.moves - 2].pos
+            self.clear_onehot_index(game, prev2_pos)
 
         # clear neighbor and response if passed ?
-        if pos != PASS:
-            self.update_neighbor(game, pos)
-            self.update_d12(game, pos)
+        if prev_pos != PASS:
+            self.update_neighbor(game, prev_pos)
+            self.update_d12(game, prev_pos)
 
-        updated_string_num = game.updated_string_num[color]
-        updated_string_id = game.updated_string_id[color]
+        updated_string_num = game.updated_string_num[current_color]
+        updated_string_id = game.updated_string_id[current_color]
         for i in range(updated_string_num):
             updated_string = &game.string[updated_string_id[i]]
             self.update_save_atari(game, updated_string)
@@ -77,6 +83,15 @@ cdef class RolloutFeature:
 
         # clear updated string memo for next feature calculation
         self.clear_updated_string_cache(game)
+
+    cdef void clear_onehot_index(self, game_state_t *game, int pos) nogil:
+        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
+        if pos != PASS:
+            feature.tensor[onboard_index[pos]][RESPONSE] = -1 
+            feature.tensor[onboard_index[pos]][SAVE_ATARI] = -1 
+            feature.tensor[onboard_index[pos]][NAKADE] = -1 
+            feature.tensor[onboard_index[pos]][RESPONSE_PAT] = -1 
+            feature.tensor[onboard_index[pos]][NON_RESPONSE_PAT] = -1 
 
     cdef void update_3x3(self, game_state_t *game, int pos) nogil:
         """ Move matches 3 × 3 pattern around move

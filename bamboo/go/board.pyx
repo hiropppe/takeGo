@@ -590,6 +590,17 @@ cdef void get_neighbor8(int neighbor8[8], int pos) nogil:
     neighbor8[7] = SOUTH_EAST(pos, board_size)
 
 
+cdef void get_neighbor8_in_order(int neighbor8[8], int pos) nogil:
+    neighbor8[0] = NORTH_WEST(pos, board_size)
+    neighbor8[1] = NORTH(pos, board_size)
+    neighbor8[2] = NORTH_EAST(pos, board_size)
+    neighbor8[3] = WEST(pos)
+    neighbor8[4] = EAST(pos)
+    neighbor8[5] = SOUTH_WEST(pos, board_size)
+    neighbor8[6] = SOUTH(pos, board_size)
+    neighbor8[7] = SOUTH_EAST(pos, board_size)
+
+
 cdef void init_board_position():
     cdef int i, x, y, p,
     cdef int neighbor4[4]
