@@ -45,3 +45,9 @@ class TestCBoard(unittest.TestCase):
 
     def test_is_legal_nb4_empty_is_zero(self):
         test_board.test_is_legal_nb4_empty_is_zero()
+
+    def test_string_add_and_remove_empty(self):
+        test_board.test_string_add_and_remove_empty()
+
+    def test_string_merge_empty(self):
+        test_board.test_string_merge_empty()

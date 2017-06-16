@@ -16,9 +16,11 @@ cdef extern from "ray.h":
     int BOARD_END
     int STRING_LIB_MAX
     int STRING_POS_MAX
+    int STRING_EMPTY_MAX
     int STRING_END
     int NEIGHBOR_END
     int LIBERTY_END
+    int STRING_EMPTY_END
     int MAX_RECORDS
     int MAX_MOVES
     int PASS
@@ -69,6 +71,8 @@ cdef extern from "ray.h":
         short lib[483]
         int neighbors
         short neighbor[288]
+        int empties
+        short empty[483]
         int origin
         int size
         bint flag
@@ -186,8 +190,13 @@ cdef int add_liberty(string_t *string, int pos, int head) nogil
 cdef void remove_liberty(string_t *string, int pos) nogil
 cdef void add_neighbor(string_t *string, int id, int head) nogil
 cdef void remove_neighbor_string(string_t *string, int id) nogil
+
+cdef int add_empty(string_t *string, int pos, int head) nogil
+cdef void remove_empty(string_t *string, int pos) nogil
+
 cdef void get_neighbor4(int neighbor4[4], int pos) nogil
 cdef void get_neighbor8(int neighbor8[8], int pos) nogil
+
 cdef void init_board_position()
 cdef void init_line_number()
 cdef void init_move_distance()

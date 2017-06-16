@@ -68,7 +68,14 @@ def test_update_0():
 
     feature.update(game)
 
+    ok_(white.tensor[pure_moves['a']-10][NON_RESPONSE_PAT] == feature.x33_start) 
     ok_(white.tensor[pure_moves['a']-9][NON_RESPONSE_PAT] == feature.x33_start) 
+    ok_(white.tensor[pure_moves['a']-8][NON_RESPONSE_PAT] == feature.x33_start) 
+    ok_(white.tensor[pure_moves['a']-1][NON_RESPONSE_PAT] == feature.x33_start) 
+    ok_(white.tensor[pure_moves['a']+1][NON_RESPONSE_PAT] == feature.x33_start) 
+    ok_(white.tensor[pure_moves['a']+8][NON_RESPONSE_PAT] == feature.x33_start) 
+    ok_(white.tensor[pure_moves['a']+9][NON_RESPONSE_PAT] == feature.x33_start) 
+    ok_(white.tensor[pure_moves['a']+10][NON_RESPONSE_PAT] == feature.x33_start) 
 
     print_board(game)
 

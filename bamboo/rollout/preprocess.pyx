@@ -10,7 +10,7 @@ cimport numpy as np
 
 from scipy.sparse import lil_matrix, csr_matrix
 
-from bamboo.go.board cimport PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS 
+from bamboo.go.board cimport PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END 
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport game_state_t, pure_board_max, onboard_index, onboard_pos, liberty_end
 from bamboo.go.board cimport get_neighbor4, get_neighbor8
@@ -70,10 +70,10 @@ cdef class RolloutFeature:
         for i in range(updated_string_num):
             updated_string = &game.string[updated_string_id[i]]
             self.update_save_atari(game, updated_string)
-            update_pos = updated_string.lib[0]
-            while update_pos != liberty_end:
+            update_pos = updated_string.empty[0]
+            while update_pos != STRING_EMPTY_END:
                 self.update_3x3(game, update_pos)
-                update_pos = updated_string.lib[update_pos]
+                update_pos = updated_string.empty[update_pos]
 
         # clear updated string memo for next feature calculation
         self.clear_updated_string_cache(game)

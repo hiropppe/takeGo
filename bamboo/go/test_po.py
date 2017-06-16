@@ -1,3 +1,3 @@
-import board
+from bamboo.go.board import test_playout
 
-board.test_playout()
+test_playout()

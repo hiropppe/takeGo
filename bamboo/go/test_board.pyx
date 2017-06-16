@@ -7,6 +7,8 @@ cimport printer
 cimport parseboard
 cimport pattern as pat
 
+from bamboo.go.board cimport STRING_EMPTY_END
+
 
 def test_set_board_size_9():
     board.set_board_size(9)
@@ -122,18 +124,17 @@ def test_make_string_of_isolated_one():
 
     pos = board.POS(4, 4, board.board_size)
     board.make_string(game, pos, board.S_BLACK)
-
     new_string = &game.string[1]
 
-    ok_(new_string.lib[0] == pos - board.board_size)
-    ok_(new_string.lib[pos - board.board_size] == pos - 1)
-    ok_(new_string.lib[pos - 1] == pos + 1)
-    ok_(new_string.lib[pos + 1] == pos + board.board_size)
-    ok_(new_string.lib[pos + board.board_size] == board.string_lib_max - 1)
-    ok_(new_string.libs == 4)
+    eq_(new_string.lib[0], pos - board.board_size)
+    eq_(new_string.lib[pos - board.board_size], pos - 1)
+    eq_(new_string.lib[pos - 1], pos + 1)
+    eq_(new_string.lib[pos + 1], pos + board.board_size)
+    eq_(new_string.lib[pos + board.board_size], board.string_lib_max - 1)
+    eq_(new_string.libs, 4)
 
-    ok_(game.string_id[pos] == 1)
-    ok_(game.string_next[pos] == board.string_pos_max - 1)
+    eq_(game.string_id[pos], 1)
+    eq_(game.string_next[pos], board.string_pos_max - 1)
 
     board.free_game(game)
 
@@ -357,6 +358,212 @@ def test_is_legal_nb4_empty_is_zero():
     game.current_color = board.S_BLACK
 
     eq_(board.is_legal(game, moves['a'], board.S_WHITE), False)
+    board.free_game(game)
+
+
+def test_string_add_and_remove_empty():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                                 ". . . . . . .|"
+                                 ". . . . . . .|"
+                                 ". . . . d . .|"
+                                 ". . c a . . .|"
+                                 ". . . b . . .|"
+                                 ". . . . . . .|"
+                                 ". . . . . . .|")
+
+    # put B[a]
+    a = moves['a']
+    board.put_stone(game, a, board.S_BLACK)
+    string1 = &game.string[1]
+    eq_(string1.empties, 8)
+    eq_(string1.empty[0], a-board.board_size)
+    eq_(string1.empty[a-board.board_size], a-1)
+    eq_(string1.empty[a-1], a+1)
+    eq_(string1.empty[a+1], a+board.board_size)
+    eq_(string1.empty[a+board.board_size], a-board.board_size-1)
+    eq_(string1.empty[a-board.board_size-1], a-board.board_size+1)
+    eq_(string1.empty[a-board.board_size+1], a+board.board_size-1)
+    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
+    eq_(string1.empty[a+board.board_size+1], STRING_EMPTY_END)
+
+    # put B[b]
+    b = moves['b']
+    board.put_stone(game, b, board.S_BLACK)
+    eq_(string1.empties, 10)
+    eq_(string1.empty[0], a-board.board_size)
+    eq_(string1.empty[a-board.board_size], a-1)
+    eq_(string1.empty[a-1], a+1)
+    eq_(string1.empty[a+1], a-board.board_size-1)
+    eq_(string1.empty[a-board.board_size-1], a+board.board_size*2-1)
+    eq_(string1.empty[a+board.board_size*2-1], a-board.board_size+1)
+    eq_(string1.empty[a-board.board_size+1], a+board.board_size*2+1)
+    eq_(string1.empty[a+board.board_size*2+1], a+board.board_size-1)
+    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
+    eq_(string1.empty[a+board.board_size+1], a+board.board_size*2)
+    eq_(string1.empty[a+board.board_size*2], STRING_EMPTY_END)
+
+    # put W[c]
+    c = moves['c']
+    board.put_stone(game, c, board.S_WHITE)
+    eq_(string1.empties, 9)
+    eq_(string1.empty[0], a-board.board_size)
+    eq_(string1.empty[a-board.board_size], a+1)
+    eq_(string1.empty[a+1], a-board.board_size-1)
+    eq_(string1.empty[a-board.board_size-1], a+board.board_size*2-1)
+    eq_(string1.empty[a+board.board_size*2-1], a-board.board_size+1)
+    eq_(string1.empty[a-board.board_size+1], a+board.board_size*2+1)
+    eq_(string1.empty[a+board.board_size*2+1], a+board.board_size-1)
+    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
+    eq_(string1.empty[a+board.board_size+1], a+board.board_size*2)
+    eq_(string1.empty[a+board.board_size*2], STRING_EMPTY_END)
+    string2 = &game.string[2]
+    eq_(string2.empties, 6)
+    eq_(string2.empty[0], c-board.board_size)
+    eq_(string2.empty[c-board.board_size], c-1)
+    eq_(string2.empty[c-1], c+board.board_size)
+    eq_(string2.empty[c+board.board_size], c-board.board_size-1)
+    eq_(string2.empty[c-board.board_size-1], c-board.board_size+1)
+    eq_(string2.empty[c-board.board_size+1], c+board.board_size-1)
+    eq_(string2.empty[c+board.board_size-1], STRING_EMPTY_END)
+
+    # put W[d]
+    d = moves['d']
+    board.put_stone(game, d, board.S_WHITE)
+    eq_(string1.empties, 8)
+    eq_(string1.empty[0], a-board.board_size)
+    eq_(string1.empty[a-board.board_size], a+1)
+    eq_(string1.empty[a+1], a-board.board_size-1)
+    eq_(string1.empty[a-board.board_size-1], a+board.board_size*2-1)
+    eq_(string1.empty[a+board.board_size*2-1], a+board.board_size*2+1)
+    eq_(string1.empty[a+board.board_size*2+1], a+board.board_size-1)
+    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
+    eq_(string1.empty[a+board.board_size+1], a+board.board_size*2)
+    eq_(string1.empty[a+board.board_size*2], STRING_EMPTY_END)
+    string3 = &game.string[3]
+    eq_(string3.empties, 7)
+    eq_(string3.empty[0], d-board.board_size)
+    eq_(string3.empty[d-board.board_size], d-1)
+    eq_(string3.empty[d-1], d+1)
+    eq_(string3.empty[d+1], d+board.board_size)
+    eq_(string3.empty[d+board.board_size], d-board.board_size-1)
+    eq_(string3.empty[d-board.board_size-1], d-board.board_size+1)
+    eq_(string3.empty[d-board.board_size+1], d+board.board_size+1)
+    eq_(string3.empty[d+board.board_size+1], STRING_EMPTY_END)
+
+
+def test_string_merge_empty():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                                 ". . . . . . .|"
+                                 ". . . . . . .|"
+                                 ". . . d . . .|"
+                                 ". . . a . . .|"
+                                 ". . b e c . .|"
+                                 ". . . . . . .|"
+                                 ". . . . . . .|")
+
+    # put B[a]
+    a = moves['a']
+    board.put_stone(game, a, board.S_BLACK)
+    string1 = &game.string[1]
+    eq_(string1.empties, 8)
+    eq_(string1.empty[0], a-board.board_size)
+    eq_(string1.empty[a-board.board_size], a-1)
+    eq_(string1.empty[a-1], a+1)
+    eq_(string1.empty[a+1], a+board.board_size)
+    eq_(string1.empty[a+board.board_size], a-board.board_size-1)
+    eq_(string1.empty[a-board.board_size-1], a-board.board_size+1)
+    eq_(string1.empty[a-board.board_size+1], a+board.board_size-1)
+    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
+    eq_(string1.empty[a+board.board_size+1], STRING_EMPTY_END)
+
+    # put B[b]
+    b = moves['b']
+    board.put_stone(game, b, board.S_BLACK)
+    string2 = &game.string[2]
+    eq_(string2.empties, 7)
+    eq_(string2.empty[0], b-board.board_size)
+    eq_(string2.empty[b-board.board_size], b-1)
+    eq_(string2.empty[b-1], b+1)
+    eq_(string2.empty[b+1], b+board.board_size)
+    eq_(string2.empty[b+board.board_size], b-board.board_size-1)
+    eq_(string2.empty[b-board.board_size-1], b+board.board_size-1)
+    eq_(string2.empty[b+board.board_size-1], b+board.board_size+1)
+    eq_(string1.empties, 7)
+    eq_(string1.empty[0], a-board.board_size)
+    eq_(string1.empty[a-board.board_size], a-1)
+    eq_(string1.empty[a-1], a+1)
+    eq_(string1.empty[a+1], a+board.board_size)
+    eq_(string1.empty[a+board.board_size], a-board.board_size-1)
+    eq_(string1.empty[a-board.board_size-1], a-board.board_size+1)
+    eq_(string1.empty[a-board.board_size+1], a+board.board_size+1)
+    eq_(string1.empty[a+board.board_size+1], STRING_EMPTY_END)
+    eq_(string1.empty[a+board.board_size-1], 0) # removed by 'b'
+
+    # put B[c]
+    c = moves['c']
+    board.put_stone(game, c, board.S_BLACK)
+    string3 = &game.string[3]
+    eq_(string3.empties, 7)
+    eq_(string3.empty[0], c-board.board_size)
+    eq_(string3.empty[c-board.board_size], c-1)
+    eq_(string3.empty[c-1], c+1)
+    eq_(string3.empty[c+1], c+board.board_size)
+    eq_(string3.empty[c+board.board_size], c-board.board_size+1)
+    eq_(string3.empty[c-board.board_size+1], c+board.board_size-1)
+    eq_(string3.empty[c+board.board_size-1], c+board.board_size+1)
+    eq_(string1.empties, 6)
+    eq_(string1.empty[0], a-board.board_size)
+    eq_(string1.empty[a-board.board_size], a-1)
+    eq_(string1.empty[a-1], a+1)
+    eq_(string1.empty[a+1], a+board.board_size)
+    eq_(string1.empty[a+board.board_size], a-board.board_size-1)
+    eq_(string1.empty[a-board.board_size-1], a-board.board_size+1)
+    eq_(string1.empty[a-board.board_size+1], STRING_EMPTY_END)
+    eq_(string1.empty[a+board.board_size-1], 0) # removed by 'c'
+
+    # put B[d]
+    d = moves['d']
+    board.put_stone(game, d, board.S_BLACK)
+    string1 = &game.string[1]
+    eq_(string1.empties, 8)
+    eq_(string1.empty[0], d-board.board_size)
+    eq_(string1.empty[d-board.board_size], d+board.board_size-1)
+    eq_(string1.empty[d+board.board_size-1], d+board.board_size+1)
+    eq_(string1.empty[d+board.board_size+1], d+board.board_size*2)
+    eq_(string1.empty[d+board.board_size*2], d-1)
+    eq_(string1.empty[d-1], d+1)
+    eq_(string1.empty[d+1], d-board.board_size-1)
+    eq_(string1.empty[d-board.board_size-1], d-board.board_size+1)
+    eq_(string1.empty[d-board.board_size+1], STRING_EMPTY_END)
+
+    # put B[e]
+    e = moves['e']
+    board.put_stone(game, e, board.S_BLACK)
+    string1 = &game.string[1]
+    eq_(string1.empties, 16)
+    eq_(string1.empty[0], e+board.board_size)
+    eq_(string1.empty[e+board.board_size], e-board.board_size*3)
+    eq_(string1.empty[e-board.board_size*3], e+board.board_size+2)
+    eq_(string1.empty[e+board.board_size+2], e-board.board_size-1)
+    eq_(string1.empty[e-board.board_size-1], e-2)
+    eq_(string1.empty[e-2], e-board.board_size+1)
+    eq_(string1.empty[e-board.board_size+1], e-board.board_size*2-1)
+    eq_(string1.empty[e-board.board_size*2-1], e+2)
+    eq_(string1.empty[e+2], e+board.board_size-1)
+    eq_(string1.empty[e+board.board_size-1], e-board.board_size*2+1)
+    eq_(string1.empty[e-board.board_size*2+1], e-board.board_size*3-1)
+    eq_(string1.empty[e-board.board_size*3-1], e-board.board_size-2)
+    eq_(string1.empty[e-board.board_size-2], e+board.board_size-2)
+    eq_(string1.empty[e+board.board_size-2], e+board.board_size+1)
+    eq_(string1.empty[e-board.board_size*3+1], e-board.board_size+2)
+    eq_(string1.empty[e-board.board_size+2], STRING_EMPTY_END)
+
+    eq_(string1.flag, True)
+    eq_(string2.flag, False)
+    eq_(string3.flag, False)
+
     board.free_game(game)
 
 
