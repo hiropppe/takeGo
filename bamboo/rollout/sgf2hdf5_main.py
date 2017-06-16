@@ -47,7 +47,7 @@ def run_game_converter(cmd_line_args=None):
     else:
         files = (f.strip() for f in sys.stdin if _is_sgf(f))
 
-    converter.sgfs_to_hdf5(files, args.outfile, verbose=args.verbose)
+    converter.sgfs_to_onehot_index_array(files, args.outfile, verbose=args.verbose)
 
 
 if __name__ == '__main__':
