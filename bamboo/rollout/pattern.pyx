@@ -49,17 +49,16 @@ cpdef int init_d12_hash(object d12_csv):
 cpdef int init_x33_hash(object x33_csv):
     cdef unordered_map[unsigned long long, int] x33_id_map
     cdef int x33_id_max = 0
-
+    cdef unsigned long long x33_hash, x33_min_hash
     x33_df = pd.read_csv(x33_csv, index_col=0)
-    for ix, row in x33_df.iterrows():
+    for bits, row in x33_df.iterrows():
+        x33_hash = x33_hash_from_bits(bits)
         x33_min_hash = x33_hash_from_bits(row['min16'])
         if x33_id_map.find(x33_min_hash) == x33_id_map.end():
             x33_id_map[x33_min_hash] = x33_id_max
             x33_id_max += 1
-        x33_hashmap[ix] = x33_id_map[x33_min_hash]
-
+        x33_hashmap[x33_hash] = x33_id_map[x33_min_hash]
     printf('3x3 pattern loaded. #%d\n', x33_id_max+1)
-
     return x33_id_max + 1
 
 

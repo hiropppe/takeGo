@@ -22,6 +22,7 @@ from bamboo.go.board cimport game_state_t, pure_board_size, set_board_size, pure
 from bamboo.rollout.pattern cimport initialize_hash, init_nakade_hash, init_x33_hash, init_d12_hash
 from bamboo.rollout.preprocess cimport RolloutFeature, rollout_feature_t
 from bamboo.go.printer cimport print_board
+from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
 
 
 cdef class GameConverter(object):
@@ -40,17 +41,17 @@ cdef class GameConverter(object):
         self.x33_size = init_x33_hash(x33_file)
         self.d12_size = init_d12_hash(d12_file)
 
-        self.preprocessor = RolloutFeature(self.nakade_size,
-                                           self.x33_size,
-                                           self.d12_size)
-        self.n_features = self.preprocessor.feature_size
-
     def __dealloc__(self):
         pass
 
     def convert_game_as_csr_matrix(self, file_name, verbose=False):
         cdef game_state_t *game
         cdef SGFMoveIterator sgf_iter
+
+        self.preprocessor = RolloutFeature(self.nakade_size,
+                                           self.x33_size,
+                                           self.d12_size)
+        self.n_features = self.preprocessor.feature_size
 
         with open(file_name, 'r') as file_object:
             sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
@@ -82,6 +83,10 @@ cdef class GameConverter(object):
         cdef SGFMoveIterator sgf_iter
         cdef rollout_feature_t *feature
 
+        self.preprocessor = RolloutFeature(self.nakade_size,
+                                           self.x33_size,
+                                           self.d12_size)
+
         with open(file_name, 'r') as file_object:
             sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
 
@@ -112,10 +117,10 @@ cdef class GameConverter(object):
             states = h5f.require_dataset(
                 'states',
                 dtype=np.uint8,
-                shape=(1, PURE_BOARD_MAX, self.n_features),
-                maxshape=(None, PURE_BOARD_MAX, self.n_features),  # 'None' == arbitrary size
+                shape=(1, PURE_BOARD_MAX, 6),
+                maxshape=(None, PURE_BOARD_MAX, 6),  # 'None' == arbitrary size
                 exact=False,  # allow non-uint8 datasets to be loaded, coerced to uint8
-                chunks=(64, PURE_BOARD_MAX, self.n_features),  # approximately 1MB chunks
+                chunks=(64, PURE_BOARD_MAX, 6),  # approximately 1MB chunks
                 compression="lzf")
             actions = h5f.require_dataset(
                 'actions',
@@ -140,11 +145,17 @@ cdef class GameConverter(object):
             for file_name in tqdm(sgf_files):
                 if verbose:
                     print(file_name)
-                # count number of state/action pairs yielded by this game
                 n_pairs = 0
+                file_start_idx = next_idx
                 try:
-                    for state, move in self.convert_game(file_name):
-                        pass
+                    for state, move in self.convert_game_as_onehot_index_array(file_name):
+                        if next_idx >= len(states):
+                            states.resize((next_idx + 1, PURE_BOARD_MAX, 6))
+                            actions.resize((next_idx + 1, 1))
+                        states[next_idx] = state
+                        actions[next_idx] = move
+                        n_pairs += 1
+                        next_idx += 1
                 except sgf.ParseException:
                     n_parse_error += 1
                     warnings.warn('ParseException. {:s}'.format(file_name))
@@ -164,6 +175,10 @@ cdef class GameConverter(object):
                     break
                 finally:
                     if n_pairs > 0:
+                        # '/' has special meaning in HDF5 key names, so they
+                        # are replaced with ':' here
+                        file_name_key = file_name.replace('/', ':')
+                        file_offsets[file_name_key] = [file_start_idx, n_pairs]
                         if verbose:
                             print("\t%d state/action pairs extracted" % n_pairs)
                     elif verbose:
