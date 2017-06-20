@@ -25,7 +25,7 @@ cdef unsigned long long pat3[361]
 freq_dict = defaultdict(int)
 move_dict = defaultdict(int)
 
-def harvest_pattern(file_name, verbose=False):    
+def harvest_pattern(file_name, verbose=False, quiet=False):    
     cdef game_state_t *game
     cdef SGFMoveIterator sgf_iter
     cdef int *updated_string_num
@@ -61,7 +61,8 @@ def harvest_pattern(file_name, verbose=False):
                         center = string.empty[center]
             updated_string_num[0] = 0
     except IllegalMove:
-        warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
+        if not quiet:
+            warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
         if verbose:
             err, msg, _ = sys.exc_info()
             sys.stderr.write("{} {}\n".format(err, msg))
@@ -76,6 +77,7 @@ def main(cmd_line_args=None):
     parser.add_argument("--directory", "-d", help="Directory containing SGF files to process. if not present, expects files from stdin", default=None)  # noqa: E501
     parser.add_argument("--recurse", "-R", help="Set to recurse through directories searching for SGF files", default=False, action="store_true")  # noqa: E501
     parser.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
+    parser.add_argument("--quiet", "-q", help="Turn on quiet mode", default=False, action="store_true")  # noqa: E501
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -84,6 +86,14 @@ def main(cmd_line_args=None):
 
     def _is_sgf(fname):
         return fname.strip()[-4:] == ".sgf"
+
+    def _count_all_sgfs(root):
+        count = 0
+        for (dirpath, dirname, files) in os.walk(root):
+            for filename in files:
+                if _is_sgf(filename):
+                    count += 1
+        return count
 
     def _walk_all_sgfs(root):
         """a helper function/generator to get all SGF files in subdirectories of root
@@ -99,11 +109,13 @@ def main(cmd_line_args=None):
         return [os.path.join(path, f) for f in files if _is_sgf(f)]
 
     if args.directory:
+        sgf_total = _count_all_sgfs(args.directory)
         if args.recurse:
             sgf_files = _walk_all_sgfs(args.directory)
         else:
             sgf_files = _list_sgfs(args.directory)
     else:
+        sgf_total = 1
         sgf_files = [f.strip() for f in sys.stdin if _is_sgf(f)]
 
     n_parse_error = 0
@@ -111,12 +123,15 @@ def main(cmd_line_args=None):
     n_too_few_move = 0
     n_too_many_move = 0
     n_other_error = 0
-    for i, sgf_file in tqdm(enumerate(sgf_files)):
+    pbar = tqdm(total=sgf_total)
+    for i, sgf_file in enumerate(sgf_files):
+        pbar.update(1)
         try:
-            harvest_pattern(sgf_file)
+            harvest_pattern(sgf_file, verbose=args.verbose, quiet=args.quiet)
         except sgf.ParseException:
             n_parse_error += 1
-            warnings.warn('ParseException. {:s}'.format(sgf_file))
+            if not args.quiet:
+                warnings.warn('ParseException. {:s}'.format(sgf_file))
             if args.verbose:
                 err, msg, _ = sys.exc_info()
                 sys.stderr.write("{} {}\n".format(err, msg))
@@ -125,15 +140,18 @@ def main(cmd_line_args=None):
             n_not19 += 1
         except TooFewMove as e:
             n_too_few_move += 1
-            warnings.warn('Too few move. {:d} less than 50. {:s}'.format(e.n_moves, sgf_file))
+            if not args.quiet:
+                warnings.warn('Too few move. {:d} less than 50. {:s}'.format(e.n_moves, sgf_file))
         except TooManyMove as e:
             n_too_many_move += 1
-            warnings.warn('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, sgf_file))
+            if not args.quiet:
+                warnings.warn('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, sgf_file))
         except KeyboardInterrupt:
             break
         except:
             n_other_error += 1
-            warnings.warn('Unexpected error. {:s}'.format(sgf_file))
+            if not args.quiet:
+                warnings.warn('Unexpected error. {:s}'.format(sgf_file))
             if args.verbose:
                 err, msg, _ = sys.exc_info()
                 sys.stderr.write("{} {}\n".format(err, msg))

@@ -21,6 +21,9 @@ def run_game_converter(cmd_line_args=None):
     parser.add_argument("--x33_file", "-x33", help="3x3 pattern file", default=None)
     parser.add_argument("--d12_file", "-d12", help="12 point diamond pattern file", default=None)
     parser.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
+    parser.add_argument("--quiet", "-q", help="Turn on quiet mode", default=False, action="store_true")  # noqa: E501
+    parser.add_argument("--matrix", "-m", type=str, default='onehot-board', choices=['onehot-board', 'onehot-array', 'csr'],
+                        help="Choice output matrix type (Default: onehot-board)")
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -47,7 +50,12 @@ def run_game_converter(cmd_line_args=None):
     else:
         files = (f.strip() for f in sys.stdin if _is_sgf(f))
 
-    converter.sgfs_to_onehot_index_array(files, args.outfile, verbose=args.verbose)
+    if args.matrix == 'onehot-board':
+        converter.sgfs_to_onehot_index_board(files, args.outfile, verbose=args.verbose, quiet=args.quiet)
+    elif args.matrix == 'onehot-array':
+        converter.sgfs_to_onehot_index_array(files, args.outfile, verbose=args.verbose, quiet=args.quiet)
+    else:
+        converter.sgfs_to_csr_matrix(files, args.outfile, verbose=args.verbose, quiet=args.quiet)
 
 
 if __name__ == '__main__':

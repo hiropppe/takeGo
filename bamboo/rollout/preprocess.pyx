@@ -67,15 +67,18 @@ cdef class RolloutFeature:
             self.clear_onehot_index(game, prev2_pos)
 
         # clear neighbor and response if passed ?
+        """
         if prev_pos != PASS:
             self.update_neighbor(game, prev_pos)
             self.update_d12(game, prev_pos)
-
+        """
         updated_string_num = game.updated_string_num[current_color]
         updated_string_id = game.updated_string_id[current_color]
         for i in range(updated_string_num):
             updated_string = &game.string[updated_string_id[i]]
+            """
             self.update_save_atari(game, updated_string)
+            """
             update_pos = updated_string.empty[0]
             while update_pos != STRING_EMPTY_END:
                 self.update_3x3(game, update_pos)
@@ -87,11 +90,11 @@ cdef class RolloutFeature:
     cdef void clear_onehot_index(self, game_state_t *game, int pos) nogil:
         cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
         if pos != PASS:
-            feature.tensor[onboard_index[pos]][RESPONSE] = -1 
-            feature.tensor[onboard_index[pos]][SAVE_ATARI] = -1 
-            feature.tensor[onboard_index[pos]][NAKADE] = -1 
-            feature.tensor[onboard_index[pos]][RESPONSE_PAT] = -1 
-            feature.tensor[onboard_index[pos]][NON_RESPONSE_PAT] = -1 
+            feature.tensor[RESPONSE][onboard_index[pos]] = -1 
+            feature.tensor[SAVE_ATARI][onboard_index[pos]] = -1 
+            feature.tensor[NAKADE][onboard_index[pos]] = -1 
+            feature.tensor[RESPONSE_PAT][onboard_index[pos]] = -1 
+            feature.tensor[NON_RESPONSE_PAT][onboard_index[pos]] = -1 
 
     cdef void update_3x3(self, game_state_t *game, int pos) nogil:
         """ Move matches 3 × 3 pattern around move
@@ -103,11 +106,10 @@ cdef class RolloutFeature:
         hash = x33_hash(game, pos, <int>game.current_color)
         if x33_hashmap.find(hash) != x33_hashmap.end():
             pat_ix = self.x33_start + x33_hashmap[hash]
-            feature.tensor[onboard_index[pos]][NON_RESPONSE_PAT] = pat_ix
+            feature.tensor[NON_RESPONSE_PAT][onboard_index[pos]] = pat_ix
 
     cdef void update_d12(self, game_state_t *game, int pos) nogil:
         """ Move matches 12-point diamond pattern near previous move
-        """
         cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
         cdef int i
         cdef int d12[12]
@@ -124,7 +126,9 @@ cdef class RolloutFeature:
 
         for i in range(12):
             if d12[i] == S_EMPTY:
-                feature.tensor[onboard_index[d12[i]]][RESPONSE_PAT] = pat_id
+                feature.tensor[RESPONSE_PAT][onboard_index[d12[i]]] = pat_id
+        """
+        pass
 
     cdef void update_save_atari(self, game_state_t *game, string_t *string) nogil:
         """ Save atari 1 Move saves stone(s) from capture
@@ -155,7 +159,7 @@ cdef class RolloutFeature:
                     break
 
             if flag:
-                feature.tensor[onboard_index[string.lib[0]]][SAVE_ATARI] = self.save_atari_start 
+                feature.tensor[SAVE_ATARI][onboard_index[string.lib[0]]] = self.save_atari_start 
 
     cdef void update_neighbor(self, game_state_t *game, int pos) nogil:
         """ Move is 8-connected to previous move
@@ -171,12 +175,12 @@ cdef class RolloutFeature:
             if feature.is_neighbor8_set:
                 # unset previous neighbor8
                 if feature.prev_neighbor8[i] != -1:
-                    feature.tensor[feature.prev_neighbor8[i]][NEIGHBOR] = self.neighbor_start + i
+                    feature.tensor[NEIGHBOR][feature.prev_neighbor8[i]] = self.neighbor_start + i
 
             neighbor_pos = neighbor8[i]
             if game.board[neighbor_pos] != S_OB:
                 neighbor_i = onboard_index[neighbor_pos]
-                feature.tensor[neighbor_i][NEIGHBOR] = self.neighbor_start + i
+                feature.tensor[NEIGHBOR][neighbor_i] = self.neighbor_start + i
                 feature.prev_neighbor8[i] = neighbor_i
             else:
                 feature.prev_neighbor8[i] = -1
@@ -184,8 +188,12 @@ cdef class RolloutFeature:
         feature.is_neighbor8_set = True
 
     cdef void update_lil(self, game_state_t *game, object lil_matrix):
+        """ Direct update sparse feature.
+            !! Too slow
+        """
         cdef int current_color = <int>game.current_color
-        cdef int pos, color
+        cdef int prev_pos, prev_color
+        cdef int prev2_pos, prev2_color
         cdef int updated_string_num
         cdef int *updated_string_id
         cdef string_t *updated_string
@@ -196,7 +204,11 @@ cdef class RolloutFeature:
             return
 
         pos = game.record[game.moves - 1].pos
-        color = game.record[game.moves - 1].color
+        self.clear_onehot_lil_index(game, pos, lil_matrix)
+
+        if game.moves > 1:
+            prev2_pos = game.record[game.moves - 2].pos
+            self.clear_onehot_lil_index(game, prev2_pos, lil_matrix)
 
         # clear neighbor and response if passed ?
         """
@@ -211,28 +223,33 @@ cdef class RolloutFeature:
             """
             self.update_save_atari_lil(game, updated_string, lil_matrix)
             """
-            update_pos = updated_string.lib[0]
-            while update_pos != liberty_end:
+            update_pos = updated_string.empty[0]
+            while update_pos != STRING_EMPTY_END:
                 self.update_3x3_lil(game, update_pos, lil_matrix)
-                update_pos = updated_string.lib[update_pos]
+                update_pos = updated_string.empty[update_pos]
 
         # clear updated string memo for next feature calculation
         self.clear_updated_string_cache(game)
+
+    cdef void clear_onehot_lil_index(self, game_state_t *game, int pos, object lil_matrix):
+        if pos != PASS:
+            lil_matrix[:, onboard_index[pos]] = 0
 
     cdef void update_3x3_lil(self, game_state_t *game, int pos, object lil_matrix):
         """ Move matches 3 × 3 pattern around move
         """
         cdef unsigned long long hash
-        cdef int pat_id
+        cdef int pat_ix
 
         hash = x33_hash(game, pos, <int>game.current_color)
         if x33_hashmap.find(hash) != x33_hashmap.end():
-            pat_id = self.x33_start + x33_hashmap[hash]
-            lil_matrix[onboard_index[pos], pat_id] = 1
+            pat_ix = self.x33_start + x33_hashmap[hash]
+            # clear old then set new index
+            lil_matrix[self.x33_start:self.d12_start, onboard_index[pos]] = 0
+            lil_matrix[pat_ix, onboard_index[pos]] = 1
 
     cdef void update_d12_lil(self, game_state_t *game, int pos, object lil_matrix):
         """ Move matches 12-point diamond pattern near previous move
-        """
         cdef int i
         cdef int d12[12]
         cdef int pat_id
@@ -248,7 +265,9 @@ cdef class RolloutFeature:
 
         for i in range(12):
             if d12[i] == S_EMPTY:
-                lil_matrix[onboard_index[d12[i]], pat_id] = 1
+                lil_matrix[pat_id, onboard_index[d12[i]]] = 1
+        """
+        pass
 
     cdef void update_save_atari_lil(self, game_state_t *game, string_t *string, object lil_matrix):
         """ Save atari 1 Move saves stone(s) from capture
@@ -278,7 +297,7 @@ cdef class RolloutFeature:
                     break
 
             if flag:
-                lil_matrix[onboard_index[string.lib[0]], self.save_atari_start] = 1
+                lil_matrix[self.save_atari_start, onboard_index[string.lib[0]]] = 1
 
     cdef void update_neighbor_lil(self, game_state_t *game, int pos, object lil_matrix):
         """ Move is 8-connected to previous move
@@ -294,12 +313,12 @@ cdef class RolloutFeature:
             if feature.is_neighbor8_set:
                 # unset previous neighbor8
                 if feature.prev_neighbor8[i] != -1:
-                    lil_matrix[feature.prev_neighbor8[i], self.neighbor_start + i] = 0
+                    lil_matrix[self.neighbor_start + i, feature.prev_neighbor8[i]] = 0
 
             neighbor_pos = neighbor8[i]
             if game.board[neighbor_pos] != S_OB:
                 neighbor_i = onboard_index[neighbor_pos]
-                lil_matrix[neighbor_i, self.neighbor_start + i] = 1
+                lil_matrix[self.neighbor_start + i, neighbor_i] = 1
                 feature.prev_neighbor8[i] = neighbor_i
             else:
                 feature.prev_neighbor8[i] = -1
@@ -320,10 +339,10 @@ cdef class RolloutFeature:
         black_feature.color = <int>S_BLACK
         white_feature.color = <int>S_WHITE
 
-        for i in range(PURE_BOARD_MAX):
-            for j in range(6):
-                black_feature.tensor[i][j] = -1.0
-                white_feature.tensor[i][j] = -1.0
+        for i in range(6):
+            for j in range(PURE_BOARD_MAX):
+                black_feature.tensor[i][j] = -1
+                white_feature.tensor[i][j] = -1
 
         black_feature.is_neighbor8_set = False
         white_feature.is_neighbor8_set = False
@@ -332,9 +351,9 @@ cdef class RolloutFeature:
         # too slow to use
         cdef int i, j
         cdef rollout_feature_t *feature = &self.feature_planes[color]
-        sparse_tensor = lil_matrix((pure_board_max, self.feature_size))
-        for i in range(pure_board_max):
-            for j in range(6):
-                if feature.tensor[i][j] != -1.0:
+        sparse_tensor = lil_matrix((self.feature_size, pure_board_max))
+        for i in range(6):
+            for j in range(pure_board_max):
+                if feature.tensor[i][j] != -1:
                     sparse_tensor[i, feature.tensor[i][j]] = 1
         return sparse_tensor.tocsr()

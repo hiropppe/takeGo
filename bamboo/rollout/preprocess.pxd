@@ -13,7 +13,7 @@ cdef enum:
 
 cdef struct rollout_feature_t:
     int color
-    float tensor[361][6] # hold one-hot index for each feature
+    int tensor[6][361] # hold one-hot index for each feature
     bint is_neighbor8_set
     int prev_neighbor8[8]
 
@@ -40,7 +40,7 @@ cdef class RolloutFeature:
 
     cdef void clear_onehot_index(self, game_state_t *game, int pos) nogil
 
-    """ function to generate sparse feature for training
+    """ function to generate sparse feature for training (for performance comparison)
     """
     cdef void update_lil(self, game_state_t *game, object lil_matrix)
 
@@ -51,6 +51,8 @@ cdef class RolloutFeature:
     cdef void update_3x3_lil(self, game_state_t *game, int pos, object lil_matrix)
 
     cdef void update_d12_lil(self, game_state_t *game, int pos, object lil_matrix)
+
+    cdef void clear_onehot_lil_index(self, game_state_t *game, int pos, object lil_matrix)
 
     cdef void clear_updated_string_cache(self, game_state_t *game) nogil
 
