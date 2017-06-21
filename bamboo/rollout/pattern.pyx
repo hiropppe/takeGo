@@ -6,7 +6,7 @@ from libcpp.string cimport string as cppstring
 
 from bamboo.go.board cimport MIN
 from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, S_OB
-from bamboo.go.board cimport game_state_t, string_t, get_neighbor8_in_order
+from bamboo.go.board cimport game_state_t, string_t, get_neighbor8_in_order, get_md12
 from bamboo.go.zobrist_hash cimport mt
 from bamboo.go.printer cimport print_board
 
@@ -73,10 +73,155 @@ cpdef void put_d12_hash(unsigned long long bits, int id):
 cpdef void put_x33_hash(unsigned long long bits, int id):
     cdef unsigned long long hash
     hash = x33_hash_from_bits(bits)
-    #printf('put hash:%llu of bits:%llu as %d\n', hash, bits, id)
     x33_hashmap[hash] = id
 
 
+""" 12 diamond(MD2) Pattern functions
+"""
+cdef unsigned long long d12_bits(game_state_t *game, int pos, int color) except? -1:
+    cdef int md12[12]
+    cdef int md_pos
+    cdef int string_id
+    cdef string_t *string
+    cdef unsigned long long color_pat
+    cdef int lib_pat
+    cdef int i
+
+    get_md12(md12, pos)
+
+    color_pat |= color
+    string = &game.string[game.string_id[pos]]
+    lib_pat |= MIN(string.libs, 3)
+
+    for i in range(12):
+        md_pos = md12[i]
+        color_pat |= (game.board[md_pos] << (i+1)*2)
+        string_id = game.string_id[md_pos]
+        if string_id:
+            string = &game.string[string_id]
+            lib_pat |= (MIN(string.libs, 3) << (i+1)*2)
+
+    return ((color_pat << 26) | lib_pat) << 11
+
+
+cpdef unsigned long long d12_rev(unsigned long long pat):
+    return ((((pat >> 37) & 0x1555555) | (((pat >> 36) & 0x1555555) << 1)) << 36) | ((pat >> 11 & 0x3ffffff) << 11) | (pat & 0xfff)
+
+
+cpdef unsigned long long d12_rot90(unsigned long long pat):
+    return (((pat & <unsigned long long>0xc03000300c000) << 8) |
+            ((pat & <unsigned long long>0x30c0000c30000) << 14) |
+            ((pat & <unsigned long long>0x3000000c0000) << 6) |
+            ((pat & <unsigned long long>0xc00000300000) >> 4) |
+            ((pat & <unsigned long long>0xc03000300c000000) >> 8) |
+            ((pat & <unsigned long long>0x30c0000c30000000) >> 14) |
+            ((pat & <unsigned long long>0x3000000c0000000) << 4) |
+            ((pat & <unsigned long long>0xc000003000000) >> 6) |
+            (pat & <unsigned long long>0xc000003000) |
+            ((pat & <unsigned long long>0x21) << 4) |
+            ((pat & <unsigned long long>0x12) << 7) |
+            ((pat & <unsigned long long>0x4) << 3) |
+            ((pat & <unsigned long long>0x8) >> 2) |
+            ((pat & <unsigned long long>0x840) >> 4) |
+            ((pat & <unsigned long long>0x480) >> 7) |
+            ((pat & <unsigned long long>0x100) << 2) |
+            ((pat & <unsigned long long>0x200) >> 3))
+
+
+cpdef unsigned long long d12_fliplr(unsigned long long pat):
+    return (((pat & <unsigned long long>0x3000c00c0030000) << 4) |
+            ((pat & <unsigned long long>0x3000c00c00300000) >> 4) |
+            ((pat & <unsigned long long>0x3000000c00000) << 6) |
+            ((pat & <unsigned long long>0xc000003000000) << 2) |
+            ((pat & <unsigned long long>0x3000000c000000) >> 2) |
+            ((pat & <unsigned long long>0xc0000030000000) >> 6) |
+            (pat & <unsigned long long>0xcc0033f3000cfa05) |
+            ((pat & <unsigned long long>0x102) << 2) |
+            ((pat & <unsigned long long>0x408) >> 2) |
+            ((pat & <unsigned long long>0x10) << 3) |
+            ((pat & <unsigned long long>0x20) << 1) |
+            ((pat & <unsigned long long>0x40) >> 1) |
+            ((pat & <unsigned long long>0x80) >> 3))
+
+
+cpdef unsigned long long d12_flipud(unsigned long long pat):
+    return (((pat & <unsigned long long>0x3000000c000) << 22) |
+            ((pat & <unsigned long long>0xfc00003f0000) << 14) |
+            ((pat & <unsigned long long>0x3f00000fc0000000) >> 14) |
+            ((pat & <unsigned long long>0xc000003000000000) >> 22) |
+            (pat & <unsigned long long>0xff00c03fc030f0) |
+            ((pat & <unsigned long long>0x1) << 11) |
+            ((pat & <unsigned long long>0xe) << 7) |
+            ((pat & <unsigned long long>0x700) >> 7) |
+            ((pat & <unsigned long long>0x800) >> 11))
+
+
+cpdef unsigned long long d12_transp(unsigned long long pat):
+    return (((pat & <unsigned long long>0xc003003000c000) << 8) |
+            ((pat & <unsigned long long>0x3030000c0c0000) << 6) |
+            ((pat & <unsigned long long>0xc00000300000) << 10) |
+            ((pat & <unsigned long long>0xc003003000c00000) >> 8) |
+            ((pat & <unsigned long long>0xc0c000303000000) >> 6) |
+            ((pat & <unsigned long long>0x3000000c0000000) >> 10) |
+            (pat & <unsigned long long>0x30000ccc00033000) |
+            ((pat & <unsigned long long>0x81) << 4) |
+            ((pat & <unsigned long long>0x44) << 3) |
+            ((pat & <unsigned long long>0x8) << 5) |
+            ((pat & <unsigned long long>0x810) >> 4) |
+            ((pat & <unsigned long long>0x220) >> 3) |
+            ((pat & <unsigned long long>0x100) >> 5))
+
+
+cpdef void print_d12(unsigned long long pat3, bint show_bits=True, bint show_board=True):
+    buf = []
+    stone = ['+', 'B', 'W', '#']
+    liberty = [0, 1, 2, 3]
+    if show_bits:
+        buf.append("0b{:s}".format(bin(pat3)[2:].rjust(64, '0')))
+    if show_board:
+        if show_bits:
+            buf.append("\n")
+        buf.append("  {:s}       {:d} \n".format(
+            'x' if (pat3 & 1) else stone[(pat3 >> 28 >> 12) & 0x3],
+            liberty[(pat3 >> 2 >> 12) & 0x3],
+            ))
+        buf.append(" {:s}{:s}{:s}     {:d}{:d}{:d}\n".format(
+            'x' if (pat3 & 2) else stone[(pat3 >> 30 >> 12) & 0x3],
+            'x' if (pat3 & 4) else stone[(pat3 >> 32 >> 12) & 0x3],
+            'x' if (pat3 & 8) else stone[(pat3 >> 34 >> 12) & 0x3],
+            liberty[(pat3 >> 4 >> 12) & 0x3],
+            liberty[(pat3 >> 6 >> 12) & 0x3],
+            liberty[(pat3 >> 8 >> 12) & 0x3]
+            ))
+        buf.append("{:s}{:s}{:s}{:s}{:s}   {:d}{:d}{:d}{:d}{:d}\n".format(
+            'x' if (pat3 & 16) else stone[(pat3 >> 36 >> 12) & 0x3],
+            'x' if (pat3 & 32) else stone[(pat3 >> 38 >> 12) & 0x3],
+            stone[(pat3 >> 26 >> 12) & 0x3],
+            'x' if (pat3 & 64) else stone[(pat3 >> 40 >> 12) & 0x3],
+            'x' if (pat3 & 128) else stone[(pat3 >> 42 >> 12) & 0x3],
+            liberty[(pat3 >> 10 >> 12) & 0x3],
+            liberty[(pat3 >> 12 >> 12) & 0x3],
+            liberty[pat3 >> 12 & 0x3],
+            liberty[(pat3 >> 14 >> 12) & 0x3],
+            liberty[(pat3 >> 16 >> 12) & 0x3]
+            ))
+        buf.append(" {:s}{:s}{:s}     {:d}{:d}{:d}\n".format(
+            'x' if (pat3 & 256) else stone[(pat3 >> 44 >> 12) & 0x3],
+            'x' if (pat3 & 512) else stone[(pat3 >> 46 >> 12) & 0x3],
+            'x' if (pat3 & 1024) else stone[(pat3 >> 48 >> 12) & 0x3],
+            liberty[(pat3 >> 18 >> 12) & 0x3],
+            liberty[(pat3 >> 20 >> 12) & 0x3],
+            liberty[(pat3 >> 22 >> 12) & 0x3]
+            ))
+        buf.append("  {:s}       {:d} \n".format(
+            'x' if (pat3 & 2048) else stone[(pat3 >> 50 >> 12) & 0x3],
+            liberty[(pat3 >> 24 >> 12) & 0x3]
+            ))
+    print(''.join(buf))
+
+
+""" 3x3 pattern functions
+"""
 cdef unsigned long long x33_hash(game_state_t *game, int pos, int color) nogil except? -1:
     cdef int neighbor8[8]
     cdef int neighbor_pos
@@ -217,7 +362,7 @@ cpdef void print_x33(unsigned long long pat3, bint show_bits=True, bint show_boa
     color = ['?', 'x', 'o']
     liberty = [0, 1, 2, 3]
     if show_bits:
-        buf.append("0b{:s}".format(bin(pat3)[2:].rjust(18, '0')))
+        buf.append("0b{:s}".format(bin(pat3)[2:].rjust(34, '0')))
     if show_board:
         if show_bits:
             buf.append("\n")

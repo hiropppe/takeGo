@@ -601,6 +601,21 @@ cdef void get_neighbor8_in_order(int neighbor8[8], int pos) nogil:
     neighbor8[7] = SOUTH_EAST(pos, board_size)
 
 
+cdef void get_md12(int md12[12], int pos) nogil:
+    md12[0] = pos + pat.NN
+    md12[1] = pos + pat.NW
+    md12[2] = pos + pat.N
+    md12[3] = pos + pat.NE
+    md12[4] = pos + pat.WW
+    md12[5] = pos + pat.W
+    md12[6] = pos + pat.E
+    md12[7] = pos + pat.EE
+    md12[8] = pos + pat.SW
+    md12[9] = pos + pat.S
+    md12[10] = pos + pat.SE
+    md12[11] = pos + pat.SS
+
+
 cdef void init_board_position():
     cdef int i, x, y, p,
     cdef int neighbor4[4]
