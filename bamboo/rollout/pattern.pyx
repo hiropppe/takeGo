@@ -143,6 +143,66 @@ cdef unsigned long long d12_bits(game_state_t *game, int pos, int color) except?
     return ((color_pat << 26) | lib_pat) << 12
 
 
+cpdef unsigned long long d12_trans8_min(unsigned long long pat):
+    cdef unsigned long long trans[8]
+    cdef unsigned long long min_pat
+    cdef int i
+
+    d12_trans8(pat, trans)
+
+    min_pat = trans[0]
+    for i in range(1, 8):
+        if trans[i] < min_pat:
+            min_pat = trans[i]
+
+    return min_pat
+
+
+cpdef unsigned long long d12_trans16_min(unsigned long long pat):
+    cdef unsigned long long trans[16]
+    cdef unsigned long long min_pat
+    cdef int i
+
+    d12_trans16(pat, trans)
+
+    min_pat = trans[0]
+    for i in range(1, 16):
+        if trans[i] < min_pat:
+            min_pat = trans[i]
+
+    return min_pat
+
+
+cdef void d12_trans8(unsigned long long pat, unsigned long long *trans):
+    trans[0] = pat
+    trans[1] = d12_rot90(pat)
+    trans[2] = d12_rot90(trans[1])
+    trans[3] = d12_rot90(trans[2])
+    trans[4] = d12_fliplr(pat)
+    trans[5] = d12_flipud(pat)
+    trans[6] = d12_transp(pat)
+    trans[7] = d12_fliplr(trans[1])
+
+
+cdef void d12_trans16(unsigned long long pat, unsigned long long *trans):
+    trans[0] = pat
+    trans[1] = d12_rot90(pat)
+    trans[2] = d12_rot90(trans[1])
+    trans[3] = d12_rot90(trans[2])
+    trans[4] = d12_fliplr(pat)
+    trans[5] = d12_flipud(pat)
+    trans[6] = d12_transp(pat)
+    trans[7] = d12_fliplr(trans[1])
+    trans[8] = d12_rev(trans[0])
+    trans[9] = d12_rev(trans[1])
+    trans[10] = d12_rev(trans[2])
+    trans[11] = d12_rev(trans[3])
+    trans[12] = d12_rev(trans[4])
+    trans[13] = d12_rev(trans[5])
+    trans[14] = d12_rev(trans[6])
+    trans[15] = d12_rev(trans[7])
+
+
 cpdef unsigned long long d12_rev(unsigned long long pat):
     return ((((pat >> 39) & 0x1555555) | (((pat >> 38) & 0x1555555) << 1)) << 38) | ((pat >> 12 & 0x3ffffff) << 12) | (pat & 0xfff)
 
@@ -257,6 +317,42 @@ cpdef void print_d12(unsigned long long pat3, bint show_bits=True, bint show_boa
             liberty[(pat3 >> 24 >> 12) & 0x3]
             ))
     print(''.join(buf))
+
+
+cpdef void print_d12_trans8(unsigned long long pat, bint show_bits=True, bint show_board=True):
+    cdef unsigned long long trans[8]
+    cdef unsigned long long tmp_pat
+    cdef int i, j
+
+    d12_trans16(pat, trans)
+
+    for i in range(8):
+        for j in range(i+1, 8):
+            if trans[j] < trans[i]:
+                tmp = trans[j]
+                trans[j] = trans[i]
+                trans[i] = tmp
+
+    for i in range(8):
+        print_d12(trans[i], show_bits, show_board)
+
+
+cpdef void print_d12_trans16(unsigned long long pat, bint show_bits=True, bint show_board=True):
+    cdef unsigned long long trans[16]
+    cdef unsigned long long tmp_pat
+    cdef int i, j
+
+    d12_trans16(pat, trans)
+
+    for i in range(16):
+        for j in range(i+1, 16):
+            if trans[j] < trans[i]:
+                tmp = trans[j]
+                trans[j] = trans[i]
+                trans[i] = tmp
+
+    for i in range(16):
+        print_d12(trans[i], show_bits, show_board)
 
 
 """ 3x3 pattern functions

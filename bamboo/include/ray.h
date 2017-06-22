@@ -189,8 +189,8 @@ typedef struct {
     int capture_num[S_OB];                   // 前の着手で打ち上げた石の数
     int capture_pos[S_OB][PURE_BOARD_MAX];   // 前の着手で石を打ち上げた座標 
 
-    int updated_string_num[S_OB];                // 前の着手で更新された連の数
-    int updated_string_id[S_OB][STRING_POS_MAX]; // 前の着手で更新された連のID
+    int updated_string_num[S_OB];               // 前の着手から更新された連の数
+    int updated_string_id[S_OB][MAX_RECORDS];   // 前の着手から更新された連のID
 
     bool rollout;
 } game_state_t;

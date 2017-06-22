@@ -1052,18 +1052,21 @@ cdef void memorize_updated_string(game_state_t *game, int string_id) nogil:
     """ Memorized string_id for incremental rollout feature calculation.
         Number of memorized string is cleared after feature calculation.
     """
-    cdef int *updated_string_num
-    cdef int *updated_string_id
+    cdef int *num_for_black
+    cdef int *id_for_black
+    cdef int *num_for_white
+    cdef int *id_for_white
 
-    updated_string_num = &game.updated_string_num[<int>S_BLACK]
-    updated_string_id = game.updated_string_id[<int>S_BLACK]
-    updated_string_id[updated_string_num[0]] = string_id
-    updated_string_num[0] += 1
+    num_for_black = &game.updated_string_num[<int>S_BLACK]
+    num_for_white = &game.updated_string_num[<int>S_WHITE]
 
-    updated_string_num = &game.updated_string_num[<int>S_WHITE]
-    updated_string_id = game.updated_string_id[<int>S_WHITE]
-    updated_string_id[updated_string_num[0]] = string_id
-    updated_string_num[0] += 1
+    if num_for_black[0] < MAX_RECORDS:
+        game.updated_string_id[<int>S_BLACK][num_for_black[0]] = string_id
+        num_for_black[0] += 1
+
+    if num_for_white[0] < MAX_RECORDS:
+        game.updated_string_id[<int>S_WHITE][num_for_white[0]] = string_id
+        num_for_white[0] += 1
 
 
 cpdef test_playout(int n_playout=1, int move_limit=500):

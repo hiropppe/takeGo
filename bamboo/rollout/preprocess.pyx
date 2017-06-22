@@ -175,7 +175,7 @@ cdef class RolloutFeature:
             if feature.is_neighbor8_set:
                 # unset previous neighbor8
                 if feature.prev_neighbor8[i] != -1:
-                    feature.tensor[NEIGHBOR][feature.prev_neighbor8[i]] = self.neighbor_start + i
+                    feature.tensor[NEIGHBOR][feature.prev_neighbor8[i]] = -1
 
             neighbor_pos = neighbor8[i]
             if game.board[neighbor_pos] != S_OB:
@@ -321,7 +321,7 @@ cdef class RolloutFeature:
                 lil_matrix[self.neighbor_start + i, neighbor_i] = 1
                 feature.prev_neighbor8[i] = neighbor_i
             else:
-                feature.prev_neighbor8[i] = -1
+                feature.prev_neighbor8[i] = 0
 
         feature.is_neighbor8_set = True
 

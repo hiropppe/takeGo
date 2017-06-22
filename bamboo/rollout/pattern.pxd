@@ -29,6 +29,12 @@ cdef unsigned long long d12_hash(game_state_t *game, int pos, int color) nogil e
 cpdef unsigned long long d12_hash_from_bits(unsigned long long bits) except? -1
 cdef unsigned long long d12_bits(game_state_t *game, int pos, int color) except? -1 
 
+cpdef unsigned long long d12_trans8_min(unsigned long long pat)
+cpdef unsigned long long d12_trans16_min(unsigned long long pat)
+
+cdef void d12_trans8(unsigned long long pat, unsigned long long *trans)
+cdef void d12_trans16(unsigned long long pat, unsigned long long *trans)
+
 cpdef unsigned long long d12_rev(unsigned long long pat)
 cpdef unsigned long long d12_rot90(unsigned long long pat)
 cpdef unsigned long long d12_fliplr(unsigned long long pat)
@@ -36,6 +42,8 @@ cpdef unsigned long long d12_flipud(unsigned long long pat)
 cpdef unsigned long long d12_transp(unsigned long long pat)
 
 cpdef void print_d12(unsigned long long pat, bint show_bits=?, bint show_board=?)
+cpdef void print_d12_trans8(unsigned long long pat, bint show_bits=?, bint show_board=?)
+cpdef void print_d12_trans16(unsigned long long pat, bint show_bits=?, bint show_board=?)
 
 # 3x3 pattern
 cdef unsigned long long x33_hash(game_state_t *game, int pos, int color) nogil except? -1

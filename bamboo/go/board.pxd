@@ -108,7 +108,7 @@ cdef extern from "ray.h":
         int capture_pos[3][361] # S_OB, PURE_BOARD_MAX
 
         int updated_string_num[3]       # S_OB
-        int updated_string_id[3][483]   # S_OB, PURE_BOARD_MAX
+        int updated_string_id[3][1083]  # S_OB, MAX_RECORDS
 
         bint rollout
 

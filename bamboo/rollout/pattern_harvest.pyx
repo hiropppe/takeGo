@@ -6,26 +6,27 @@ import traceback
 import warnings
 
 from tqdm import tqdm
+from collections import defaultdict
 
 from libc.stdio cimport printf
 
 from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.util cimport SGFMoveIterator
-from bamboo.go.board cimport PASS, CORRECT_X, CORRECT_Y, OB_SIZE, STRING_EMPTY_END
-from bamboo.go.board cimport game_state_t, string_t, board_size 
-from bamboo.go.board cimport allocate_game, free_game, onboard_index, set_board_size, initialize_board
+from bamboo.go.board cimport PASS, S_EMPTY, STRING_EMPTY_END
+from bamboo.go.board cimport game_state_t, string_t 
+from bamboo.go.board cimport onboard_index, get_md12
 from bamboo.go.printer cimport print_board
 from bamboo.rollout.pattern cimport x33_bits, x33_trans8_min, x33_trans16_min, print_x33
+from bamboo.rollout.pattern cimport d12_bits, d12_trans8_min, d12_trans16_min, print_d12
 
-from collections import Counter, defaultdict
 
 cdef unsigned long long pat3[361]
 
 freq_dict = defaultdict(int)
 move_dict = defaultdict(int)
 
-def harvest_pattern(file_name, verbose=False, quiet=False):    
+def harvest_3x3_pattern(file_name, verbose=False, quiet=False):    
     cdef game_state_t *game
     cdef SGFMoveIterator sgf_iter
     cdef int *updated_string_num
@@ -34,7 +35,7 @@ def harvest_pattern(file_name, verbose=False, quiet=False):
     cdef int string_id
     cdef string_t *string
     cdef int center
-    cdef unsigned long long pat, pat8_min, pat16_min
+    cdef unsigned long long pat
 
     with open(file_name, 'r') as file_object:
         sgf_iter = SGFMoveIterator(19, file_object.read())
@@ -59,7 +60,7 @@ def harvest_pattern(file_name, verbose=False, quiet=False):
                             else:
                                 move_dict[pat] += 0 
                         center = string.empty[center]
-            updated_string_num[0] = 0
+                updated_string_num[0] = 0
     except IllegalMove:
         if not quiet:
             warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
@@ -69,15 +70,89 @@ def harvest_pattern(file_name, verbose=False, quiet=False):
             sys.stderr.write(traceback.format_exc())
 
 
+def save_3x3_pattern(outfile):
+    df = pd.DataFrame({'freq': freq_dict, 'move_freq': move_dict})
+    # add move_ratio
+    df['move_ratio'] = df['move_freq']/df['freq']
+    # add min8, min16 pat
+    min8 = []
+    min16 = []
+    for i, row in df.iterrows():
+        min8.append(x33_trans8_min(row.name))
+        min16.append(x33_trans16_min(row.name))
+    assert df.shape[0] == len(min8) == len(min16), 'Size mismatch'
+    df['min8'] = min8
+    df['min16'] = min16
+    print(df)
+    df.to_csv(outfile)
+
+
+def harvest_12diamond_pattern(file_name, verbose=False, quiet=False):
+    cdef game_state_t *game
+    cdef SGFMoveIterator sgf_iter
+    cdef int md12[12]
+    cdef int i, j
+    cdef unsigned long long bits, positional_bits
+
+    with open(file_name, 'r') as file_object:
+        sgf_iter = SGFMoveIterator(19, file_object.read())
+
+    game = sgf_iter.game
+    try:
+        for i, move in enumerate(sgf_iter):
+            if move[0] != PASS:
+                # generate base bits (color and liberty count)
+                bits = d12_bits(game, move[0], move[1])
+                get_md12(md12, move[0])
+                for j in range(12):
+                    if game.board[md12[j]] == S_EMPTY:
+                        # add candidate(empty) position bit (no legal check)
+                        positional_bits = bits | (1 << j)
+                        freq_dict[positional_bits] += 1
+                        if sgf_iter.next_move and sgf_iter.next_move[0] == md12[j]:
+                            move_dict[positional_bits] += 1
+                        else:
+                            move_dict[positional_bits] += 0 
+    except IllegalMove:
+        if not quiet:
+            warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
+        if verbose:
+            err, msg, _ = sys.exc_info()
+            sys.stderr.write("{} {}\n".format(err, msg))
+            sys.stderr.write(traceback.format_exc())
+
+
+def save_12diamond_pattern(outfile):
+    df = pd.DataFrame({'freq': freq_dict, 'move_freq': move_dict})
+    # add move_ratio
+    df['move_ratio'] = df['move_freq']/df['freq']
+    # add min8, min16 pat
+    min8 = []
+    min16 = []
+    for i, row in df.iterrows():
+        min8.append(d12_trans8_min(row.name))
+        min16.append(d12_trans16_min(row.name))
+    assert df.shape[0] == len(min8) == len(min16), 'Size mismatch'
+    df['min8'] = min8
+    df['min16'] = min16
+    print(df)
+    df.to_csv(outfile)
+
+
 def main(cmd_line_args=None):
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--outfile", "-o", help="Destination to write data", required=True)  # noqa: E501
-    parser.add_argument("--directory", "-d", help="Directory containing SGF files to process. if not present, expects files from stdin", default=None)  # noqa: E501
-    parser.add_argument("--recurse", "-R", help="Set to recurse through directories searching for SGF files", default=False, action="store_true")  # noqa: E501
-    parser.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
-    parser.add_argument("--quiet", "-q", help="Turn on quiet mode", default=False, action="store_true")  # noqa: E501
+    parser.add_argument("--outfile", "-o", required=True,
+                        help="Destination to write data")
+    parser.add_argument("--pattern", "-p", type=str, default='x33', choices=['x33', 'd12'],
+                        help="Choice pattern to harvest (Default: x33)")
+    parser.add_argument("--directory", "-d", default=None,
+                        help="Directory containing SGF files to process. if not present, expects files from stdin")
+    parser.add_argument("--recurse", "-R", default=False, action="store_true",
+                        help="Set to recurse through directories searching for SGF files")
+    parser.add_argument("--verbose", "-v", default=False, action="store_true", help="Turn on verbose mode")
+    parser.add_argument("--quiet", "-q", default=False, action="store_true", help="Turn on quiet mode")
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -123,11 +198,19 @@ def main(cmd_line_args=None):
     n_too_few_move = 0
     n_too_many_move = 0
     n_other_error = 0
+
+    if args.pattern == 'x33':
+        harvest_func = harvest_3x3_pattern
+        save_func = save_3x3_pattern
+    else:
+        harvest_func = harvest_12diamond_pattern
+        save_func = save_12diamond_pattern
+
     pbar = tqdm(total=sgf_total)
     for i, sgf_file in enumerate(sgf_files):
         pbar.update(1)
         try:
-            harvest_pattern(sgf_file, verbose=args.verbose, quiet=args.quiet)
+            harvest_func(sgf_file, verbose=args.verbose, quiet=args.quiet)
         except sgf.ParseException:
             n_parse_error += 1
             if not args.quiet:
@@ -166,17 +249,4 @@ def main(cmd_line_args=None):
         n_too_many_move,
         n_other_error))
 
-    df = pd.DataFrame({'freq': freq_dict, 'move_freq': move_dict})
-    # add move_ratio
-    df['move_ratio'] = df['move_freq']/df['freq']
-    # add min8, min16 pat
-    min8 = []
-    min16 = []
-    for i, row in df.iterrows():
-        min8.append(x33_trans8_min(row.name))
-        min16.append(x33_trans16_min(row.name))
-    assert df.shape[0] == len(min8) == len(min16), 'Size mismatch'
-    df['min8'] = min8
-    df['min16'] = min16
-    df.to_csv(args.outfile)
-    print(df)
+    save_func(args.outfile)
