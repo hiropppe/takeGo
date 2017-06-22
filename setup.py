@@ -29,6 +29,7 @@ extensions = [Extension('bamboo.go.board', sources=['bamboo/go/board.pyx'], lang
               Extension('bamboo.go.test_ladder', sources=["bamboo/go/test_ladder.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.go.test_policy_feature', sources=["bamboo/go/test_policy_feature.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.rollout.test_x33_pattern', sources=["bamboo/rollout/test_x33_pattern.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.rollout.test_d12_pattern', sources=["bamboo/rollout/test_d12_pattern.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout.test_rollout_preprocess', sources=["bamboo/rollout/test_rollout_preprocess.pyx"], language="c++", extra_compile_args=["-std=c++11"])]
 
 core.setup(

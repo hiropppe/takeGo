@@ -6,9 +6,10 @@ cdef enum:
     x33_MAX = 69338
     d12_MAX = 32207
 
-cdef unsigned long long color_mt[8][4]
-cdef unsigned long long liberty_mt[8][4]
+cdef unsigned long long color_mt[13][4]
+cdef unsigned long long liberty_mt[13][4]
 cdef unsigned long long player_mt[3]
+cdef unsigned long long d12_pos_mt[2049]
 
 cdef unordered_map[unsigned long long, int] x33_hashmap
 cdef unordered_map[unsigned long long, int] d12_hashmap
@@ -24,6 +25,8 @@ cpdef void put_d12_hash(unsigned long long bits, int id)
 cpdef void put_x33_hash(unsigned long long bits, int id)
 
 # 12 diamond pattern
+cdef unsigned long long d12_hash(game_state_t *game, int pos, int color) nogil except? -1
+cpdef unsigned long long d12_hash_from_bits(unsigned long long bits) except? -1
 cdef unsigned long long d12_bits(game_state_t *game, int pos, int color) except? -1 
 
 cpdef unsigned long long d12_rev(unsigned long long pat)
