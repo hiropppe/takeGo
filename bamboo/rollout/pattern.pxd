@@ -25,9 +25,11 @@ cpdef void put_d12_hash(unsigned long long bits, int id)
 cpdef void put_x33_hash(unsigned long long bits, int id)
 
 # 12 diamond pattern
-cdef unsigned long long d12_hash(game_state_t *game, int pos, int color) nogil except? -1
+cdef unsigned long long d12_hash(game_state_t *game, int pos, int color,
+                                 int empty_ix[12], int empty_pos[12], int *n_empty) nogil except? -1
+cdef unsigned long long d12_bits(game_state_t *game, int pos, int color, 
+                                 int empty_ix[12], int empty_pos[12], int *n_empty) nogil except? -1
 cpdef unsigned long long d12_hash_from_bits(unsigned long long bits) except? -1
-cdef unsigned long long d12_bits(game_state_t *game, int pos, int color) except? -1 
 
 cpdef unsigned long long d12_trans8_min(unsigned long long pat)
 cpdef unsigned long long d12_trans16_min(unsigned long long pat)
@@ -47,8 +49,8 @@ cpdef void print_d12_trans16(unsigned long long pat, bint show_bits=?, bint show
 
 # 3x3 pattern
 cdef unsigned long long x33_hash(game_state_t *game, int pos, int color) nogil except? -1
-cpdef unsigned long long x33_hash_from_bits(unsigned long long bits) except? -1
 cdef unsigned long long x33_bits(game_state_t *game, int pos, int color) except? -1 
+cpdef unsigned long long x33_hash_from_bits(unsigned long long bits) except? -1
 
 cpdef unsigned long long x33_trans8_min(unsigned long long pat)
 cpdef unsigned long long x33_trans16_min(unsigned long long pat)

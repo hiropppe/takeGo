@@ -77,20 +77,24 @@ def save_3x3_pattern(outfile):
     # add min8, min16 pat
     min8 = []
     min16 = []
+    print('Generating minhash ...')
     for i, row in df.iterrows():
         min8.append(x33_trans8_min(row.name))
         min16.append(x33_trans16_min(row.name))
     assert df.shape[0] == len(min8) == len(min16), 'Size mismatch'
     df['min8'] = min8
     df['min16'] = min16
+    pd.set_option('display.width', 200)
     print(df)
-    df.to_csv(outfile)
+    df.to_csv(outfile, index_label='pat')
 
 
 def harvest_12diamond_pattern(file_name, verbose=False, quiet=False):
     cdef game_state_t *game
     cdef SGFMoveIterator sgf_iter
-    cdef int md12[12]
+    cdef int empty_ix[12], empty_pos[12]
+    cdef int n_empty_val = 0
+    cdef int *n_empty = &n_empty_val
     cdef int i, j
     cdef unsigned long long bits, positional_bits
 
@@ -102,17 +106,15 @@ def harvest_12diamond_pattern(file_name, verbose=False, quiet=False):
         for i, move in enumerate(sgf_iter):
             if move[0] != PASS:
                 # generate base bits (color and liberty count)
-                bits = d12_bits(game, move[0], move[1])
-                get_md12(md12, move[0])
-                for j in range(12):
-                    if game.board[md12[j]] == S_EMPTY:
-                        # add candidate(empty) position bit (no legal check)
-                        positional_bits = bits | (1 << j)
-                        freq_dict[positional_bits] += 1
-                        if sgf_iter.next_move and sgf_iter.next_move[0] == md12[j]:
-                            move_dict[positional_bits] += 1
-                        else:
-                            move_dict[positional_bits] += 0 
+                bits = d12_bits(game, move[0], move[1], empty_ix, empty_pos, n_empty)
+                for j in range(n_empty_val):
+                    # add candidate(empty) position bit (no legal check)
+                    positional_bits = bits | (1 << empty_ix[j])
+                    freq_dict[positional_bits] += 1
+                    if sgf_iter.next_move and sgf_iter.next_move[0] == empty_pos[j]:
+                        move_dict[positional_bits] += 1
+                    else:
+                        move_dict[positional_bits] += 0 
     except IllegalMove:
         if not quiet:
             warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
@@ -129,14 +131,16 @@ def save_12diamond_pattern(outfile):
     # add min8, min16 pat
     min8 = []
     min16 = []
+    print('Generating minhash ...')
     for i, row in df.iterrows():
         min8.append(d12_trans8_min(row.name))
         min16.append(d12_trans16_min(row.name))
     assert df.shape[0] == len(min8) == len(min16), 'Size mismatch'
     df['min8'] = min8
     df['min16'] = min16
+    pd.set_option('display.width', 200)
     print(df)
-    df.to_csv(outfile)
+    df.to_csv(outfile, index_label='pat')
 
 
 def main(cmd_line_args=None):

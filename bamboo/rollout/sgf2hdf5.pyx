@@ -218,6 +218,7 @@ cdef class GameConverter(object):
                             states.resize((next_idx + 1, 6, PURE_BOARD_MAX))
                             actions.resize((next_idx + 1, 1))
                         states[next_idx] = state
+                        assert move < 361, 'Illegal move {:d} at {}'.format(move, file_name)
                         actions[next_idx] = move
                         n_pairs += 1
                         next_idx += 1

@@ -13,10 +13,11 @@ from scipy.sparse import lil_matrix, csr_matrix
 from bamboo.go.board cimport PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END 
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport game_state_t, pure_board_max, onboard_index, onboard_pos, liberty_end
-from bamboo.go.board cimport get_neighbor4, get_neighbor8
+from bamboo.go.board cimport get_neighbor4, get_neighbor8, get_md12
 from bamboo.go.pattern cimport N, S, W, E, NN, NW, NE, SS, SW, SE, WW, EE
 
 from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
+from bamboo.rollout.pattern cimport d12_hash, d12_hashmap, d12_pos_mt
 
 
 cdef class RolloutFeature:
@@ -49,7 +50,7 @@ cdef class RolloutFeature:
     cdef void update(self, game_state_t *game) nogil:
         cdef int current_color = <int>game.current_color
         cdef int prev_pos, prev_color
-        cdef int prev2_pos, prev2_color
+        cdef int prev2_pos
         cdef int updated_string_num
         cdef int *updated_string_id
         cdef string_t *updated_string
@@ -60,6 +61,7 @@ cdef class RolloutFeature:
             return
 
         prev_pos = game.record[game.moves - 1].pos
+        prev_color = game.record[game.moves - 1].color
         self.clear_onehot_index(game, prev_pos)
 
         if game.moves > 1:
@@ -67,18 +69,15 @@ cdef class RolloutFeature:
             self.clear_onehot_index(game, prev2_pos)
 
         # clear neighbor and response if passed ?
-        """
         if prev_pos != PASS:
             self.update_neighbor(game, prev_pos)
-            self.update_d12(game, prev_pos)
-        """
+            self.update_d12(game, prev_pos, prev_color)
+
         updated_string_num = game.updated_string_num[current_color]
         updated_string_id = game.updated_string_id[current_color]
         for i in range(updated_string_num):
             updated_string = &game.string[updated_string_id[i]]
-            """
             self.update_save_atari(game, updated_string)
-            """
             update_pos = updated_string.empty[0]
             while update_pos != STRING_EMPTY_END:
                 self.update_3x3(game, update_pos)
@@ -108,27 +107,33 @@ cdef class RolloutFeature:
             pat_ix = self.x33_start + x33_hashmap[hash]
             feature.tensor[NON_RESPONSE_PAT][onboard_index[pos]] = pat_ix
 
-    cdef void update_d12(self, game_state_t *game, int pos) nogil:
+    cdef void update_d12(self, game_state_t *game, int prev_pos, int prev_color) nogil:
         """ Move matches 12-point diamond pattern near previous move
+        """
         cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
         cdef int i
-        cdef int d12[12]
-        cdef int pat_id
+        cdef int empty_ix[12], empty_pos[12]
+        cdef int n_empty_val = 0
+        cdef int *n_empty = &n_empty_val
+        cdef unsigned long long hash, positional_hash
+        cdef int pax_ix
+        cdef int empty_onboard_ix
+        cdef int prev_d12_num = 0
 
-        d12[0] = pos + NN;
-        d12[1] = pos + NW; d12[2] = pos + N; d12[3] = pos + NE;
-        d12[4] = pos + WW; d12[5] = pos + W; d12[6] = pos + E; d12[7] = pos + EE;
-        d12[8] = pos + SW; d12[9] = pos + S; d12[10] = pos + SE;
-        d12[11] = pos + SS;
+        # clear previous d12 positions
+        for i in range(feature.prev_d12_num):
+            feature.tensor[RESPONSE_PAT][feature.prev_d12[i]] = -1
 
-        # lookup pattern index
-        pat_id = self.d12_start
-
-        for i in range(12):
-            if d12[i] == S_EMPTY:
-                feature.tensor[RESPONSE_PAT][onboard_index[d12[i]]] = pat_id
-        """
-        pass
+        hash = d12_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
+        for i in range(n_empty_val):
+            positional_hash = hash ^ d12_pos_mt[1 << empty_ix[i]] 
+            if d12_hashmap.find(positional_hash) != d12_hashmap.end():
+                pat_ix = self.d12_start + d12_hashmap[positional_hash]
+                empty_onboard_ix = onboard_index[empty_pos[i]]
+                feature.tensor[RESPONSE_PAT][empty_onboard_ix] = pat_ix
+                # memorize previous d12 position
+                feature.prev_d12[prev_d12_num] = empty_onboard_ix
+                feature.prev_d12_num += 1
 
     cdef void update_save_atari(self, game_state_t *game, string_t *string) nogil:
         """ Save atari 1 Move saves stone(s) from capture
@@ -346,6 +351,9 @@ cdef class RolloutFeature:
 
         black_feature.is_neighbor8_set = False
         white_feature.is_neighbor8_set = False
+
+        black_feature.prev_d12_num = 0
+        white_feature.prev_d12_num = 0
 
     cdef object get_tensor_as_csr_matrix(self, int color):
         # too slow to use

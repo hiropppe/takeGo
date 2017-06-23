@@ -16,6 +16,8 @@ cdef struct rollout_feature_t:
     int tensor[6][361] # hold one-hot index for each feature
     bint is_neighbor8_set
     int prev_neighbor8[8]
+    int prev_d12[12]
+    int prev_d12_num
 
 
 cdef class RolloutFeature:
@@ -36,7 +38,7 @@ cdef class RolloutFeature:
     
     cdef void update_3x3(self, game_state_t *game, int pos) nogil
 
-    cdef void update_d12(self, game_state_t *game, int pos) nogil
+    cdef void update_d12(self, game_state_t *game, int prev_pos, int prev_color) nogil
 
     cdef void clear_onehot_index(self, game_state_t *game, int pos) nogil
 

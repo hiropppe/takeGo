@@ -1,4 +1,7 @@
+import numpy as np
 import pandas as pd
+
+cimport numpy as np
 
 from libc.stdio cimport printf
 
@@ -34,23 +37,37 @@ cpdef int init_nakade_hash(object nakade_csv):
 
 
 cpdef int init_d12_hash(object d12_csv):
-    return 0 
+    cdef unordered_map[unsigned long long, int] id_map
+    cdef int id_max = 0
+    cdef unsigned long long hash, min_hash
+
+    df = pd.read_csv(d12_csv, dtype={'pat': np.uint64, 'min8': np.uint64, 'min16': np.uint64})
+    for _, row in df.iterrows():
+        hash = d12_hash_from_bits(row['pat'])
+        min_hash = d12_hash_from_bits(row['min16'])
+        if id_map.find(min_hash) == id_map.end():
+            id_map[min_hash] = id_max
+            id_max += 1
+        d12_hashmap[hash] = id_map[min_hash]
+    printf('12 diamond pattern loaded. #%d\n', id_max+1)
+    return id_max + 1
 
 
 cpdef int init_x33_hash(object x33_csv):
-    cdef unordered_map[unsigned long long, int] x33_id_map
-    cdef int x33_id_max = 0
-    cdef unsigned long long x33_hash, x33_min_hash
-    x33_df = pd.read_csv(x33_csv, index_col=0)
-    for bits, row in x33_df.iterrows():
-        x33_hash = x33_hash_from_bits(bits)
-        x33_min_hash = x33_hash_from_bits(row['min16'])
-        if x33_id_map.find(x33_min_hash) == x33_id_map.end():
-            x33_id_map[x33_min_hash] = x33_id_max
-            x33_id_max += 1
-        x33_hashmap[x33_hash] = x33_id_map[x33_min_hash]
-    printf('3x3 pattern loaded. #%d\n', x33_id_max+1)
-    return x33_id_max + 1
+    cdef unordered_map[unsigned long long, int] id_map
+    cdef int id_max = 0
+    cdef unsigned long long hash, min_hash
+
+    df = pd.read_csv(x33_csv, dtype={'pat': np.uint64, 'min8': np.uint64, 'min16': np.uint64})
+    for _, row in df.iterrows():
+        hash = x33_hash_from_bits(row['pat'])
+        min_hash = x33_hash_from_bits(row['min16'])
+        if id_map.find(min_hash) == id_map.end():
+            id_map[min_hash] = id_max
+            id_max += 1
+        x33_hashmap[hash] = id_map[min_hash]
+    printf('3x3 pattern loaded. #%d\n', id_max+1)
+    return id_max + 1
 
 
 cpdef void put_nakade_hash(unsigned long long bits, int id):
@@ -71,60 +88,73 @@ cpdef void put_x33_hash(unsigned long long bits, int id):
 
 """ 12 diamond(MD2) Pattern functions
 """
-cdef unsigned long long d12_hash(game_state_t *game, int pos, int color) nogil except? -1:
+cdef unsigned long long d12_hash(game_state_t *game, int pos, int color,
+                                 int empty_ix[12], int empty_pos[12], int *n_empty) nogil except? -1:
     """ 12 diamond color and liberty hash without candidate move position
         Add candidate move by hash ^= d12_pos_mt[1 << i]
         i is candidate(empty) position index in 12 diamond 
     """
     cdef int md12[12]
-    cdef int md_pos
+    cdef int md_pos, md_color
     cdef int string_id
     cdef string_t *string
-    cdef unsigned long long d12_hash = 0
+    cdef unsigned long long hash = 0
     cdef int i
+
+    n_empty[0] = 0
 
     get_md12(md12, pos)
 
     string = &game.string[game.string_id[pos]]
-    d12_hash ^= color_mt[0][color]
-    d12_hash ^= liberty_mt[0][MIN(string.libs, 3)]
+    hash ^= color_mt[0][color]
+    hash ^= liberty_mt[0][MIN(string.libs, 3)]
 
     for i in range(1, 13):
         md_pos = md12[i-1]
-        d12_hash ^= color_mt[i][game.board[md_pos]]
+        md_color = game.board[md_pos]
+        hash ^= color_mt[i][md_color]
         string_id = game.string_id[md_pos]
         if string_id:
             string = &game.string[string_id]
-            d12_hash ^= liberty_mt[i][MIN(string.libs, 3)]
+            hash ^= liberty_mt[i][MIN(string.libs, 3)]
         else:
-            d12_hash ^= liberty_mt[i][0]
+            hash ^= liberty_mt[i][0]
 
-    return d12_hash
+        # memorize empty position for update positional bits or hash
+        if md_color == S_EMPTY:
+            empty_ix[n_empty[0]] = i-1
+            empty_pos[n_empty[0]] = md_pos
+            n_empty[0] += 1
+
+    return hash
 
 
 cpdef unsigned long long d12_hash_from_bits(unsigned long long bits) except? -1:
     """ 12 diamond color and liberty hash with candidate move position
     """
     cdef int i
-    cdef unsigned long long d12_hash = 0
+    cdef unsigned long long hash = 0
     for i in range(13):
-        d12_hash ^= color_mt[i][bits >> (38+2*i) & 0x3]
-        d12_hash ^= liberty_mt[i][bits >> (12+2*i) & 0x3]
-    return d12_hash ^ d12_pos_mt[bits & 0xfff]
+        hash ^= color_mt[i][bits >> (38+2*i) & 0x3]
+        hash ^= liberty_mt[i][bits >> (12+2*i) & 0x3]
+    return hash ^ d12_pos_mt[bits & 0xfff]
 
 
-cdef unsigned long long d12_bits(game_state_t *game, int pos, int color) except? -1:
+cdef unsigned long long d12_bits(game_state_t *game, int pos, int color,
+                                 int empty_ix[12], int empty_pos[12], int *n_empty) nogil except? -1:
     """ 12 diamond color and liberty bits without candidate move position.
         Add candidate move by bits | (1 << i).
         i is candidate(empty) position index in 12 diamond 
     """
     cdef int md12[12]
-    cdef int md_pos
+    cdef int md_pos, md_color
     cdef int string_id
     cdef string_t *string
     cdef unsigned long long color_pat = 0
     cdef int lib_pat = 0
     cdef int i
+
+    n_empty[0] = 0
 
     get_md12(md12, pos)
 
@@ -134,11 +164,18 @@ cdef unsigned long long d12_bits(game_state_t *game, int pos, int color) except?
 
     for i in range(12):
         md_pos = md12[i]
-        color_pat |= (game.board[md_pos] << (i+1)*2)
+        md_color = game.board[md_pos]
+        color_pat |= (md_color << (i+1)*2)
         string_id = game.string_id[md_pos]
         if string_id:
             string = &game.string[string_id]
             lib_pat |= (MIN(string.libs, 3) << (i+1)*2)
+
+        # memorize empty position for update positional bits or hash
+        if md_color == S_EMPTY:
+            empty_ix[n_empty[0]] = i
+            empty_pos[n_empty[0]] = md_pos
+            n_empty[0] += 1
 
     return ((color_pat << 26) | lib_pat) << 12
 
@@ -362,31 +399,31 @@ cdef unsigned long long x33_hash(game_state_t *game, int pos, int color) nogil e
     cdef int neighbor_pos
     cdef int string_id
     cdef string_t *string
-    cdef unsigned long long x33_hash = 0
+    cdef unsigned long long hash = 0
     cdef int i
 
     get_neighbor8_in_order(neighbor8, pos)
 
     for i in range(8):
         neighbor_pos = neighbor8[i]
-        x33_hash ^= color_mt[i][game.board[neighbor_pos]]
+        hash ^= color_mt[i][game.board[neighbor_pos]]
         string_id = game.string_id[neighbor_pos]
         if string_id:
             string = &game.string[string_id]
-            x33_hash ^= liberty_mt[i][MIN(string.libs, 3)]
+            hash ^= liberty_mt[i][MIN(string.libs, 3)]
         else:
-            x33_hash ^= liberty_mt[i][0]
+            hash ^= liberty_mt[i][0]
 
-    return x33_hash ^ player_mt[color]
+    return hash ^ player_mt[color]
 
 
 cpdef unsigned long long x33_hash_from_bits(unsigned long long bits) except? -1:
     cdef int i, j
-    cdef unsigned long long x33_hash = 0
+    cdef unsigned long long hash = 0
     for i in range(8):
-        x33_hash ^= color_mt[i][bits >> (18+2*i) & 0x3]
-        x33_hash ^= liberty_mt[i][bits >> (2+2*i) & 0x3]
-    return x33_hash ^ player_mt[bits & 0x3]
+        hash ^= color_mt[i][bits >> (18+2*i) & 0x3]
+        hash ^= liberty_mt[i][bits >> (2+2*i) & 0x3]
+    return hash ^ player_mt[bits & 0x3]
 
 
 cdef unsigned long long x33_bits(game_state_t *game, int pos, int color) except? -1:
