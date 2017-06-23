@@ -1,7 +1,7 @@
 import h5py as h5
 import numpy as np
 import sys
-import time
+import traceback
 
 from tqdm import tqdm
 
@@ -63,29 +63,35 @@ def run_training():
 
         # train
         for j in tqdm(range(n_train)):
-            X = np.zeros((board_max, n_features))
-            onehot_index_array = states[train_indices[j]]
-            for k in range(6):
-                onehot_index_position = np.where(onehot_index_array[k] != -1)[0]
-                for onehot_index in onehot_index_position:
-                    X[onehot_index, onehot_index_array[k, onehot_index]] = 1
+            try:
+                X = np.zeros((board_max, n_features))
+                onehot_index_array = states[train_indices[j]]
+                for k in range(6):
+                    onehot_index_position = np.where(onehot_index_array[k] != -1)[0]
+                    for onehot_index in onehot_index_position:
+                        X[onehot_index, onehot_index_array[k, onehot_index]] = 1
 
-            # one-hot
-            t = np.zeros(board_max)
-            t[actions[train_indices[j]]] = 1
+                # one-hot
+                t = np.zeros(board_max)
+                t[actions[train_indices[j]]] = 1
 
-            y = softmax(np.dot(X, W))
-            loss = cross_entropy_error(y, t)
+                y = softmax(np.dot(X, W))
+                loss = cross_entropy_error(y, t)
 
-            dy = y - t
-            grad = np.dot(X.T, dy)
+                dy = y - t
+                grad = np.dot(X.T, dy)
 
-            W -= lr*grad
+                W -= lr*grad
 
-            n_train_acc += t[np.argmax(y)]
-            n_train_total_loss += loss
-            n_report_acc += t[np.argmax(y)]
-            n_report_total_loss += loss
+                n_train_acc += t[np.argmax(y)]
+                n_train_total_loss += loss
+                n_report_acc += t[np.argmax(y)]
+                n_report_total_loss += loss
+            except:
+                sys.stderr.write('Unexpected error at train index {:d}\n'.format(train_indices[j]))
+                err, msg, _ = sys.exc_info()
+                sys.stderr.write("{} {}\n".format(err, msg))
+                sys.stderr.write(traceback.format_exc())
 
             if (j+1) % report_size == 0:
                 print('\nAcc. {:.3f} Loss. {:.3f}'.format(n_report_acc*100/report_size,
@@ -98,20 +104,26 @@ def run_training():
 
         # test
         for j in range(n_test):
-            X = np.zeros((board_max, n_features))
-            onehot_index_array = states[test_indices[j]]
-            for k in range(6):
-                onehot_index_position = np.where(onehot_index_array[k] != -1)[0]
-                for onehot_index in onehot_index_position:
-                    X[onehot_index, onehot_index_array[k, onehot_index]] = 1
+            try:
+                X = np.zeros((board_max, n_features))
+                onehot_index_array = states[test_indices[j]]
+                for k in range(6):
+                    onehot_index_position = np.where(onehot_index_array[k] != -1)[0]
+                    for onehot_index in onehot_index_position:
+                        X[onehot_index, onehot_index_array[k, onehot_index]] = 1
 
-            # one-hot
-            t = np.zeros(board_max)
-            t[actions[test_indices[j]]] = 1
+                # one-hot
+                t = np.zeros(board_max)
+                t[actions[test_indices[j]]] = 1
 
-            y = softmax(np.dot(X, W))
+                y = softmax(np.dot(X, W))
 
-            n_test_acc += t[np.argmax(y)]
+                n_test_acc += t[np.argmax(y)]
+            except:
+                sys.stderr.write('Unexpected error at test index {:d}\n'.format(test_indices[j]))
+                err, msg, _ = sys.exc_info()
+                sys.stderr.write("{} {}\n".format(err, msg))
+                sys.stderr.write(traceback.format_exc())
 
         test_acc_list.append(n_test_acc*100/n_test)
 
