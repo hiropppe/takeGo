@@ -10,7 +10,13 @@ class TestRolloutPreprocess(unittest.TestCase):
 
     @classmethod
     def tearDownClass(clazz):
-        ctest.teardown() 
+        ctest.teardown()
 
-    def test_update_0(self):
-        ctest.test_update_0()
+    def test_update_12diamond_0(self):
+        ctest.test_update_12diamond_0()
+
+    def test_update_12diamond_after_pass_0(self):
+        ctest.test_update_12diamond_after_pass_0()
+
+    def test_update_3x3_0(self):
+        ctest.test_update_3x3_0()

@@ -68,8 +68,10 @@ cdef class RolloutFeature:
             prev2_pos = game.record[game.moves - 2].pos
             self.clear_onehot_index(game, prev2_pos)
 
-        # clear neighbor and response if passed ?
-        if prev_pos != PASS:
+        if prev_pos == PASS:
+            self.clear_neighbor(game)
+            self.clear_d12(game)
+        else:
             self.update_neighbor(game, prev_pos)
             self.update_d12(game, prev_pos, prev_color)
 
@@ -112,18 +114,19 @@ cdef class RolloutFeature:
         """
         cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
         cdef int i
-        cdef int empty_ix[12], empty_pos[12]
+        cdef int empty_ix[12]
+        cdef int empty_pos[12]
         cdef int n_empty_val = 0
         cdef int *n_empty = &n_empty_val
         cdef unsigned long long hash, positional_hash
         cdef int pax_ix
         cdef int empty_onboard_ix
-        cdef int prev_d12_num = 0
 
         # clear previous d12 positions
         for i in range(feature.prev_d12_num):
             feature.tensor[RESPONSE_PAT][feature.prev_d12[i]] = -1
 
+        feature.prev_d12_num = 0
         hash = d12_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
         for i in range(n_empty_val):
             positional_hash = hash ^ d12_pos_mt[1 << empty_ix[i]] 
@@ -132,7 +135,7 @@ cdef class RolloutFeature:
                 empty_onboard_ix = onboard_index[empty_pos[i]]
                 feature.tensor[RESPONSE_PAT][empty_onboard_ix] = pat_ix
                 # memorize previous d12 position
-                feature.prev_d12[prev_d12_num] = empty_onboard_ix
+                feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
                 feature.prev_d12_num += 1
 
     cdef void update_save_atari(self, game_state_t *game, string_t *string) nogil:
@@ -164,7 +167,7 @@ cdef class RolloutFeature:
                     break
 
             if flag:
-                feature.tensor[SAVE_ATARI][onboard_index[string.lib[0]]] = self.save_atari_start 
+                feature.tensor[SAVE_ATARI][onboard_index[string.lib[0]]] = self.save_atari_start
 
     cdef void update_neighbor(self, game_state_t *game, int pos) nogil:
         """ Move is 8-connected to previous move
@@ -191,6 +194,24 @@ cdef class RolloutFeature:
                 feature.prev_neighbor8[i] = -1
 
         feature.is_neighbor8_set = True
+
+    cdef void clear_neighbor(self, game_state_t *game) nogil:
+        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
+        cdef int i
+
+        if not feature.is_neighbor8_set:
+            return
+
+        for i in range(8):
+            if feature.prev_neighbor8[i] != -1:
+                feature.tensor[NEIGHBOR][feature.prev_neighbor8[i]] = -1
+
+    cdef void clear_d12(self, game_state_t *game) nogil:
+        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
+        cdef int i
+
+        for i in range(feature.prev_d12_num):
+            feature.tensor[RESPONSE_PAT][feature.prev_d12[i]] = -1
 
     cdef void update_lil(self, game_state_t *game, object lil_matrix):
         """ Direct update sparse feature.

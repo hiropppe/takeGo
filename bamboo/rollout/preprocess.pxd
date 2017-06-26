@@ -40,6 +40,10 @@ cdef class RolloutFeature:
 
     cdef void update_d12(self, game_state_t *game, int prev_pos, int prev_color) nogil
 
+    cdef void clear_neighbor(self, game_state_t *game) nogil
+
+    cdef void clear_d12(self, game_state_t *game) nogil
+
     cdef void clear_onehot_index(self, game_state_t *game, int pos) nogil
 
     """ function to generate sparse feature for training (for performance comparison)
