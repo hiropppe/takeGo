@@ -41,6 +41,9 @@ cpdef int init_d12_hash(object d12_csv):
     cdef int id_max = 0
     cdef unsigned long long hash, min_hash
 
+    if not d12_csv:
+        return 0
+
     df = pd.read_csv(d12_csv, dtype={'pat': np.uint64, 'min8': np.uint64, 'min16': np.uint64})
     for _, row in df.iterrows():
         hash = d12_hash_from_bits(row['pat'])
@@ -57,6 +60,9 @@ cpdef int init_x33_hash(object x33_csv):
     cdef unordered_map[unsigned long long, int] id_map
     cdef int id_max = 0
     cdef unsigned long long hash, min_hash
+
+    if not x33_csv:
+        return 0
 
     df = pd.read_csv(x33_csv, dtype={'pat': np.uint64, 'min8': np.uint64, 'min16': np.uint64})
     for _, row in df.iterrows():
