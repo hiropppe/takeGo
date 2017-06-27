@@ -14,8 +14,8 @@ cdef enum:
 cdef struct rollout_feature_t:
     int color
     int tensor[6][361] # hold one-hot index for each feature
-    bint is_neighbor8_set
     int prev_neighbor8[8]
+    int prev_neighbor8_num
     int prev_d12[12]
     int prev_d12_num
 

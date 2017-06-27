@@ -14,7 +14,7 @@ from bamboo.go.board cimport allocate_game, free_game, put_stone
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
 
-from bamboo.rollout.preprocess cimport RESPONSE_PAT, NON_RESPONSE_PAT
+from bamboo.rollout.preprocess cimport RESPONSE, SAVE_ATARI, NEIGHBOR, RESPONSE_PAT, NON_RESPONSE_PAT
 from bamboo.rollout.preprocess cimport rollout_feature_t
 from bamboo.rollout.preprocess cimport RolloutFeature
 from bamboo.rollout.pattern cimport initialize_hash, put_x33_hash, put_d12_hash
@@ -370,6 +370,169 @@ def put_3x3_test_patterns():
     put_x33_hash(0b1000010000000000110011000000000010, 10)
 
 
+def test_update_save_atari():
+    cdef game_state_t *game = allocate_game()
+    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
+    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . a . . .|"
+                              ". . W B W . .|"
+                              ". . . W . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    feature.update(game)
+
+    eq_(black.tensor[SAVE_ATARI][pure_moves['a']], feature.save_atari_start) 
+    eq_(number_of_active_positions(black, SAVE_ATARI), 1)
+
+
+def test_update_save_atari_connect_string():
+    cdef game_state_t *game = allocate_game()
+    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
+    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . W . . .|"
+                              ". . B a B . .|"
+                              ". . B W B . .|"
+                              ". . . B . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    feature.update(game)
+
+    eq_(white.tensor[SAVE_ATARI][pure_moves['a']], feature.save_atari_start) 
+    eq_(number_of_active_positions(white, SAVE_ATARI), 1)
+
+
+def test_update_save_atari_not_escape():
+    cdef game_state_t *game = allocate_game()
+    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
+    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . W a W . .|"
+                              ". . W B W . .|"
+                              ". . . W . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    feature.update(game)
+
+    eq_(black.tensor[SAVE_ATARI][pure_moves['a']], -1) 
+    eq_(number_of_active_positions(black, SAVE_ATARI), 0)
+
+
+def test_update_save_atari_not_escape_on_edge():
+    cdef game_state_t *game = allocate_game()
+    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
+    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+
+    (moves, pure_moves) = parse(game,
+                              "W B . . . . .|"
+                              "a B . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    feature.update(game)
+
+    eq_(white.tensor[SAVE_ATARI][pure_moves['a']], -1) 
+    eq_(number_of_active_positions(white, SAVE_ATARI), 0)
+
+
+def test_update_neighbor_0():
+    cdef game_state_t *game = allocate_game()
+    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
+    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
+    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . .|"
+                              ". . . . .|"
+                              ". . a b c|"
+                              ". . . . .|"
+                              ". . . . .|")
+
+    game.current_color = S_BLACK
+
+    # put B[a]
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    feature.update(game)
+    # updated around move['a'] 
+    eq_(white.tensor[NEIGHBOR][pure_moves['a']-pure_board_size-1], feature.neighbor_start) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['a']-pure_board_size], feature.neighbor_start+1) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['a']-pure_board_size+1], feature.neighbor_start+2) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['a']-1], feature.neighbor_start+3) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['a']+1], feature.neighbor_start+4) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['a']+pure_board_size-1], feature.neighbor_start+5) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['a']+pure_board_size], feature.neighbor_start+6) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['a']+pure_board_size+1], feature.neighbor_start+7) 
+    eq_(number_of_active_positions(white, NEIGHBOR), 8)
+
+    # put W[b]
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    feature.update(game)
+    # updated around move['b'] 
+    eq_(black.tensor[NEIGHBOR][pure_moves['b']-pure_board_size-1], feature.neighbor_start) 
+    eq_(black.tensor[NEIGHBOR][pure_moves['b']-pure_board_size], feature.neighbor_start+1) 
+    eq_(black.tensor[NEIGHBOR][pure_moves['b']-pure_board_size+1], feature.neighbor_start+2) 
+    eq_(black.tensor[NEIGHBOR][pure_moves['b']-1], -1) 
+    eq_(black.tensor[NEIGHBOR][pure_moves['b']+1], feature.neighbor_start+4) 
+    eq_(black.tensor[NEIGHBOR][pure_moves['b']+pure_board_size-1], feature.neighbor_start+5) 
+    eq_(black.tensor[NEIGHBOR][pure_moves['b']+pure_board_size], feature.neighbor_start+6) 
+    eq_(black.tensor[NEIGHBOR][pure_moves['b']+pure_board_size+1], feature.neighbor_start+7) 
+    eq_(number_of_active_positions(black, NEIGHBOR), 7)
+
+    # put B[c]
+    put_stone(game, moves['c'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    feature.update(game)
+    # updated around move['c'] 
+    eq_(white.tensor[NEIGHBOR][pure_moves['c']-pure_board_size-1], feature.neighbor_start) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['c']-pure_board_size], feature.neighbor_start+1) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['c']-pure_board_size+1], -1) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['c']-1], -1) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['c']+1], -1) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['c']+pure_board_size-1], feature.neighbor_start+5) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['c']+pure_board_size], feature.neighbor_start+6) 
+    eq_(white.tensor[NEIGHBOR][pure_moves['c']+pure_board_size+1], -1) 
+    eq_(number_of_active_positions(white, NEIGHBOR), 4)
+
+    # PASS W
+    put_stone(game, PASS, game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    feature.update(game)
+    # cleared around move['b'] 
+    eq_(number_of_active_positions(black, NEIGHBOR), 0)
+
+    # PASS B
+    put_stone(game, PASS, game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    feature.update(game)
+    # cleared around move['c'] 
+    eq_(number_of_active_positions(white, NEIGHBOR), 0)
+
+
 def test_update_12diamond_0():
     cdef game_state_t *game = allocate_game()
     cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
@@ -394,6 +557,18 @@ def test_update_12diamond_0():
     game.current_color = FLIP_COLOR(game.current_color)
     feature.update(game)
     # updated around move['a'] 
+    eq_(white.tensor[RESPONSE][pure_moves['a']-2*pure_board_size], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']-pure_board_size-1], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']-pure_board_size], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']-pure_board_size+1], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']-2], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']-1], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']+1], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']+2], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']+pure_board_size-1], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']+pure_board_size], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']+pure_board_size+1], feature.response_start) 
+    eq_(white.tensor[RESPONSE][pure_moves['a']+2*pure_board_size], feature.response_start) 
     eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-2*pure_board_size], feature.d12_start) 
     eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-pure_board_size-1], feature.d12_start+1) 
     eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-pure_board_size], feature.d12_start+2) 
@@ -406,6 +581,7 @@ def test_update_12diamond_0():
     eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+pure_board_size], feature.d12_start+2) 
     eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+pure_board_size+1], feature.d12_start+1) 
     eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+2*pure_board_size], feature.d12_start) 
+    eq_(number_of_active_positions(white, RESPONSE), 12)
     eq_(number_of_active_positions(white, RESPONSE_PAT), 12)
 
     # put W[b]
@@ -426,6 +602,7 @@ def test_update_12diamond_0():
     eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+pure_board_size+1], feature.d12_start+1) 
     eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+2*pure_board_size], feature.d12_start) 
     # no others
+    eq_(number_of_active_positions(black, RESPONSE), 12)
     eq_(number_of_active_positions(black, RESPONSE_PAT), 12)
 
     # put B[b]
@@ -446,6 +623,7 @@ def test_update_12diamond_0():
     eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+pure_board_size+1], feature.d12_start+4) 
     eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+2*pure_board_size], feature.d12_start+3) 
     # no others
+    eq_(number_of_active_positions(white, RESPONSE), 11)
     eq_(number_of_active_positions(white, RESPONSE_PAT), 11)
 
     # put W[d]
@@ -466,6 +644,7 @@ def test_update_12diamond_0():
     eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+pure_board_size+1], feature.d12_start+14) 
     eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+2*pure_board_size], -1) 
     # no others, previous positions are cleared
+    eq_(number_of_active_positions(black, RESPONSE), 9)
     eq_(number_of_active_positions(black, RESPONSE_PAT), 9)
 
     # put B[e]
@@ -486,9 +665,10 @@ def test_update_12diamond_0():
     eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+pure_board_size+1], feature.d12_start+24) 
     eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+2*pure_board_size], feature.d12_start+23) 
     # no others, previous positions are cleared
+    eq_(number_of_active_positions(white, RESPONSE), 9)
     eq_(number_of_active_positions(white, RESPONSE_PAT), 9)
 
-    print_board(game)
+    # print_board(game)
 
     free_game(game)
 
@@ -639,7 +819,7 @@ def test_update_3x3_0():
     eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['d']+pure_board_size+1], feature.x33_start + 8) 
     eq_(number_of_active_positions(black, NON_RESPONSE_PAT), 17)
 
-    print_board(game)
+    # print_board(game)
 
     free_game(game)
 

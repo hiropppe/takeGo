@@ -13,7 +13,7 @@ from scipy.sparse import lil_matrix, csr_matrix
 from bamboo.go.board cimport PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END 
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport game_state_t, pure_board_max, onboard_index, onboard_pos, liberty_end
-from bamboo.go.board cimport get_neighbor4, get_neighbor8, get_md12
+from bamboo.go.board cimport get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
 from bamboo.go.pattern cimport N, S, W, E, NN, NW, NE, SS, SW, SE, WW, EE
 
 from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
@@ -124,6 +124,7 @@ cdef class RolloutFeature:
 
         # clear previous d12 positions
         for i in range(feature.prev_d12_num):
+            feature.tensor[RESPONSE][feature.prev_d12[i]] = -1
             feature.tensor[RESPONSE_PAT][feature.prev_d12[i]] = -1
 
         feature.prev_d12_num = 0
@@ -133,6 +134,8 @@ cdef class RolloutFeature:
             if d12_hashmap.find(positional_hash) != d12_hashmap.end():
                 pat_ix = self.d12_start + d12_hashmap[positional_hash]
                 empty_onboard_ix = onboard_index[empty_pos[i]]
+                # set response(?) and response pattern
+                feature.tensor[RESPONSE][empty_onboard_ix] = self.response_start
                 feature.tensor[RESPONSE_PAT][empty_onboard_ix] = pat_ix
                 # memorize previous d12 position
                 feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
@@ -174,43 +177,37 @@ cdef class RolloutFeature:
         """
         cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
         cdef int neighbor8[8]
-        cdef int neighbor_pos, neighbor_i
+        cdef int neighbor_pos, empty_neighbor_ix
         cdef int i
 
-        get_neighbor8(neighbor8, pos)
+        for i in range(feature.prev_neighbor8_num):
+            feature.tensor[NEIGHBOR][feature.prev_neighbor8[i]] = -1
 
+        get_neighbor8_in_order(neighbor8, pos)
+
+        feature.prev_neighbor8_num = 0
         for i in range(8):
-            if feature.is_neighbor8_set:
-                # unset previous neighbor8
-                if feature.prev_neighbor8[i] != -1:
-                    feature.tensor[NEIGHBOR][feature.prev_neighbor8[i]] = -1
-
             neighbor_pos = neighbor8[i]
-            if game.board[neighbor_pos] != S_OB:
-                neighbor_i = onboard_index[neighbor_pos]
-                feature.tensor[NEIGHBOR][neighbor_i] = self.neighbor_start + i
-                feature.prev_neighbor8[i] = neighbor_i
-            else:
-                feature.prev_neighbor8[i] = -1
-
-        feature.is_neighbor8_set = True
+            if game.board[neighbor_pos] == S_EMPTY:
+                empty_neighbor_ix = onboard_index[neighbor_pos]
+                feature.tensor[NEIGHBOR][empty_neighbor_ix] = self.neighbor_start + i
+                # memorize previous neighbor position
+                feature.prev_neighbor8[feature.prev_neighbor8_num] = empty_neighbor_ix
+                feature.prev_neighbor8_num += 1
 
     cdef void clear_neighbor(self, game_state_t *game) nogil:
         cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
         cdef int i
 
-        if not feature.is_neighbor8_set:
-            return
-
-        for i in range(8):
-            if feature.prev_neighbor8[i] != -1:
-                feature.tensor[NEIGHBOR][feature.prev_neighbor8[i]] = -1
+        for i in range(feature.prev_neighbor8_num):
+            feature.tensor[NEIGHBOR][feature.prev_neighbor8[i]] = -1
 
     cdef void clear_d12(self, game_state_t *game) nogil:
         cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
         cdef int i
 
         for i in range(feature.prev_d12_num):
+            feature.tensor[RESPONSE][feature.prev_d12[i]] = -1
             feature.tensor[RESPONSE_PAT][feature.prev_d12[i]] = -1
 
     cdef void update_lil(self, game_state_t *game, object lil_matrix):
@@ -336,11 +333,6 @@ cdef class RolloutFeature:
         get_neighbor8(neighbor8, pos)
 
         for i in range(8):
-            if feature.is_neighbor8_set:
-                # unset previous neighbor8
-                if feature.prev_neighbor8[i] != -1:
-                    lil_matrix[self.neighbor_start + i, feature.prev_neighbor8[i]] = 0
-
             neighbor_pos = neighbor8[i]
             if game.board[neighbor_pos] != S_OB:
                 neighbor_i = onboard_index[neighbor_pos]
@@ -348,8 +340,6 @@ cdef class RolloutFeature:
                 feature.prev_neighbor8[i] = neighbor_i
             else:
                 feature.prev_neighbor8[i] = 0
-
-        feature.is_neighbor8_set = True
 
     cdef void clear_updated_string_cache(self, game_state_t *game) nogil:
         cdef int *updated_string_num
@@ -369,9 +359,6 @@ cdef class RolloutFeature:
             for j in range(PURE_BOARD_MAX):
                 black_feature.tensor[i][j] = -1
                 white_feature.tensor[i][j] = -1
-
-        black_feature.is_neighbor8_set = False
-        white_feature.is_neighbor8_set = False
 
         black_feature.prev_d12_num = 0
         white_feature.prev_d12_num = 0
