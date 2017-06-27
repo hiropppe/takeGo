@@ -12,7 +12,7 @@ DEFAULT_EPOCH = 10
 DEFAULT_BATCH_SIZE = 16
 DEFAULT_LEARNING_RATE = .005
 DEFAULT_DECAY = .5
-DEFAULT_DECAY_EVERY = 2000000
+DEFAULT_DECAY_EVERY = 10000000
 DEFAULT_MOMENTUM = .9
 DEFAULT_BETA1 = .9
 DEFAULT_BETA2 = .999
@@ -53,9 +53,11 @@ def start_training(args):
     params = {'W': rgen.normal(loc=0.0, scale=0.01, size=n_features)}
 
     if args.optimizer == 'sgd':
-        optimizer = SGD(lr=args.learning_rate)
+        optimizer = SGD(lr=args.learning_rate, decay_every=args.decay_every, decay_rate=args.decay)
         print('Using SGD:' +
-              ' lr={:.3f}'.format(args.learning_rate))
+              ' lr={:.3f}'.format(args.learning_rate) +
+              ' decay_every={:d}'.format(args.decay_every) +
+              ' decay={:.3f}'.format(args.decay))
     elif args.optimizer == 'momentum':
         optimizer = Momentum(lr=args.learning_rate, momentum=args.momentum)
         print('Using Momentum SGD:' +

@@ -5,12 +5,21 @@ import numpy as np
 class SGD:
     """SGD(Stochastic Gradient Descent)"""
 
-    def __init__(self, lr=0.01):
+    def __init__(self, lr=0.01, decay_every=None, decay_rate=None):
         self.lr = lr
+        self.decay_every = decay_every
+        self.decay_rate = decay_rate
+        self.n_update = 0
 
     def update(self, params, grads):
         for key in params.keys():
             params[key] -= self.lr * grads[key]
+        self.n_update += 1
+        if self.decay_every and self.n_update % self.decay_every == 0:
+            lr_old = self.lr
+            self.lr *= self.decay_rate
+            print('Batch reaches {:d}. '.format(self.n_update) +
+                  'Updte learning rate {:s} -> {:s}'.format(str(lr_old), str(self.lr)))
 
 
 class Momentum:
