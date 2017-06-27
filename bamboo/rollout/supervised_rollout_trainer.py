@@ -1,5 +1,6 @@
 import h5py as h5
 import numpy as np
+import os
 import sys
 import traceback
 
@@ -183,6 +184,16 @@ def start_training(args):
         print('Acc. {:.3f} ({:.0f}/{:.0f}) '.format(train_acc_list[-1], n_train_acc, n_train) +
               'Loss. {:.3f} '.format(train_loss_list[-1]) +
               'Val Acc. {:.3f} ({:.0f}/{:.0f}) '.format(test_acc_list[-1], n_test_acc, n_test))
+
+        if not os.path.exists(args.out_directory):
+            os.mkdir(args.out_directory)
+
+        params_filename = os.path.join(args.out_directory,
+                                       'weights.{:s}.hdf5'.format(str(i).rjust(5, '0')))
+        params_file = h5.File(params_filename, 'w')
+        for key in params.keys():
+            params_file.create_dataset(key, data=params[key])
+        params_file.close()
 
 
 def handle_arguments(cmd_line_args=None):
