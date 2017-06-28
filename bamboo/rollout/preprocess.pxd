@@ -28,7 +28,7 @@ cdef class RolloutFeature:
 
     """ function to generate carray feature for mcts
     """
-    cdef void rebase(self, game_state_t *game) nogil
+    cdef void update_all(self, game_state_t *game) nogil
 
     cdef void update(self, game_state_t *game) nogil
 

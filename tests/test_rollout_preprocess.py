@@ -35,3 +35,15 @@ class TestRolloutPreprocess(unittest.TestCase):
 
     def test_update_3x3_0(self):
         ctest.test_update_3x3_0()
+
+    def test_update_all_save_atari(self):
+        ctest.test_update_all_save_atari()
+
+    def test_update_all_neighbor(self):
+        ctest.test_update_all_neighbor()
+
+    def test_update_all_12diamond(self):
+        ctest.test_update_all_12diamond()
+
+    def test_update_all_3x3(self):
+        ctest.test_update_all_3x3()

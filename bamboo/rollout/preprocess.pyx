@@ -44,8 +44,29 @@ cdef class RolloutFeature:
     def __dealloc__(self):
         pass
 
-    cdef void rebase(self, game_state_t *game) nogil:
-        pass
+    cdef void update_all(self, game_state_t *game) nogil:
+        cdef int prev_pos, prev_color
+        cdef string_t *string
+        cdef int pos
+        cdef int i
+
+        if game.moves == 0:
+            return
+
+        prev_pos = game.record[game.moves - 1].pos
+        prev_color = game.record[game.moves - 1].color
+
+        if prev_pos != PASS:
+            self.update_neighbor(game, prev_pos)
+            self.update_d12(game, prev_pos, prev_color)
+
+        for i in range(pure_board_max):
+            pos = onboard_pos[i]
+            if game.board[pos] == S_EMPTY:
+                self.update_3x3(game, pos)
+            else:
+                string = &game.string[game.string_id[pos]]
+                self.update_save_atari(game, string)
 
     cdef void update(self, game_state_t *game) nogil:
         cdef int current_color = <int>game.current_color
