@@ -26,8 +26,6 @@ cdef class RolloutFeature:
     cdef int response_size, save_atari_size, neighbor_size, nakade_size, x33_size, d12_size
     cdef int response_start, save_atari_start, neighbor_start, nakade_start, x33_start, d12_start
 
-    """ function to generate carray feature for mcts
-    """
     cdef void update_all(self, game_state_t *game) nogil
 
     cdef void update(self, game_state_t *game) nogil
@@ -46,22 +44,6 @@ cdef class RolloutFeature:
 
     cdef void clear_onehot_index(self, game_state_t *game, int pos) nogil
 
-    """ function to generate sparse feature for training (for performance comparison)
-    """
-    cdef void update_lil(self, game_state_t *game, object lil_matrix)
-
-    cdef void update_save_atari_lil(self, game_state_t *game, string_t *string, object lil_matrix)
-
-    cdef void update_neighbor_lil(self, game_state_t *game, int pos, object lil_matrix)
-    
-    cdef void update_3x3_lil(self, game_state_t *game, int pos, object lil_matrix)
-
-    cdef void update_d12_lil(self, game_state_t *game, int pos, object lil_matrix)
-
-    cdef void clear_onehot_lil_index(self, game_state_t *game, int pos, object lil_matrix)
-
     cdef void clear_updated_string_cache(self, game_state_t *game) nogil
 
     cdef void clear_planes(self) nogil
-
-    cdef object get_tensor_as_csr_matrix(self, int color)
