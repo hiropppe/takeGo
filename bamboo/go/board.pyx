@@ -499,7 +499,7 @@ cdef int add_empty(string_t *string, int pos, int head) nogil:
 
     empty = head
 
-    while string.empty[empty] < empty:
+    while string.empty[empty] < pos:
         empty = string.empty[empty]
 
     string.empty[pos] = string.empty[empty]
