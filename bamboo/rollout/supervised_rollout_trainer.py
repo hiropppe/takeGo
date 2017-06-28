@@ -55,35 +55,39 @@ def start_training(args):
 
     if args.optimizer == 'sgd':
         optimizer = SGD(lr=args.learning_rate, decay_every=args.decay_every, decay_rate=args.decay)
-        print('Using SGD:' +
-              ' lr={:.3f}'.format(args.learning_rate) +
-              ' decay_every={:d}'.format(args.decay_every) +
-              ' decay={:.3f}'.format(args.decay))
+        if not args.decay_every:
+            print('Using SGD:' +
+                  ' lr={:s}'.format(str(args.learning_rate)))
+        else:
+            print('Using SGD with step decay:' +
+                  ' lr={:s}'.format(str(args.learning_rate)) +
+                  ' decay_every={:s}'.format(str(args.decay_every)) +
+                  ' decay={:s}'.format(str(args.decay)))
     elif args.optimizer == 'momentum':
         optimizer = Momentum(lr=args.learning_rate, momentum=args.momentum)
         print('Using Momentum SGD:' +
-              ' lr={:.3f}'.format(args.learning_rate) +
-              ' momentum={:.3f}'.format(args.momentum))
+              ' lr={:s}'.format(str(args.learning_rate)) +
+              ' momentum={:s}'.format(str(args.momentum)))
     elif args.optimizer == 'nesterov':
         optimizer = Nesterov(lr=args.learning_rate, momentum=args.momentum)
         print('Using Nesterov:' +
-              ' lr={:.3f}'.format(args.learning_rate) +
-              ' momentum={:.3f}'.format(args.momentum))
+              ' lr={:s}'.format(str(args.learning_rate)) +
+              ' momentum={:s}'.format(str(args.momentum)))
     elif args.optimizer == 'adagrad':
         optimizer = AdaGrad(lr=args.learning_rate)
         print('Using AdaGrad:' +
-              ' lr={:.3f}'.format(args.learning_rate))
+              ' lr={:s}'.format(str(args.learning_rate)))
     elif args.optimizer == 'rmsprop':
         optimizer = RMSprop(lr=args.learning_rate, decay_rate=args.decay)
         print('Using RMSprop:' +
-              ' lr={:.3f}'.format(args.learning_rate) +
-              ' decay={:.3f}'.format(args.decay))
+              ' lr={:s}'.format(str(args.learning_rate)) +
+              ' decay={:s}'.format(str(args.decay)))
     else:
         optimizer = Adam(lr=args.learning_rate, beta1=args.beta1, beta2=args.beta2)
         print('Using Adam:' +
-              ' lr={:.3f}'.format(args.learning_rate) +
-              ' beta1={:.3f}'.format(args.beta1) +
-              ' beta2={:.3f}'.format(args.beta2))
+              ' lr={:s}'.format(str(args.learning_rate)) +
+              ' beta1={:s}'.format(str(args.beta1)) +
+              ' beta2={:s}'.format(str(args.beta2)))
 
     print('Total size: {:d} Train size: {:d} Test size: {:d}'.format(n_total, n_train, n_test))
 
@@ -216,11 +220,11 @@ def handle_arguments(cmd_line_args=None):
     parser.add_argument("--decay", "-d", type=float, default=DEFAULT_DECAY,
                         help=("The rate at which learning decreases. SGD and RMSprop Default: " + str(DEFAULT_DECAY)))
     parser.add_argument("--beta1", "-b1", type=float, default=DEFAULT_BETA1,
-                        help="Hyper parameter of Adam. Default: None")
+                        help="Hyper parameter of Adam. Default: " + str(DEFAULT_BETA1))
     parser.add_argument("--beta2", "-b2", type=float, default=DEFAULT_BETA2,
-                        help="Hyper parameter of Adam. Default: None")
-    parser.add_argument("--decay-every", "-de", type=int, default=DEFAULT_DECAY_EVERY,
-                        help="Batch size of decay learning rate. Default: " + str(DEFAULT_DECAY_EVERY))
+                        help="Hyper parameter of Adam. Default: " + str(DEFAULT_BETA2))
+    parser.add_argument("--decay-every", "-de", type=int, default=None,
+                        help="Batch size of decay learning rate. Default: None")
     parser.add_argument("--weights", default=None,
                         help="Name of a .h5 weights file (in the output directory) to load to resume training")
     parser.add_argument("--train-val-test", nargs=3, type=float, default=DEFAULT_TRAIN_VAL_TEST,
