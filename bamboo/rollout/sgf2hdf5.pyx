@@ -9,6 +9,7 @@ import sgf
 import sys
 import traceback
 import tables
+import time
 import h5py
 
 from scipy.sparse import lil_matrix, csr_matrix
@@ -18,7 +19,7 @@ from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFe
 
 from bamboo.util cimport SGFMoveIterator
 from bamboo.go.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
-from bamboo.go.board cimport game_state_t, pure_board_size, set_board_size, free_game, onboard_index
+from bamboo.go.board cimport game_state_t, pure_board_size, pure_board_max, set_board_size, free_game, onboard_index
 from bamboo.rollout.pattern cimport initialize_hash, init_nakade_hash, init_x33_hash, init_d12_hash
 from bamboo.rollout.preprocess cimport RolloutFeature, rollout_feature_t
 from bamboo.go.printer cimport print_board
@@ -32,6 +33,7 @@ cdef class GameConverter(object):
         int bsize
         int nakade_size, x33_size, d12_size
         int n_features
+        list update_speeds
 
     def __cinit__(self, bsize=19, nakade_file=None, x33_file=None, d12_file=None):
         self.bsize = bsize
@@ -40,6 +42,7 @@ cdef class GameConverter(object):
         self.nakade_size = init_nakade_hash(nakade_file)
         self.x33_size = init_x33_hash(x33_file)
         self.d12_size = init_d12_hash(d12_file)
+        self.update_speeds = list()
 
     def __dealloc__(self):
         pass
@@ -102,18 +105,27 @@ cdef class GameConverter(object):
         try:
             # update initial state
             if sgf_iter.next_move[0] != PASS:
+                next_move = sgf_iter.next_move
                 self.preprocessor.update(game)
                 feature = &self.preprocessor.feature_planes[<int>game.current_color]
                 onehot_index_array = np.asarray(feature.tensor)
-                yield (onehot_index_array, onboard_index[sgf_iter.next_move[0]])
+                if onboard_index[next_move[0]] >= pure_board_max:
+                    raise IllegalMove()
+                else:
+                    yield (onehot_index_array, onboard_index[next_move[0]])
 
             for i, move in enumerate(sgf_iter):
-                if move[0] != PASS and sgf_iter.next_move and sgf_iter.next_move[0] != PASS:
-                    next_move = sgf_iter.next_move
+                next_move = sgf_iter.next_move
+                if move[0] != PASS and next_move and next_move[0] != PASS:
+                    s = time.time()
                     self.preprocessor.update(game)
+                    self.update_speeds.append(time.time()-s)
                     feature = &self.preprocessor.feature_planes[<int>game.current_color]
                     onehot_index_array = np.asarray(feature.tensor)
-                    yield (onehot_index_array, onboard_index[next_move[0]])
+                    if onboard_index[next_move[0]] >= pure_board_max:
+                        raise IllegalMove()
+                    else:
+                        yield (onehot_index_array, onboard_index[next_move[0]])
         except IllegalMove:
             warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
             if verbose:
@@ -218,7 +230,6 @@ cdef class GameConverter(object):
                             states.resize((next_idx + 1, 6, PURE_BOARD_MAX))
                             actions.resize((next_idx + 1, 1))
                         states[next_idx] = state
-                        assert move < 361, 'Illegal move {:d} at {}'.format(move, file_name)
                         actions[next_idx] = move
                         n_pairs += 1
                         next_idx += 1
@@ -269,6 +280,7 @@ cdef class GameConverter(object):
             n_not19,
             n_too_few_move,
             n_too_many_move))
+        print('Update Speed: Avg. {:3f} us'.format(np.mean(self.update_speeds)*1000*1000))
 
         # processing complete; rename tmp_file to hdf5_file
         h5f.close()
