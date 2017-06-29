@@ -46,7 +46,8 @@ if __name__ == "__main__":
 
     player = GreedyPolicyPlayer(sl_policy)
 
-    gtp_game = GTPGameConnector(player)
+    gtp_game = GTPGameConnector()
+    gtp_game.set_greedy(player)
     gtp_engine = ExtendedGtpEngine(gtp_game, name='bambooStone', version='0.0')
 
     if args.server:

@@ -23,7 +23,9 @@ extensions = [Extension('bamboo.go.board', sources=['bamboo/go/board.pyx'], lang
               Extension('bamboo.rollout.pattern', sources=["bamboo/rollout/pattern.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.rollout.preprocess', sources=["bamboo/rollout/preprocess.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.rollout.pattern_harvest', sources=["bamboo/rollout/pattern_harvest.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
+              Extension('bamboo.models.linear_softmax', sources=["bamboo/models/linear_softmax.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.ai.greedy', sources=["bamboo/ai/greedy.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
+              Extension('bamboo.ai.rollout', sources=["bamboo/ai/rollout.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.gtp.gtp_connector', sources=["bamboo/gtp/gtp_connector.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.go.test_board', sources=["bamboo/go/test_board.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
               Extension('bamboo.go.test_ladder', sources=["bamboo/go/test_ladder.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"]),
@@ -49,6 +51,7 @@ setup(
   scripts=[
     'bamboos',
     'bamboos_keras',
+    'bamboos_rollout',
     'bambooc'
   ],
   install_requires=requires,

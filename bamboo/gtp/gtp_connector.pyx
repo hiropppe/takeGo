@@ -7,6 +7,7 @@ from bamboo.go.board cimport allocate_game, free_game, initialize_board, set_boa
 from bamboo.go.board cimport do_move
 
 from bamboo.ai.greedy cimport GreedyPolicyPlayer
+from bamboo.ai.rollout cimport RolloutPolicyPlayer
 
 from bamboo.go.printer cimport print_board
 
@@ -19,12 +20,13 @@ cdef class GTPGameConnector(object):
     """
 
     cdef game_state_t *game
-    cdef GreedyPolicyPlayer player
+    cdef GreedyPolicyPlayer greedy_player
+    cdef RolloutPolicyPlayer rollout_player
+    cdef object player_name
 
-    def __cinit__(self, GreedyPolicyPlayer player):
+    def __cinit__(self):
         self.game = allocate_game()
         self.set_size(19)
-        self.player = player
 
     def __dealloc(self):
         free_game(self.game)
@@ -34,16 +36,30 @@ cdef class GTPGameConnector(object):
         self.game = allocate_game()
         self.set_size(19)
 
+    def set_greedy(self, GreedyPolicyPlayer player):
+        self.greedy_player = player
+        self.player_name = 'greedy'
+
+    def set_rollout(self, RolloutPolicyPlayer player):
+        self.rollout_player = player
+        self.player_name = 'rollout'
+
     def get_move(self, color):
         cdef int x, y, pos
         self.game.current_color = color
-        pos = self.player.get_move(self.game)
+
+        if self.player_name == 'greedy':
+            pos = self.greedy_player.get_move(self.game)
+        elif self.player_name == 'rollout':
+            pos = self.rollout_player.get_move(self.game)
+        else:
+            raise Exception()
+
         if pos == PASS:
             return gtp.PASS
         else:
             x = X(pos, PURE_BOARD_SIZE) + 1
             y = PURE_BOARD_SIZE-Y(pos, PURE_BOARD_SIZE)
-            print pos, x, y
             return (x, y)
 
     def make_move(self, color, vertex):
@@ -60,6 +76,7 @@ cdef class GTPGameConnector(object):
         (x, y) = vertex
         pos = POS(OB_SIZE+x-1, OB_SIZE+PURE_BOARD_SIZE-y, BOARD_SIZE)
         is_legal = do_move(self.game, pos)
+        print_board(self.game)
         if is_legal:
             return True
         else:
