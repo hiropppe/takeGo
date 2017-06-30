@@ -8,7 +8,7 @@ cimport numpy as np
 
 from libc.stdio cimport printf
 
-from bamboo.go.board cimport PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END 
+from bamboo.go.board cimport BOARD_MAX, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END 
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport game_state_t, pure_board_max, onboard_index, onboard_pos
 from bamboo.go.board cimport get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
@@ -42,6 +42,8 @@ cdef class RolloutFeature:
         pass
 
     cdef void update_all(self, game_state_t *game) nogil:
+        cdef rollout_feature_t *current_feature
+        cdef int current_color = <int>game.current_color
         cdef int prev_pos, prev_color
         cdef string_t *string
         cdef int pos
@@ -50,22 +52,25 @@ cdef class RolloutFeature:
         if game.moves == 0:
             return
 
+        current_feature = &self.feature_planes[<int>game.current_color]
+
         prev_pos = game.record[game.moves - 1].pos
         prev_color = game.record[game.moves - 1].color
 
         if prev_pos != PASS:
-            self.update_neighbor(game, prev_pos)
-            self.update_d12(game, prev_pos, prev_color)
+            self.update_neighbor(current_feature, game, prev_pos)
+            self.update_d12(current_feature, game, prev_pos, prev_color)
 
         for i in range(pure_board_max):
             pos = onboard_pos[i]
             if game.board[pos] == S_EMPTY:
-                self.update_3x3(game, pos)
+                self.update_3x3(current_feature, game, pos, current_color)
             else:
                 string = &game.string[game.string_id[pos]]
-                self.update_save_atari(game, string)
+                self.update_save_atari(current_feature, game, string)
 
     cdef void update(self, game_state_t *game) nogil:
+        cdef rollout_feature_t *current_feature
         cdef int current_color = <int>game.current_color
         cdef int prev_pos, prev_color
         cdef int prev2_pos
@@ -78,36 +83,42 @@ cdef class RolloutFeature:
         if game.moves == 0:
             return
 
+        current_feature = &self.feature_planes[current_color]
+
+        current_feature.updated[0] = BOARD_MAX
+        current_feature.updated_num = 0
+
         prev_pos = game.record[game.moves - 1].pos
         prev_color = game.record[game.moves - 1].color
-        self.clear_onehot_index(game, prev_pos)
+        self.clear_onehot_index(current_feature, prev_pos)
+        self.memorize_updated(current_feature, prev_pos)
 
         if game.moves > 1:
             prev2_pos = game.record[game.moves - 2].pos
-            self.clear_onehot_index(game, prev2_pos)
+            self.clear_onehot_index(current_feature, prev2_pos)
+            self.memorize_updated(current_feature, prev2_pos)
 
         if prev_pos == PASS:
-            self.clear_neighbor(game)
-            self.clear_d12(game)
+            self.clear_neighbor(current_feature)
+            self.clear_d12(current_feature)
         else:
-            self.update_neighbor(game, prev_pos)
-            self.update_d12(game, prev_pos, prev_color)
+            self.update_neighbor(current_feature, game, prev_pos)
+            self.update_d12(current_feature, game, prev_pos, prev_color)
 
         updated_string_num = game.updated_string_num[current_color]
         updated_string_id = game.updated_string_id[current_color]
         for i in range(updated_string_num):
             updated_string = &game.string[updated_string_id[i]]
-            self.update_save_atari(game, updated_string)
+            self.update_save_atari(current_feature, game, updated_string)
             update_pos = updated_string.empty[0]
             while update_pos != STRING_EMPTY_END:
-                self.update_3x3(game, update_pos)
+                self.update_3x3(current_feature, game, update_pos, current_color)
                 update_pos = updated_string.empty[update_pos]
 
         # clear updated string memo for next feature calculation
         self.clear_updated_string_cache(game)
 
-    cdef void clear_onehot_index(self, game_state_t *game, int pos) nogil:
-        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
+    cdef void clear_onehot_index(self, rollout_feature_t *feature, int pos) nogil:
         if pos != PASS:
             feature.tensor[RESPONSE][onboard_index[pos]] = -1 
             feature.tensor[SAVE_ATARI][onboard_index[pos]] = -1 
@@ -115,25 +126,28 @@ cdef class RolloutFeature:
             feature.tensor[RESPONSE_PAT][onboard_index[pos]] = -1 
             feature.tensor[NON_RESPONSE_PAT][onboard_index[pos]] = -1 
 
-    cdef void update_3x3(self, game_state_t *game, int pos) nogil:
+    cdef void update_3x3(self, rollout_feature_t *feature, game_state_t *game, int pos, int color) nogil:
         """ Move matches 3 × 3 pattern around move
         """
-        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
         cdef unsigned long long hash
         cdef int pat_ix
 
-        hash = x33_hash(game, pos, <int>game.current_color)
-        if x33_hashmap.find(hash) != x33_hashmap.end():
+        hash = x33_hash(game, pos, color)
+        if x33_hashmap.find(hash) == x33_hashmap.end():
+            feature.tensor[NON_RESPONSE_PAT][onboard_index[pos]] = -1
+        else:
             pat_ix = self.x33_start + x33_hashmap[hash]
             feature.tensor[NON_RESPONSE_PAT][onboard_index[pos]] = pat_ix
 
-    cdef void update_d12(self, game_state_t *game, int prev_pos, int prev_color) nogil:
+        self.memorize_updated(feature, pos)
+
+    cdef void update_d12(self, rollout_feature_t *feature, game_state_t *game, int prev_pos, int prev_color) nogil:
         """ Move matches 12-point diamond pattern near previous move
         """
-        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
-        cdef int i
+        cdef int i, pos
         cdef int empty_ix[12]
         cdef int empty_pos[12]
+        cdef int each_empty_pos
         cdef int n_empty_val = 0
         cdef int *n_empty = &n_empty_val
         cdef unsigned long long hash, positional_hash
@@ -142,16 +156,22 @@ cdef class RolloutFeature:
 
         # clear previous d12 positions
         for i in range(feature.prev_d12_num):
-            feature.tensor[RESPONSE][feature.prev_d12[i]] = -1
-            feature.tensor[RESPONSE_PAT][feature.prev_d12[i]] = -1
+            pos = feature.prev_d12[i]
+            feature.tensor[RESPONSE][pos] = -1
+            feature.tensor[RESPONSE_PAT][pos] = -1
 
         feature.prev_d12_num = 0
         hash = d12_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
         for i in range(n_empty_val):
             positional_hash = hash ^ d12_pos_mt[1 << empty_ix[i]] 
-            if d12_hashmap.find(positional_hash) != d12_hashmap.end():
+            each_empty_pos = empty_pos[i]
+            if d12_hashmap.find(positional_hash) == d12_hashmap.end():
+                empty_onboard_ix = onboard_index[each_empty_pos]
+                feature.tensor[RESPONSE][empty_onboard_ix] = -1 
+                feature.tensor[RESPONSE_PAT][empty_onboard_ix] = -1
+            else:
                 pat_ix = self.d12_start + d12_hashmap[positional_hash]
-                empty_onboard_ix = onboard_index[empty_pos[i]]
+                empty_onboard_ix = onboard_index[each_empty_pos]
                 # set response(?) and response pattern
                 feature.tensor[RESPONSE][empty_onboard_ix] = self.response_start
                 feature.tensor[RESPONSE_PAT][empty_onboard_ix] = pat_ix
@@ -159,10 +179,12 @@ cdef class RolloutFeature:
                 feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
                 feature.prev_d12_num += 1
 
-    cdef void update_save_atari(self, game_state_t *game, string_t *string) nogil:
+            self.memorize_updated(feature, each_empty_pos)
+
+    cdef void update_save_atari(self, rollout_feature_t *feature, game_state_t *game, string_t *string) nogil:
         """ Save atari 1 Move saves stone(s) from capture
         """
-        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
+        cdef int last_lib
         cdef int neighbor4[4]
         cdef int neighbor_pos, neighbor_string_id
         cdef string_t *neighbor_string
@@ -172,7 +194,8 @@ cdef class RolloutFeature:
 
         libs_after_move = 0
         if string.libs == 1 and string.color == game.current_color:
-            get_neighbor4(neighbor4, string.lib[0])
+            last_lib = string.lib[0]
+            get_neighbor4(neighbor4, last_lib)
             for i in range(4):
                 neighbor_pos = neighbor4[i]
                 neighbor_string_id = game.string_id[neighbor_pos]
@@ -188,12 +211,12 @@ cdef class RolloutFeature:
                     break
 
             if flag:
-                feature.tensor[SAVE_ATARI][onboard_index[string.lib[0]]] = self.save_atari_start
+                feature.tensor[SAVE_ATARI][onboard_index[last_lib]] = self.save_atari_start
+                self.memorize_updated(feature, last_lib)
 
-    cdef void update_neighbor(self, game_state_t *game, int pos) nogil:
+    cdef void update_neighbor(self, rollout_feature_t *feature, game_state_t *game, int pos) nogil:
         """ Move is 8-connected to previous move
         """
-        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
         cdef int neighbor8[8]
         cdef int neighbor_pos, empty_neighbor_ix
         cdef int i
@@ -212,21 +235,24 @@ cdef class RolloutFeature:
                 # memorize previous neighbor position
                 feature.prev_neighbor8[feature.prev_neighbor8_num] = empty_neighbor_ix
                 feature.prev_neighbor8_num += 1
+                self.memorize_updated(feature, neighbor_pos)
 
-    cdef void clear_neighbor(self, game_state_t *game) nogil:
-        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
-        cdef int i
+    cdef void clear_neighbor(self, rollout_feature_t *feature) nogil:
+        cdef int i, pos
 
         for i in range(feature.prev_neighbor8_num):
-            feature.tensor[NEIGHBOR][feature.prev_neighbor8[i]] = -1
+            pos = feature.prev_neighbor8[i]
+            feature.tensor[NEIGHBOR][pos] = -1
+            self.memorize_updated(feature, pos)
 
-    cdef void clear_d12(self, game_state_t *game) nogil:
-        cdef rollout_feature_t *feature = &self.feature_planes[<int>game.current_color]
-        cdef int i
+    cdef void clear_d12(self, rollout_feature_t *feature) nogil:
+        cdef int i, pos
 
         for i in range(feature.prev_d12_num):
-            feature.tensor[RESPONSE][feature.prev_d12[i]] = -1
-            feature.tensor[RESPONSE_PAT][feature.prev_d12[i]] = -1
+            pos = feature.prev_d12[i]
+            feature.tensor[RESPONSE][pos] = -1
+            feature.tensor[RESPONSE_PAT][pos] = -1
+            self.memorize_updated(feature, pos)
 
     cdef void clear_updated_string_cache(self, game_state_t *game) nogil:
         cdef int *updated_string_num
@@ -235,17 +261,33 @@ cdef class RolloutFeature:
         updated_string_num[0] = 0
 
     cdef void clear_planes(self) nogil:
-        cdef rollout_feature_t *black_feature = &self.feature_planes[<int>S_BLACK]
-        cdef rollout_feature_t *white_feature = &self.feature_planes[<int>S_WHITE]
+        cdef rollout_feature_t *black = &self.feature_planes[<int>S_BLACK]
+        cdef rollout_feature_t *white = &self.feature_planes[<int>S_WHITE]
         cdef int i, j
 
-        black_feature.color = <int>S_BLACK
-        white_feature.color = <int>S_WHITE
+        black.color = <int>S_BLACK
+        white.color = <int>S_WHITE
 
         for i in range(6):
             for j in range(PURE_BOARD_MAX):
-                black_feature.tensor[i][j] = -1
-                white_feature.tensor[i][j] = -1
+                black.tensor[i][j] = -1
+                white.tensor[i][j] = -1
 
-        black_feature.prev_d12_num = 0
-        white_feature.prev_d12_num = 0
+        black.prev_d12_num = 0
+        white.prev_d12_num = 0
+
+        black.updated[0] = BOARD_MAX
+        black.updated_num = 0
+        white.updated[0] = BOARD_MAX
+        white.updated_num = 0
+
+    cdef bint memorize_updated(self, rollout_feature_t *feature, int pos) nogil:
+        if feature.updated[pos] != 0:
+            return False
+
+        feature.updated[pos] = feature.updated[0]
+        feature.updated[0] = pos
+
+        feature.updated_num += 1
+
+        return True

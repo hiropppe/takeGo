@@ -7,7 +7,7 @@ from libc.stdlib cimport malloc, free
 
 from nose.tools import ok_, eq_
 
-from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, PASS
+from bamboo.go.board cimport BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, PASS
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport game_state_t, board_size, pure_board_size, pure_board_max
 from bamboo.go.board cimport allocate_game, free_game, put_stone
@@ -1187,6 +1187,31 @@ def test_update_all_3x3():
 
     free_game(game)
 
+
+def test_memorize_updated():
+    cdef RolloutFeature feature = RolloutFeature()
+    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
+
+    eq_(black.updated[0], BOARD_MAX)
+
+    # add 264
+    feature.memorize_updated(black, 264)
+    eq_(black.updated[0], 264)
+    eq_(black.updated[264], BOARD_MAX)
+
+    # 264 already exists
+    eq_(feature.memorize_updated(black, 264), False)
+
+    # add 48, 480
+    feature.memorize_updated(black, 48)
+    eq_(black.updated[0], 48)
+    eq_(black.updated[48], 264)
+    eq_(black.updated[264], BOARD_MAX)
+    feature.memorize_updated(black, 480)
+    eq_(black.updated[0], 480)
+    eq_(black.updated[480], 48)
+    eq_(black.updated[48], 264)
+    eq_(black.updated[264], BOARD_MAX)
 
 cdef int number_of_active_positions(rollout_feature_t *feature, int feature_id):
     cdef int i

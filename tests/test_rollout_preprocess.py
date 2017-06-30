@@ -47,3 +47,6 @@ class TestRolloutPreprocess(unittest.TestCase):
 
     def test_update_all_3x3(self):
         ctest.test_update_all_3x3()
+
+    def test_memorize_updated(self):
+        ctest.test_memorize_updated()
