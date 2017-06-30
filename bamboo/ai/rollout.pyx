@@ -40,7 +40,7 @@ cdef class RolloutPolicyPlayer(object):
         print('Feature Calculation Speed. {:.3f} us'.format((time.time()-s)*1000*1000))
         s = time.time()
         # generate and sort probs
-        self.linear_softmax.softmax(feature_t.tensor)
+        self.linear_softmax.update_softmax(feature_t.updated, feature_t.tensor)
         print('Forward Speed. {:.3f} ms'.format((time.time()-s)*1000))
         probs = np.asarray(self.linear_softmax.probs)
         pos = np.argmax(probs)

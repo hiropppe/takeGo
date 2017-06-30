@@ -8,4 +8,4 @@ cdef class LinearSoftmax:
         double logits_sum
 
     cdef void softmax(self, int onehot_ix[6][361]) nogil
-    cdef void update_softmax(self, int positions[361], int n, int onehot_ix[6][361]) nogil
+    cdef void update_softmax(self, int positions[529], int onehot_ix[6][361]) nogil
