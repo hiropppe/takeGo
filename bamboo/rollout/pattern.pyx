@@ -18,7 +18,7 @@ class IllegalState(Exception):
     pass
 
 
-cpdef void initialize_hash():
+cpdef void initialize_rands():
     cdef int i, j
     for i in range(13):
         for j in range(4):
@@ -30,6 +30,30 @@ cpdef void initialize_hash():
 
     for i in range(12):
         d12_pos_mt[1 << i] = mt()
+
+
+cpdef void read_rands(object mt_file):
+    cdef int i, j
+    with open(mt_file, 'r') as mt_in:
+        for i in range(13):
+            for j in range(4):
+                color_mt[i][j] = long(mt_in.next())
+                liberty_mt[i][j] = long(mt_in.next())
+
+        player_mt[<int>S_BLACK] = long(mt_in.next())
+        player_mt[<int>S_WHITE] = long(mt_in.next())
+
+        for i in range(12):
+            d12_pos_mt[1 << i] = long(mt_in.next())
+
+
+cpdef void write_rands(object mt_file, int n=118):
+    cdef int i
+    cdef unsigned long long v
+    with open(mt_file, 'w') as mt_out:
+        for i in range(n):
+            mt_out.write(str(mt()))
+            mt_out.write('\n')
 
 
 cpdef int init_nakade_hash(object nakade_csv):

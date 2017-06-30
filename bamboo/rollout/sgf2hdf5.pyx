@@ -20,7 +20,7 @@ from bamboo.util cimport SGFMoveIterator
 from bamboo.go.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
 from bamboo.go.board cimport game_state_t, pure_board_size, pure_board_max, onboard_index
 from bamboo.go.printer cimport print_board
-from bamboo.rollout.pattern cimport initialize_hash, init_nakade_hash, init_x33_hash, init_d12_hash
+from bamboo.rollout.pattern cimport read_rands, init_nakade_hash, init_x33_hash, init_d12_hash
 from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout.preprocess cimport RolloutFeature, rollout_feature_t
 
@@ -34,10 +34,10 @@ cdef class GameConverter(object):
         int n_features
         list update_speeds
 
-    def __cinit__(self, bsize=19, nakade_file=None, x33_file=None, d12_file=None):
+    def __cinit__(self, bsize=19, rands_file=None, nakade_file=None, x33_file=None, d12_file=None):
         self.bsize = bsize
 
-        initialize_hash()
+        read_rands(rands_file)
         self.nakade_size = init_nakade_hash(nakade_file)
         self.x33_size = init_x33_hash(x33_file)
         self.d12_size = init_d12_hash(d12_file)

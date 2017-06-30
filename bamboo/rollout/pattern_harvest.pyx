@@ -92,7 +92,8 @@ def save_3x3_pattern(outfile):
 def harvest_12diamond_pattern(file_name, verbose=False, quiet=False):
     cdef game_state_t *game
     cdef SGFMoveIterator sgf_iter
-    cdef int empty_ix[12], empty_pos[12]
+    cdef int empty_ix[12]
+    cdef int empty_pos[12]
     cdef int n_empty_val = 0
     cdef int *n_empty = &n_empty_val
     cdef int i, j

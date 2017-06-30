@@ -17,7 +17,7 @@ from bamboo.go.parseboard cimport parse
 from bamboo.rollout.preprocess cimport RESPONSE, SAVE_ATARI, NEIGHBOR, RESPONSE_PAT, NON_RESPONSE_PAT
 from bamboo.rollout.preprocess cimport rollout_feature_t
 from bamboo.rollout.preprocess cimport RolloutFeature
-from bamboo.rollout.pattern cimport initialize_hash, put_x33_hash, put_d12_hash
+from bamboo.rollout.pattern cimport initialize_rands, put_x33_hash, put_d12_hash
 from bamboo.rollout.pattern import print_x33
 
 
@@ -28,7 +28,7 @@ cdef int d12_size = 100
 def setup():
     global nakade_size, x33_size, d12_size
 
-    initialize_hash()
+    initialize_rands()
 
     put_12diamond_test_patterns()
     put_3x3_test_patterns()

@@ -9,7 +9,7 @@ from nose.tools import ok_, eq_
 from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE
 from bamboo.go.board cimport game_state_t, allocate_game, free_game, put_stone
 from bamboo.go.parseboard cimport parse
-from bamboo.rollout.pattern cimport initialize_hash, d12_bits, d12_hash, d12_hash_from_bits, d12_pos_mt
+from bamboo.rollout.pattern cimport initialize_rands, d12_bits, d12_hash, d12_hash_from_bits, d12_pos_mt
 
 from bamboo.rollout.pattern import print_d12
 
@@ -17,7 +17,8 @@ from bamboo.rollout.pattern import print_d12
 def test_d12_bits_0():
     cdef unsigned long long bits
     cdef game_state_t *game = allocate_game()
-    cdef int empty_ix[12], empty_pos[12]
+    cdef int empty_ix[12]
+    cdef int empty_pos[12]
     cdef int n_empty_val = 0
     cdef int *n_empty = &n_empty_val
 
@@ -48,7 +49,8 @@ def test_d12_hash_0():
     cdef unsigned long long hash1
     cdef unsigned long long hash2
     cdef game_state_t *game = allocate_game()
-    cdef int empty_ix[12], empty_pos[12]
+    cdef int empty_ix[12]
+    cdef int empty_pos[12]
     cdef int n_empty_val = 0
     cdef int *n_empty = &n_empty_val
 
@@ -61,7 +63,7 @@ def test_d12_hash_0():
                              ". . . W . . .|"
                              ". . . . . . .|")
 
-    initialize_hash()
+    initialize_rands()
 
     put_stone(game, moves['a'], S_WHITE)
 

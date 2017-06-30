@@ -14,7 +14,9 @@ cdef unsigned long long d12_pos_mt[2049]
 cdef unordered_map[unsigned long long, int] x33_hashmap
 cdef unordered_map[unsigned long long, int] d12_hashmap
 
-cpdef void initialize_hash()
+cpdef void initialize_rands()
+cpdef void read_rands(object mt_file)
+cpdef void write_rands(object mt_file, int n=?)
 
 cpdef int init_nakade_hash(object nakade_csv)
 cpdef int init_d12_hash(object d12_csv)
