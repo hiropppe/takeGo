@@ -1195,7 +1195,7 @@ def test_memorize_updated():
     eq_(black.updated[0], BOARD_MAX)
 
     # add 264
-    feature.memorize_updated(black, 264)
+    eq_(feature.memorize_updated(black, 264), True)
     eq_(black.updated[0], 264)
     eq_(black.updated[264], BOARD_MAX)
 
@@ -1203,11 +1203,11 @@ def test_memorize_updated():
     eq_(feature.memorize_updated(black, 264), False)
 
     # add 48, 480
-    feature.memorize_updated(black, 48)
+    eq_(feature.memorize_updated(black, 48), True)
     eq_(black.updated[0], 48)
     eq_(black.updated[48], 264)
     eq_(black.updated[264], BOARD_MAX)
-    feature.memorize_updated(black, 480)
+    eq_(feature.memorize_updated(black, 480), True)
     eq_(black.updated[0], 480)
     eq_(black.updated[480], 48)
     eq_(black.updated[48], 264)

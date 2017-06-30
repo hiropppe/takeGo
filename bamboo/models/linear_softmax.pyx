@@ -45,14 +45,14 @@ cdef class LinearSoftmax:
                 self.probs[i] = self.logits[i]/self.logits_sum
 
     cdef void update_softmax(self, int positions[529], int onehot_ix[6][361]) nogil:
-        cdef int pos
+        cdef int pos, tmp_pos
         cdef int pure_pos
         cdef double updated_sum = .0
         cdef double updated_old_sum = .0
         cdef int i, j
 
         pos = positions[0]
-        while pos < BOARD_MAX:
+        while pos != BOARD_MAX:
             pure_pos = onboard_index[pos]
             updated_old_sum += self.logits[pure_pos]
             self.logits[pure_pos] = .0
@@ -61,7 +61,10 @@ cdef class LinearSoftmax:
                     self.logits[pure_pos] += self.weights[onehot_ix[j][pure_pos]]
             self.logits[pure_pos] = exp(self.logits[pure_pos]/self.temperature)
             updated_sum += self.logits[pure_pos]
-            pos = positions[pos]
+            # Must be cleared for next feature calculation
+            tmp_pos = positions[pos]
+            positions[pos] = 0
+            pos = tmp_pos
 
         self.logits_sum = self.logits_sum - updated_old_sum + updated_sum
 
