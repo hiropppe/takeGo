@@ -10,20 +10,25 @@ def run_game_converter(cmd_line_args=None):
     import sys
 
     parser = argparse.ArgumentParser(
-        description='Prepare SGF Go game files for training the neural network model.',
-        epilog="Available features are: board, ones, turns_since, liberties,\
-        capture_size, self_atari_size, liberties_after, sensibleness, and zeros.\
-        Ladder features are not currently implemented")
-    parser.add_argument("--outfile", "-o", help="Destination to write data (hdf5 file)", required=True)  # noqa: E501
-    parser.add_argument("--directory", "-d", help="Directory containing SGF files to process. if not present, expects files from stdin", default=None)  # noqa: E501
-    parser.add_argument("--size", "-s", help="Size of the game board. SGFs not matching this are discarded with a warning", type=int, default=19)  # noqa: E501
-    parser.add_argument("--nakade_file", "-nakade", help="nakade pattern file", default=None)
-    parser.add_argument("--x33_file", "-x33", help="3x3 pattern file", default=None)
-    parser.add_argument("--d12_file", "-d12", help="12 point diamond pattern file", default=None)
-    parser.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
-    parser.add_argument("--quiet", "-q", help="Turn on quiet mode", default=False, action="store_true")  # noqa: E501
-    parser.add_argument("--matrix", "-m", type=str, default='onehot-board', choices=['onehot-board', 'onehot-array', 'csr'],
-                        help="Choice output matrix type (Default: onehot-board)")
+        description='Prepare SGF Go game files for training the rollout model.')
+    parser.add_argument("--outfile", "-o", required=True,
+                        help="Destination to write data (hdf5 file)")
+    parser.add_argument("--directory", "-d", default=None,
+                        help="Directory containing SGF files to process. if not present, expects files from stdin")
+    parser.add_argument("--size", "-s", type=int, default=19,
+                        help="Size of the game board. SGFs not matching this are discarded with a warning")
+    parser.add_argument("--mt-rands-file", "-mt", required=True, type=str, default=None,
+                        help="Mersenne twister random number file. Default: None")
+    parser.add_argument("--nakade-file", "-nakade", default=None,
+                        help="nakade pattern file. Default: None")
+    parser.add_argument("--x33-file", "-x33", default=None,
+                        help="3x3 pattern file. Default: None")
+    parser.add_argument("--d12-file", "-d12", default=None,
+                        help="12 point diamond pattern file. Default:None")
+    parser.add_argument("--verbose", "-v", default=False, action="store_true",
+                        help="Turn on verbose mode")
+    parser.add_argument("--quiet", "-q", default=False, action="store_true",
+                        help="Turn on quiet mode")
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -31,6 +36,7 @@ def run_game_converter(cmd_line_args=None):
         args = parser.parse_args(cmd_line_args)
 
     converter = GameConverter(args.size,
+                              args.mt_rands_file,
                               args.nakade_file,
                               args.x33_file,
                               args.d12_file)
@@ -50,12 +56,7 @@ def run_game_converter(cmd_line_args=None):
     else:
         files = (f.strip() for f in sys.stdin if _is_sgf(f))
 
-    if args.matrix == 'onehot-board':
-        converter.sgfs_to_onehot_index_board(files, args.outfile, verbose=args.verbose, quiet=args.quiet)
-    elif args.matrix == 'onehot-array':
-        converter.sgfs_to_onehot_index_array(files, args.outfile, verbose=args.verbose, quiet=args.quiet)
-    else:
-        converter.sgfs_to_csr_matrix(files, args.outfile, verbose=args.verbose, quiet=args.quiet)
+    converter.sgfs_to_hdf5(files, args.outfile, verbose=args.verbose, quiet=args.quiet)
 
 
 if __name__ == '__main__':

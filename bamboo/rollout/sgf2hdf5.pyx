@@ -46,7 +46,7 @@ cdef class GameConverter(object):
     def __dealloc__(self):
         pass
 
-    def convert_game_as_onehot_index_board(self, file_name, verbose=False):
+    def convert_game(self, file_name, verbose=False):
         cdef game_state_t *game
         cdef SGFMoveIterator sgf_iter
         cdef rollout_feature_t *feature
@@ -92,7 +92,7 @@ cdef class GameConverter(object):
                 sys.stderr.write("{} {}\n".format(err, msg))
                 sys.stderr.write(traceback.format_exc())
 
-    def sgfs_to_onehot_index_board(self,
+    def sgfs_to_hdf5(self,
                      sgf_files,
                      hdf5_file,
                      ignore_errors=True, verbose=False, quiet=False):
@@ -136,7 +136,7 @@ cdef class GameConverter(object):
                 n_pairs = 0
                 file_start_idx = next_idx
                 try:
-                    for state, move in self.convert_game_as_onehot_index_board(file_name):
+                    for state, move in self.convert_game(file_name):
                         if next_idx >= len(states):
                             states.resize((next_idx + 1, 6, PURE_BOARD_MAX))
                             actions.resize((next_idx + 1, 1))
