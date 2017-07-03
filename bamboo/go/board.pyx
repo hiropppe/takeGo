@@ -217,8 +217,9 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
     if connection == 0:
         make_string(game, pos, color)
         if prisoner == 1 and game.string[game.string_id[pos]].libs == 1:
-            # set ko
-            pass
+            game.ko_move = game.moves
+            game.ko_pos = game.string[game.string_id[pos]].lib[0]
+            game.current_hash ^= hash_bit[game.ko_pos][<int>HASH_KO]
     elif connection == 1:
         add_stone(game, pos, color, connect[0])
     else:
@@ -997,6 +998,9 @@ cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
     if nb4_empty[pat.pat3(game.pat, pos)] == 0 and is_suicide(game, pos, color):
         return False
 
+    if game.ko_pos == pos and game.ko_move == (game.moves - 1):
+        return False
+
     return True
 
 
@@ -1015,6 +1019,9 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
         game.string[game.string_id[SOUTH(pos, board_size)]].libs == 1):
 
         if nb4_empty[pat.pat3(game.pat, pos)] == 0 and is_suicide(game, pos, color):
+            return False
+
+        if game.ko_pos == pos and game.ko_move == (game.moves - 1):
             return False
 
         return True
