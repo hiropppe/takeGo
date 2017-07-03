@@ -54,7 +54,6 @@ cdef class GameConverter(object):
         try:
             if sgf_iter.next_move[0] != PASS:
                 next_move = sgf_iter.next_move
-                game.current_color = next_move[1] 
                 update(self.feature, game)
                 if onboard_index[next_move[0]] >= pure_board_max:
                     raise IllegalMove()

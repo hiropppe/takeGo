@@ -81,6 +81,8 @@ cdef class SGFMoveIterator:
 
         self.i = 0
         self.next_move = self.moves[self.i]
+        if self.next_move[0] != PASS:
+            self.game.current_color = self.next_move[1]
 
     def __dealloc__(self):
         free_game(self.game)
@@ -96,16 +98,16 @@ cdef class SGFMoveIterator:
         move = self.moves[self.i]
 
         is_legal = put_stone(self.game, move[0], move[1])
-        if self.ignore_not_legal or is_legal:
-            self.game.current_color = FLIP_COLOR(self.game.current_color)
-        else:
-            raise IllegalMove()
         self.i += 1
 
         if self.i < len(self.moves):
             self.next_move = self.moves[self.i]
+            self.game.current_color = self.next_move[1]
         else:
             self.next_move = None 
+
+        if not (self.ignore_not_legal or is_legal):
+            raise IllegalMove()
 
         return move
 
