@@ -114,6 +114,8 @@ def test_missing_ladder_breaker_1():
 
 
 def test_capture_to_escape_1():
+    cdef int ladder_moves[1]
+    ladder_moves[0] = 0 
     game = board.allocate_game()
     (moves, pure_moves) = parseboard.parse(game,
                                 "d O X c . . .|"
@@ -129,7 +131,8 @@ def test_capture_to_escape_1():
     game.current_color = board.S_BLACK
 
     # 'a' is not a capture because of ataris
-    # policy_feature.is_ladder_capture(game, game.string_id[48], 59, 47, feature.search_games, 0)
+    #policy_feature.is_ladder_capture(game, game.string_id[48], 59, 47, feature.search_games, 0)
+    #policy_feature.is_ladder_escape(game, game.string_id[25], 24, False, feature.search_games, 0, ladder_moves)
     policy_feature.update(feature, game)
     eq_(planes[44, pure_moves['a']], 0)
     eq_(planes[45, pure_moves['c']], 1)

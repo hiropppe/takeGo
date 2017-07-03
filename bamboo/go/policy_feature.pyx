@@ -174,7 +174,7 @@ cdef bint has_atari_neighbor(board.game_state_t *game, int string_id, char escap
 
     string = &game.string[string_id]
     neighbor_id = string.neighbor[0]
-    while neighbor_id != board.neighbor_end:
+    while neighbor_id != board.NEIGHBOR_END:
         neighbor = &game.string[neighbor_id]
         if neighbor.libs == 1 and board.is_legal(game, neighbor.lib[0], escape_color):
             return True
@@ -196,7 +196,7 @@ cdef int get_escape_options(board.game_state_t *game,
     # prior to escape atari
     string = &game.string[string_id]
     neighbor_id = string.neighbor[0]
-    while neighbor_id != board.neighbor_end:
+    while neighbor_id != board.NEIGHBOR_END:
         neighbor = &game.string[neighbor_id]
         if neighbor.libs == 1 and board.is_legal(game, neighbor.lib[0], escape_color):
             escape_options[escape_options_num] = neighbor.lib[0]
@@ -227,11 +227,21 @@ cdef bint is_ladder_capture(board.game_state_t *game,
     if depth >= 80 or ladder_moves[0] > 200:
         return False
 
-    # print '(', board.CORRECT_X(pos, board.board_size, board.OB_SIZE), ',', board.CORRECT_Y(pos, board.board_size, board.OB_SIZE), ')', capture_color, board.is_legal(game, pos, capture_color), board.is_suicide(game, pos, capture_color), depth
-    # printer.print_board(game)
+    """
+    printer.print_board(game)
+    print('IsCapture? Move: ({:d}, {:d}) Color: {:d} IsLegal: {:s} Depth: {:d}'.format(
+        board.CORRECT_X(pos, board.board_size, board.OB_SIZE),
+        board.CORRECT_Y(pos, board.board_size, board.OB_SIZE),
+        capture_color,
+        str(board.is_legal(game, pos, capture_color)),
+        depth))
+    """
     if not board.is_legal(game, pos, capture_color):
-        # printer.print_board(game)
-        # print 'Unable to capture !! not legal at (', board.CORRECT_X(pos, board.board_size, board.OB_SIZE), ',', board.CORRECT_Y(pos, board.board_size, board.OB_SIZE), ')', capture_color
+        """
+        printer.print_board(game)
+        print('Unable to capture !! Illegal Move: ({:d}, {:d}) Color: {:d}'.format(
+            board.CORRECT_X(pos, board.board_size, board.OB_SIZE), board.CORRECT_Y(pos, board.board_size, board.OB_SIZE), capture_color))
+        """
         return False
 
     ladder_moves[0] += 1
@@ -279,11 +289,21 @@ cdef bint is_ladder_escape(board.game_state_t *game,
     if depth >= 80 or ladder_moves[0] > 200:
        return False
 
-    # print '(', board.CORRECT_X(pos, board.board_size, board.OB_SIZE), ',', board.CORRECT_Y(pos, board.board_size, board.OB_SIZE), ')', escape_color, board.is_legal(game, pos, escape_color), board.is_suicide(game, pos, escape_color), depth
-    # printer.print_board(game)
+    """
+    printer.print_board(game)
+    print('IsEscape? Move: ({:d}, {:d}) Color: {:d} IsLegal: {:s} Depth: {:d}'.format(
+        board.CORRECT_X(pos, board.board_size, board.OB_SIZE),
+        board.CORRECT_Y(pos, board.board_size, board.OB_SIZE),
+        capture_color,
+        str(board.is_legal(game, pos, capture_color)),
+        depth))
+    """
     if not board.is_legal(game, pos, escape_color):
-        # printer.print_board(game)
-        # print 'Unable to escape !! not legal at (', board.CORRECT_X(pos, board.board_size, board.OB_SIZE), ',', board.CORRECT_Y(pos, board.board_size, board.OB_SIZE), ')', capture_color
+        """
+        printer.print_board(game)
+        print('Unable to escape !! Illegal Move: ({:d}, {:d}) Color: {:d}'.format(
+            board.CORRECT_X(pos, board.board_size, board.OB_SIZE), board.CORRECT_Y(pos, board.board_size, board.OB_SIZE), capture_color))
+        """
         return False
 
     ladder_moves[0] += 1
@@ -294,12 +314,16 @@ cdef bint is_ladder_escape(board.game_state_t *game,
         string_id = ladder_game.string_id[pos]
     string = &ladder_game.string[string_id]
     if string.libs == 1:
-        # printer.print_board(ladder_game)
-        # print 'Captured !!'
+        """
+        printer.print_board(ladder_game)
+        print 'Captured !!'
+        """
         return False
     elif string.libs >= 3:
-        # printer.print_board(ladder_game)
-        # print 'Escaped !!'
+        """
+        printer.print_board(ladder_game)
+        print 'Escaped !!'
+        """
         return True
     else:
         for j in range(2):

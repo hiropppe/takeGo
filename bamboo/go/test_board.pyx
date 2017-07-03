@@ -24,7 +24,6 @@ def test_set_board_size_9():
     ok_(board.string_lib_max == 143)
     ok_(board.string_pos_max == 143)
     ok_(board.string_end == 142)
-    ok_(board.neighbor_end == 63)
     ok_(board.liberty_end == 142)
     ok_(board.max_records == 243)
     ok_(board.max_moves == 242)
@@ -44,7 +43,6 @@ def test_set_board_size_19():
     ok_(board.string_lib_max == 483)
     ok_(board.string_pos_max == 483)
     ok_(board.string_end == 482)
-    ok_(board.neighbor_end == 287)
     ok_(board.liberty_end == 482)
     ok_(board.max_records == 1083)
     ok_(board.max_moves == 1082)
@@ -159,16 +157,16 @@ def test_add_neighbor_to_isolated_one():
 
     ok_(string_id == 1)
     ok_(neighbor_string_id == 2)
-    ok_(game.string[1].neighbor[0] == board.max_neighbor - 1)
-    ok_(game.string[2].neighbor[0] == board.max_neighbor - 1)
+    ok_(game.string[1].neighbor[0] == board.NEIGHBOR_END)
+    ok_(game.string[2].neighbor[0] == board.NEIGHBOR_END)
 
     board.add_neighbor(&game.string[string_id], neighbor_string_id, 0)
     board.add_neighbor(&game.string[neighbor_string_id], string_id, 0)
 
     ok_(game.string[1].neighbor[0] == 2)
-    ok_(game.string[1].neighbor[2] == board.max_neighbor - 1)
+    ok_(game.string[1].neighbor[2] == board.NEIGHBOR_END)
     ok_(game.string[2].neighbor[0] == 1)
-    ok_(game.string[2].neighbor[1] == board.max_neighbor - 1)
+    ok_(game.string[2].neighbor[1] == board.NEIGHBOR_END)
 
     board.free_game(game)
 
@@ -265,8 +263,8 @@ def test_merge_string_two():
     ok_(game.string_next[first], board.string_pos_max - 1)
     ok_(game.string_next[second], board.string_pos_max - 1)
 
-    ok_(game.string[1].neighbor[0] == board.max_neighbor - 1)
-    ok_(game.string[2].neighbor[0] == board.max_neighbor - 1)
+    ok_(game.string[1].neighbor[0] == board.NEIGHBOR_END)
+    ok_(game.string[2].neighbor[0] == board.NEIGHBOR_END)
 
     ok_(game.string[1].lib[first + board.board_size] == board.string_lib_max - 1)
     ok_(game.string[2].lib[second + board.board_size] == board.string_lib_max - 1)
@@ -306,9 +304,9 @@ def test_merge_string_three():
     ok_(game.string_next[second], board.string_pos_max - 1)
     ok_(game.string_next[third], board.string_pos_max - 1)
 
-    ok_(game.string[1].neighbor[0] == board.max_neighbor - 1)
-    ok_(game.string[2].neighbor[0] == board.max_neighbor - 1)
-    ok_(game.string[3].neighbor[0] == board.max_neighbor - 1)
+    ok_(game.string[1].neighbor[0] == board.NEIGHBOR_END)
+    ok_(game.string[2].neighbor[0] == board.NEIGHBOR_END)
+    ok_(game.string[3].neighbor[0] == board.NEIGHBOR_END)
 
     ok_(game.string[1].lib[first + board.board_size] == board.string_lib_max - 1)
     ok_(game.string[2].lib[second + board.board_size] == board.string_lib_max - 1)
@@ -344,7 +342,6 @@ def test_is_legal_stone_exists():
 
 
 def test_is_legal_nb4_empty_is_zero():
-    cdef unsigned int pat3
     game = board.allocate_game()
     (moves, pure_moves) = parseboard.parse(game,
                                  ". B . . . . .|"
@@ -355,7 +352,20 @@ def test_is_legal_nb4_empty_is_zero():
                                  ". . . . . . .|"
                                  ". . . . . . .|")
 
-    game.current_color = board.S_BLACK
+    eq_(board.is_legal(game, moves['a'], board.S_WHITE), False)
+    board.free_game(game)
+
+
+def test_is_legal_nb4_empty_is_zero_edge():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                                 "B a B . . . .|"
+                                 ". B W B . . .|"
+                                 ". . W B . . .|"
+                                 ". . . . . . .|"
+                                 ". W . . . . .|"
+                                 ". . . . . . .|"
+                                 ". . . . . . .|")
 
     eq_(board.is_legal(game, moves['a'], board.S_WHITE), False)
     board.free_game(game)
@@ -590,7 +600,7 @@ cdef board.string_t* __initialize_string(board.game_state_t *game, int origin, c
     board.fill_n_short(string.lib, board.string_lib_max, 0)
     board.fill_n_short(string.neighbor, board.max_neighbor, 0)
     string.lib[0] = board.string_lib_max - 1
-    string.neighbor[0] = board.max_neighbor - 1
+    string.neighbor[0] = board.NEIGHBOR_END
     string.libs = 0
     string.color = color
     string.origin = origin 

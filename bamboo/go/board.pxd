@@ -129,7 +129,6 @@ cdef int string_lib_max
 cdef int string_pos_max
 
 cdef int string_end
-cdef int neighbor_end
 cdef int liberty_end
 
 cdef int max_records

@@ -38,7 +38,6 @@ string_lib_max = STRING_LIB_MAX
 string_pos_max = STRING_POS_MAX
 
 string_end = STRING_END
-neighbor_end = NEIGHBOR_END
 liberty_end = LIBERTY_END
 
 max_records = MAX_RECORDS
@@ -90,7 +89,7 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
     #memcpy(dst.prisoner, src.prisoner, sizeof(int) * S_MAX)
     memcpy(dst.board, src.board, sizeof(char) * board_max)
     #memcpy(dst.birth_move, src.birth_move, sizeof(int) * board_max)
-    #memcpy(dst.pat, src.pat, sizeof(pattern_t) * board_max)
+    memcpy(dst.pat, src.pat, sizeof(pattern_t) * board_max)
     memcpy(dst.string_id, src.string_id, sizeof(int) * string_pos_max)
     memcpy(dst.string_next, src.string_next, sizeof(int) * string_pos_max)
     #memcpy(dst.candidates, src.candidates, sizeof(bint) * board_max)
@@ -105,6 +104,8 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
     dst.current_color = src.current_color
     #dst.pass_count = src.pass_count
     dst.moves = src.moves
+    dst.ko_move = src.ko_move
+    dst.ko_pos = src.ko_pos
 
 
 cdef void initialize_board(game_state_t *game, bint rollout):
@@ -286,7 +287,7 @@ cdef void merge_string(game_state_t *game, string_t *dst, string_t *src[3], int 
 
         prev = 0
         neighbor = src[i].neighbor[0]
-        while neighbor != neighbor_end:
+        while neighbor != NEIGHBOR_END:
             remove_neighbor_string(&game.string[neighbor], removed_string_id)
             add_neighbor(dst, neighbor, prev)
             add_neighbor(&game.string[neighbor], string_id, prev)
@@ -382,7 +383,7 @@ cdef void make_string(game_state_t *game, int pos, char color) nogil:
     new_string.libs = 0
     new_string.lib[0] = liberty_end
     new_string.neighbors = 0
-    new_string.neighbor[0] = neighbor_end
+    new_string.neighbor[0] = NEIGHBOR_END
     new_string.empties = 0
     new_string.empty[0] = STRING_EMPTY_END
     new_string.color = color
@@ -464,7 +465,7 @@ cdef int remove_string(game_state_t *game, string_t *string) nogil:
             break
 
     neighbor = string.neighbor[0]
-    while neighbor != neighbor_end:
+    while neighbor != NEIGHBOR_END:
         remove_neighbor_string(&game.string[neighbor], remove_string_id)
         neighbor = string.neighbor[neighbor]
 
@@ -943,7 +944,7 @@ cdef void set_board_size(int size):
     global max_string, max_neighbor
     global board_start, board_end
     global string_lib_max, string_pos_max
-    global string_end, neighbor_end, liberty_end
+    global string_end, liberty_end
     global max_records, max_moves
 
     pure_board_size = size
@@ -962,7 +963,6 @@ cdef void set_board_size(int size):
     string_pos_max = board_size * (size + OB_SIZE)
 
     string_end = string_pos_max - 1
-    neighbor_end = max_neighbor - 1
     liberty_end = string_lib_max - 1
 
     max_records = pure_board_max * 3
