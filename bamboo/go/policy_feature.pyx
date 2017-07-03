@@ -22,6 +22,7 @@ cdef policy_feature_t *allocate_feature():
     memset(feature, 0, sizeof(policy_feature_t))
 
     feature.planes = np.zeros((MAX_POLICY_PLANES, board.pure_board_max), dtype=np.int32)
+    feature.n_planes = feature.planes.shape[0]
 
     return feature
 
