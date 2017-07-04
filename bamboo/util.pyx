@@ -96,7 +96,6 @@ cdef class SGFMoveIterator:
             raise StopIteration()
 
         move = self.moves[self.i]
-
         is_legal = put_stone(self.game, move[0], move[1])
         self.i += 1
 
@@ -107,6 +106,10 @@ cdef class SGFMoveIterator:
             self.next_move = None 
 
         if not (self.ignore_not_legal or is_legal):
+            tmpmove = divmod(move[0], 23)
+            tmpmove = (tmpmove[1]-2, tmpmove[0]-2)
+            print 'IllegalMove', move[1], tmpmove
+            print_board(self.game)
             raise IllegalMove()
 
         return move

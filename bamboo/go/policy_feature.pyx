@@ -13,6 +13,10 @@ from libc.stdint cimport intptr_t
 cimport board 
 cimport printer
 
+from bamboo.go.board cimport E_COMPLETE_ONE_EYE
+from bamboo.go.board cimport eye_condition
+from bamboo.go.pattern cimport pat3
+
 
 cdef policy_feature_t *allocate_feature():
     cdef policy_feature_t *feature
@@ -75,7 +79,7 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
         else:
             F[2, i] = 1
 
-        if board.is_legal_not_eye(game, pos, current_color):
+        if board.is_legal(game, pos, current_color):
             board.get_neighbor4(neighbor4, pos)
             for n in range(4):
                 npos = neighbor4[n]
@@ -101,7 +105,9 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                 F[28 + board.MIN(self_atari_size, 8) - 1, i] = 1
             # Liberties after move(8): Number of liberties after this move is played
             F[36 + board.MIN(libs_after_move, 8) - 1, i] = 1
-            F[46, i] = 1
+            # Whether a move is legal and does not fill its own eyes
+            if eye_condition[pat3(game.pat, pos)] != E_COMPLETE_ONE_EYE:
+                F[46, i] = 1
         else:
             if color:
                 string_id = game.string_id[pos]

@@ -1012,7 +1012,7 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
         game.candidates[pos] = False
         return False
 
-    if (eye[pat.pat3(game.pat, pos)] != <int>color or
+    if (eye[pat.pat3(game.pat, pos)] != color or
         game.string[game.string_id[NORTH(pos, board_size)]].libs == 1 or
         game.string[game.string_id[WEST(pos)]].libs == 1 or
         game.string[game.string_id[EAST(pos)]].libs == 1 or
@@ -1024,11 +1024,11 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
         if game.ko_pos == pos and game.ko_move == (game.moves - 1):
             return False
 
-        return True
+        if false_eye[pat.pat3(game.pat, pos)] == color:
+            game.candidates[pos] = False
+            return False
 
-    game.candidates[pos] = False
-
-    return False
+    return True
 
 
 cdef bint is_suicide(game_state_t *game, int pos, char color) nogil:

@@ -23,6 +23,11 @@ from bamboo.go.policy_feature cimport policy_feature_t, allocate_feature, initia
 from bamboo.go.printer cimport print_board
 
 
+def onboard_index_to_np_move(ix, size):
+    y, x = divmod(ix, size)
+    return (x, y)
+
+
 cdef class GameConverter(object):
 
     cdef:
@@ -60,7 +65,8 @@ cdef class GameConverter(object):
                 else:
                     planes = np.asarray(self.feature.planes)
                     planes = planes.reshape(1, self.n_features, self.bsize, self.bsize)
-                    yield (planes, divmod(onboard_index[next_move[0]], self.bsize))
+                    planes = planes.transpose(0, 1, 3, 2)
+                    yield (planes, onboard_index_to_np_move(onboard_index[next_move[0]], self.bsize))
 
             for i, move in enumerate(sgf_iter):
                 next_move = sgf_iter.next_move
@@ -73,7 +79,8 @@ cdef class GameConverter(object):
                     else:
                         planes = np.asarray(self.feature.planes)
                         planes = planes.reshape(1, self.n_features, self.bsize, self.bsize)
-                        yield (planes, divmod(onboard_index[next_move[0]], self.bsize))
+                        planes = planes.transpose(0, 1, 3, 2)
+                        yield (planes, onboard_index_to_np_move(onboard_index[next_move[0]], self.bsize))
         except IllegalMove:
             warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
             if verbose:

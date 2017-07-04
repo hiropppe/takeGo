@@ -11,6 +11,8 @@ cimport policy_feature
 cimport parseboard
 cimport printer
 
+from bamboo.go.board cimport is_legal_not_eye
+
 
 def test_stone_color():
     game = board.allocate_game()
@@ -162,17 +164,16 @@ def test_capture_size():
 
     game.current_color = board.S_BLACK
     policy_feature.update(feature, game)
-
-    eq_(planes[20, pure_moves['a']], 1)
-    eq_(planes[20].sum(), 1)
-    eq_(planes[27, pure_moves['b']], 1)
-    eq_(planes[27].sum(), 1)
+    eq_(planes[20 + 1, pure_moves['a']], 1)
+    eq_(planes[20 + 1].sum(), 1)
+    eq_(planes[20 + 7, pure_moves['b']], 1)
+    eq_(planes[20 + 7].sum(), 1)
 
     game.current_color = board.S_WHITE
     policy_feature.update(feature, game)
 
-    eq_(planes[27, pure_moves['c']], 1)
-    eq_(planes[27].sum(), 1)
+    eq_(planes[20 + 7, pure_moves['c']], 1)
+    eq_(planes[20 + 7].sum(), 1)
 
     board.free_game(game)
     policy_feature.free_feature(feature)
