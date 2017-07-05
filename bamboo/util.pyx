@@ -35,7 +35,7 @@ cpdef min_sgf_extract(sgf_string):
     player = ''.join(re.findall(r'PL\[.+?\]', sgf_string, flags=re.IGNORECASE))
     kiryoku = ''.join(re.findall(r'[BW]R\[.+?\]', sgf_string, flags=re.IGNORECASE))
     add_stone = ''.join(re.findall(r'A[BW](?:\[[a-z]+\]\s*)+', sgf_string, flags=re.IGNORECASE))
-    moves = ''.join(re.findall(r';[WB]\[[a-z]+?\]', sgf_string, flags=re.IGNORECASE))
+    moves = ''.join(re.findall(r';[WB]\[[a-z]*?\]', sgf_string, flags=re.IGNORECASE))
     return '(;{:s}{:s}{:s}{:s}{:s})'.format(size, player, kiryoku, add_stone, moves)
 
 
@@ -106,10 +106,6 @@ cdef class SGFMoveIterator:
             self.next_move = None 
 
         if not (self.ignore_not_legal or is_legal):
-            tmpmove = divmod(move[0], 23)
-            tmpmove = (tmpmove[1]-2, tmpmove[0]-2)
-            print 'IllegalMove', move[1], tmpmove
-            print_board(self.game)
             raise IllegalMove()
 
         return move
