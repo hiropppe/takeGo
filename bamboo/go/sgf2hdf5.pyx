@@ -48,7 +48,6 @@ cdef class GameConverter(object):
     def convert_game(self, file_name, verbose=False):
         cdef game_state_t *game
         cdef SGFMoveIterator sgf_iter
-        cdef int i
 
         initialize_feature(self.feature)
 
@@ -56,37 +55,18 @@ cdef class GameConverter(object):
             sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
 
         game = sgf_iter.game
-        try:
-            if sgf_iter.next_move[0] != PASS:
-                next_move = sgf_iter.next_move
+        for i, move in enumerate(sgf_iter):
+            if move[0] != PASS:
+                s = time.time()
                 update(self.feature, game)
-                if onboard_index[next_move[0]] >= pure_board_max:
-                    raise IllegalMove()
+                self.update_speeds.append(time.time()-s)
+                if onboard_index[move[0]] >= pure_board_max:
+                    continue
                 else:
                     planes = np.asarray(self.feature.planes)
                     planes = planes.reshape(1, self.n_features, self.bsize, self.bsize)
                     planes = planes.transpose(0, 1, 3, 2)
-                    yield (planes, onboard_index_to_np_move(onboard_index[next_move[0]], self.bsize))
-
-            for i, move in enumerate(sgf_iter):
-                next_move = sgf_iter.next_move
-                if move[0] != PASS and next_move and next_move[0] != PASS:
-                    s = time.time()
-                    update(self.feature, game)
-                    self.update_speeds.append(time.time()-s)
-                    if onboard_index[next_move[0]] >= pure_board_max:
-                        raise IllegalMove()
-                    else:
-                        planes = np.asarray(self.feature.planes)
-                        planes = planes.reshape(1, self.n_features, self.bsize, self.bsize)
-                        planes = planes.transpose(0, 1, 3, 2)
-                        yield (planes, onboard_index_to_np_move(onboard_index[next_move[0]], self.bsize))
-        except IllegalMove:
-            warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
-            if verbose:
-                err, msg, _ = sys.exc_info()
-                sys.stderr.write("{} {}\n".format(err, msg))
-                sys.stderr.write(traceback.format_exc())
+                    yield (planes, onboard_index_to_np_move(onboard_index[move[0]], self.bsize))
 
     def sgfs_to_hdf5(self,
                      sgf_files,

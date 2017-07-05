@@ -61,36 +61,18 @@ cdef class GameConverter(object):
             sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
 
         game = sgf_iter.game
-        try:
-            # update initial state
-            if sgf_iter.next_move[0] != PASS:
-                next_move = sgf_iter.next_move
+        for i, move in enumerate(sgf_iter):
+            next_move = sgf_iter.next_move
+            if move[0] != PASS:
+                s = time.time()
                 self.preprocessor.update(game)
+                self.update_speeds.append(time.time()-s)
                 feature = &self.preprocessor.feature_planes[<int>game.current_color]
                 onehot_index_array = np.asarray(feature.tensor)
-                if onboard_index[next_move[0]] >= pure_board_max:
-                    raise IllegalMove()
+                if onboard_index[move[0]] >= pure_board_max:
+                    continue
                 else:
                     yield (onehot_index_array, onboard_index[next_move[0]])
-
-            for i, move in enumerate(sgf_iter):
-                next_move = sgf_iter.next_move
-                if move[0] != PASS and next_move and next_move[0] != PASS:
-                    s = time.time()
-                    self.preprocessor.update(game)
-                    self.update_speeds.append(time.time()-s)
-                    feature = &self.preprocessor.feature_planes[<int>game.current_color]
-                    onehot_index_array = np.asarray(feature.tensor)
-                    if onboard_index[next_move[0]] >= pure_board_max:
-                        raise IllegalMove()
-                    else:
-                        yield (onehot_index_array, onboard_index[next_move[0]])
-        except IllegalMove:
-            warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
-            if verbose:
-                err, msg, _ = sys.exc_info()
-                sys.stderr.write("{} {}\n".format(err, msg))
-                sys.stderr.write(traceback.format_exc())
 
     def sgfs_to_hdf5(self,
                      sgf_files,

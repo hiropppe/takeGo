@@ -4,7 +4,7 @@ cimport numpy as np
 from AlphaGo import go
 from AlphaGo import util
 
-from bamboo.go.board cimport PASS, game_state_t
+from bamboo.go.board cimport PASS, game_state_t, is_legal
 from bamboo.util cimport SGFMoveIterator
 from bamboo.util_error import IllegalMove, TooFewMove, TooManyMove, SizeMismatchError
 from bamboo.go.printer cimport print_board
@@ -26,9 +26,9 @@ def is_sgf_play_equals(sgf_file):
     np.set_printoptions(linewidth=200)
     sgf_string = open(sgf_file).read()
 
-    pyiter = util.sgf_iter_states(sgf_string)
+    pyiter = util.sgf_iter_states(sgf_string, ignore_not_legal=True)
     try:
-        cyiter = SGFMoveIterator(19, sgf_string, ignore_not_legal=False)
+        cyiter = SGFMoveIterator(19, sgf_string)
     except (TooFewMove, TooManyMove, SizeMismatchError):
         return True
 
@@ -37,26 +37,21 @@ def is_sgf_play_equals(sgf_file):
         pylegal = True
         cylegal = True
         try:
-            try:
-                (pygame, pymove, pyplayer) = pyiter.next()
-            except go.IllegalMove:
+            (pygame, pymove, pyplayer) = pyiter.next()
+            if not pygame.is_legal(pymove, pyplayer):
                 pylegal = False
 
-            try:
-                cymove = cyiter.next()
-                if cymove[0] == PASS or cymove is None:
-                    cymove_tuple = None
-                else:
-                    cymove_tuple = divmod(cymove[0], 23)
-                    cymove_tuple = (cymove_tuple[1]-2, cymove_tuple[0]-2)
-            except IllegalMove:
+            cymove = cyiter.next()
+            if not is_legal(cygame, cymove[0], cymove[1]):
                 cylegal = False
-
-
-            cyplayer = cygame.current_color
+            if cymove[0] == PASS or cymove is None:
+                cymove_tuple = None
+            else:
+                cymove_tuple = divmod(cymove[0], 23)
+                cymove_tuple = (cymove_tuple[1]-2, cymove_tuple[0]-2)
 
             if pylegal and cylegal:
-                #print('PyMove: ({:s}, {:s}) CyMove: ({:s}, {:s})'.format(str(pyplayer), str(pymove), str(cymove[1]), str(cymove_tuple)))
+                #print('{:d} PyMove: ({:s}, {:s}) CyMove: ({:s}, {:s})'.format(cyiter.i, str(pyplayer), str(pymove), str(cymove[1]), str(cymove_tuple)))
                 if pymove != cymove_tuple:
                     print('{:s} Move not match py {:s} != cy {:s}'.format(sgf_file, str(pymove), str(cymove_tuple)))
                     break
@@ -64,19 +59,14 @@ def is_sgf_play_equals(sgf_file):
                     print('{:s} Player not match. py {:s} != cy {:s}'.format(sgf_file, str(pyplayer), str(cymove[1])))
                     break
 
-            if pylegal != cylegal:
-                if pylegal:
-                    illegal_move = cymove_tuple
-                    illegal_player = cyplayer
-                else:
-                    illegal_move = pymove
-                    illegal_player = pyplayer
+            #if not (pylegal or cylegal):
+            #    print('IllegalMove. PyMove: ({:s}, {:s}) CyMove: ({:s}, {:s})'.format(str(pyplayer), str(pymove), str(cymove[1]), str(cymove_tuple)))
 
-                print('{:s} IllegalMove in one. py {:s} != cy {:s} move: {:s} player: {:s}' \
-                    .format(sgf_file, str(pylegal), str(cylegal), str(illegal_move), str(illegal_player)))
+
+            if pylegal != cylegal:
+                print('{:s} IllegalMove in one. py {:s} != cy {:s} Py (move: {:s} player: {:s}) Cy (move {:s} player: {:s})' \
+                    .format(sgf_file, str(pylegal), str(cylegal), str(pymove), str(pyplayer), str(cymove_tuple), str(cymove[1])))
                 pyboard = np.transpose(pygame.board)
-                #if not pylegal:
-                #    pyboard[illegal_move[1], illegal_move[0]] = 9
                 cyboard = np.zeros((529), dtype=np.int32)
                 for i in range(529):
                     cyboard[i] = cygame.board[i]
@@ -84,8 +74,6 @@ def is_sgf_play_equals(sgf_file):
                 cyboard = cyboard.reshape((23, 23))
                 cyboard = cyboard[2:21, 2:21]
                 cyboard[cyboard == 2] = -1
-                #if not cylegal:
-                #    cyboard[illegal_move[1], illegal_move[0]] = 9
                 print('Pyboard:')
                 print(str(pyboard))
                 print('\nCyboard:')

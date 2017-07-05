@@ -41,13 +41,12 @@ cpdef min_sgf_extract(sgf_string):
 
 cdef class SGFMoveIterator:
 
-    def __cinit__(self, int bsize, object sgf_string, bint ignore_not_legal=True, bint verbose=False):
+    def __cinit__(self, int bsize, object sgf_string, bint verbose=False):
         self.bsize = bsize
         self.game = allocate_game()
         self.moves = list()
         self.i = 0
         self.next_move = None
-        self.ignore_not_legal = ignore_not_legal
         self.verbose = verbose
 
         sgf_string = min_sgf_extract(sgf_string)
@@ -91,12 +90,15 @@ cdef class SGFMoveIterator:
         return self
 
     def __next__(self):
-        cdef bint is_legal
-        if self.i >= len(self.moves):
-            raise StopIteration()
+        if self.i == 0:
+            move = self.moves[0]
+        else:
+            prev_move = self.moves[self.i-1]
+            put_stone(self.game, prev_move[0], prev_move[1])
+            if self.i >= len(self.moves):
+                raise StopIteration()
+            move = self.moves[self.i]
 
-        move = self.moves[self.i]
-        is_legal = put_stone(self.game, move[0], move[1])
         self.i += 1
 
         if self.i < len(self.moves):
@@ -104,9 +106,6 @@ cdef class SGFMoveIterator:
             self.game.current_color = self.next_move[1]
         else:
             self.next_move = None 
-
-        if not (self.ignore_not_legal or is_legal):
-            raise IllegalMove()
 
         return move
 
