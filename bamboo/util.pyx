@@ -99,11 +99,11 @@ cdef class SGFMoveIterator:
                 raise StopIteration()
             move = self.moves[self.i]
 
+        self.game.current_color = move[1]
         self.i += 1
 
         if self.i < len(self.moves):
             self.next_move = self.moves[self.i]
-            self.game.current_color = self.next_move[1]
         else:
             self.next_move = None 
 

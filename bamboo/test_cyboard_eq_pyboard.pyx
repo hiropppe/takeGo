@@ -18,10 +18,31 @@ def check_all_sgf_play_equals(d):
         if not is_sgf_play_equals(f):
             break
 
+
+cdef show_board(object pygame, game_state_t *cygame):
+    pyboard = np.transpose(pygame.board)
+
+    cyboard = np.zeros((529), dtype=np.int32)
+    for i in range(529):
+        cyboard[i] = cygame.board[i]
+
+    cyboard = cyboard.reshape((23, 23))
+    cyboard = cyboard[2:21, 2:21]
+    cyboard[cyboard == 2] = -1
+
+    print('Pyboard:')
+    print(pyboard)
+    print('\nCyboard:')
+    print(cyboard)
+    print('\nEquality: {:s}'.format(str(np.all(pyboard == cyboard))))
+    print(pyboard == cyboard)
+    print_board(cygame)
+
+
 def is_sgf_play_equals(sgf_file):
     cdef game_state_t *cygame
     cdef SGFMoveIterator cyiter
-    cdef int i    
+    cdef int i
 
     np.set_printoptions(linewidth=200)
     sgf_string = open(sgf_file).read()
@@ -54,10 +75,45 @@ def is_sgf_play_equals(sgf_file):
                 #print('{:d} PyMove: ({:s}, {:s}) CyMove: ({:s}, {:s})'.format(cyiter.i, str(pyplayer), str(pymove), str(cymove[1]), str(cymove_tuple)))
                 if pymove != cymove_tuple:
                     print('{:s} Move not match py {:s} != cy {:s}'.format(sgf_file, str(pymove), str(cymove_tuple)))
-                    break
+                    print('{:d} PyMove: ({:s}, {:s}) CyMove: ({:s}, {:s})'.format(cyiter.i, str(pyplayer), str(pymove), str(cymove[1]), str(cymove_tuple)))
+                    show_board(pygame, cygame)
+                    return False
+                if pygame.current_player != pyplayer:
+                    print('{:s} PyGame player not match gen {:s} != board {:s}'.format(sgf_file, str(pyplayer), str(pygame.current_player)))
+                    print('{:d} PyMove: ({:s}, {:s}) CyMove: ({:s}, {:s})'.format(cyiter.i, str(pyplayer), str(pymove), str(cymove[1]), str(cymove_tuple)))
+                    show_board(pygame, cygame)
+                    return False
+                if cygame.current_color != cymove[1]:
+                    print('{:s} CyGame player not match gen {:s} != board {:s}'.format(sgf_file, str(cymove[1]), str(cygame.current_color)))
+                    print('{:d} PyMove: ({:s}, {:s}) CyMove: ({:s}, {:s})'.format(cyiter.i, str(pyplayer), str(pymove), str(cymove[1]), str(cymove_tuple)))
+                    show_board(pygame, cygame)
+                    return False
                 if (pyplayer == 1 and cymove[1] == 2) or (pyplayer == -1 and cymove[1] == 1):
                     print('{:s} Player not match. py {:s} != cy {:s}'.format(sgf_file, str(pyplayer), str(cymove[1])))
-                    break
+                    print('{:d} PyMove: ({:s}, {:s}) CyMove: ({:s}, {:s})'.format(cyiter.i, str(pyplayer), str(pymove), str(cymove[1]), str(cymove_tuple)))
+                    show_board(pygame, cygame)
+                    return False
+
+                """
+                pyboard = np.transpose(pygame.board)
+
+                cyboard = np.zeros((529), dtype=np.int32)
+                for i in range(529):
+                    cyboard[i] = cygame.board[i]
+
+                cyboard = cyboard.reshape((23, 23))
+                cyboard = cyboard[2:21, 2:21]
+                cyboard[cyboard == 2] = -1
+
+                if not np.all(pyboard == cyboard):
+                    print('{:s} Board Mismatch'.format(sgf_file))
+                    print('Pyboard:')
+                    print(pyboard)
+                    print('\nCyboard:')
+                    print(cyboard)
+                    print('\nEquality:')
+                    print(pyboard == cyboard)
+                """
 
             #if not (pylegal or cylegal):
             #    print('IllegalMove. PyMove: ({:s}, {:s}) CyMove: ({:s}, {:s})'.format(str(pyplayer), str(pymove), str(cymove[1]), str(cymove_tuple)))
@@ -66,22 +122,7 @@ def is_sgf_play_equals(sgf_file):
             if pylegal != cylegal:
                 print('{:s} IllegalMove in one. py {:s} != cy {:s} Py (move: {:s} player: {:s}) Cy (move {:s} player: {:s})' \
                     .format(sgf_file, str(pylegal), str(cylegal), str(pymove), str(pyplayer), str(cymove_tuple), str(cymove[1])))
-                pyboard = np.transpose(pygame.board)
-                cyboard = np.zeros((529), dtype=np.int32)
-                for i in range(529):
-                    cyboard[i] = cygame.board[i]
-
-                cyboard = cyboard.reshape((23, 23))
-                cyboard = cyboard[2:21, 2:21]
-                cyboard[cyboard == 2] = -1
-                print('Pyboard:')
-                print(str(pyboard))
-                print('\nCyboard:')
-                print(str(cyboard))
-                print('\nEquality:')
-                print(pyboard == cyboard)
-                print_board(cygame)
-
+                show_board(pygame, cygame)
                 return False
 
         except StopIteration:
@@ -101,7 +142,7 @@ def is_sgf_play_equals(sgf_file):
         #print('{:s} Match'.format(sgf_file))
         return True
     else:
-        print('{:s} Mismatch'.format(sgf_file))
+        print('{:s} Final board Mismatch'.format(sgf_file))
         print('Pyboard:')
         print(pyboard)
         print('\nCyboard:')
