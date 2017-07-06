@@ -213,7 +213,7 @@ def test_self_atari_size():
     policy_feature.free_feature(feature)
 
 
-def test_liberties_after_move_1():
+def test_liberties_after_move():
     game = board.allocate_game()
     (moves, pure_moves) = parseboard.parse(game,
                              ". . . . .|"
@@ -255,6 +255,62 @@ def test_liberties_after_move_1():
 
     board.free_game(game)
     policy_feature.free_feature(feature)
+
+
+def test_liberties_after_move_1():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                             ". . . . .|"
+                             ". W B . .|"
+                             ". W a B .|"
+                             ". . . . .|"
+                             ". . . . .|")
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    game.current_color = board.S_BLACK
+
+    policy_feature.update(feature, game)
+    eq_(planes[36 + 5 - 1, pure_moves['a']], 1)
+
+
+def test_liberties_after_move_dupe_empty():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                             ". . . . . .|"
+                             ". . . W . .|"
+                             ". . a W . .|"
+                             ". B B W . .|"
+                             ". . . B W .|"
+                             ". . . . . .|")
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    game.current_color = board.S_BLACK
+
+    policy_feature.update(feature, game)
+    eq_(planes[36 + 5 - 1, pure_moves['a']], 1)
+
+
+def test_liberties_after_move_captured():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                             ". . . . . .|"
+                             ". . B B . .|"
+                             ". B W W B .|"
+                             ". . a B W .|"
+                             ". . B W W .|"
+                             ". . . . . .|")
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    game.current_color = board.S_BLACK
+
+    policy_feature.update(feature, game)
+    eq_(planes[36 + 5 - 1, pure_moves['a']], 1)
 
 
 def test_sensibleness():

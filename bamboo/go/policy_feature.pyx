@@ -9,12 +9,13 @@ cimport numpy as np
 from libc.stdlib cimport malloc, free
 from libc.string cimport memset, memcpy
 from libc.stdint cimport intptr_t
+from libc.stdio cimport printf
 
 cimport board 
 cimport printer
 
 from bamboo.go.board cimport E_COMPLETE_ONE_EYE
-from bamboo.go.board cimport eye_condition
+from bamboo.go.board cimport string_end, eye_condition
 from bamboo.go.pattern cimport pat3
 
 
@@ -56,19 +57,33 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     cdef board.string_t *nstring
     cdef int capture_size, self_atari_size, libs_after_move
     cdef short ladder_checked[288] # MAX_STRING
+    cdef short neighbor_checked[365][288]
     cdef int i, j
     cdef int ladder_capture, ladder_escape, ladder_x, ladder_y
     cdef int escape_options[4]
     cdef int escape_options_num
     cdef int ladder_moves[1] # workaround. wanna use int pointer
+    cdef int second_neighbor4[4]
+    cdef int second_npos
+    cdef int nempty[4]
+    cdef int capture_string_id[4]
+    cdef int n_capture_string
+    cdef int capture_pos
+    cdef board.string_t *capture_string
 
     F[...] = 0
     # Ones: A constant plane filled with 1
     F[3, :] = 1
-    board.fill_n_short(ladder_checked, 288, 0)
+    #board.fill_n_short(ladder_checked, 288, 0)
+    for i in range(288):
+        ladder_checked[i] = False
+        for j in range(365):
+            neighbor_checked[j][i] = False
 
     for i in range(board.pure_board_max):
-        capture_size = self_atari_size = libs_after_move = 0
+        capture_size = 0
+        self_atari_size = 1
+        libs_after_move = 0
         pos = board.onboard_pos[i]
         color = game.board[pos]
         # Stone colour(3): Player stone(0) / opponent stone(1) / empty(2)
@@ -81,27 +96,56 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
 
         if board.is_legal(game, pos, current_color):
             board.get_neighbor4(neighbor4, pos)
+
+            n_capture_string = 0
+            for n in range(4):
+                nempty[n] = 0
+                npos = neighbor4[n]
+                nstring_id = game.string_id[npos]
+                if nstring_id:
+                    nstring = &game.string[nstring_id]
+                    if nstring.color != current_color and nstring.libs == 1 and nstring.lib[pos] != 0:
+                        capture_string_id[n_capture_string] = nstring_id
+                        n_capture_string += 1
+                elif game.board[npos] == board.S_EMPTY:
+                    nempty[n] = npos
+                    libs_after_move += 1
+
             for n in range(4):
                 npos = neighbor4[n]
                 nstring_id = game.string_id[npos]
                 if nstring_id:
                     nstring = &game.string[nstring_id]
-                    if nstring.libs == 1 and nstring.lib[pos] != 0:
-                        if nstring.color == current_color:
-                            self_atari_size += nstring.size
-                        else:
-                            capture_size += nstring.size
-
                     if nstring.color == current_color:
-                        libs_after_move += (nstring.libs - 1)
-                    elif nstring.libs == 1 and nstring.lib[pos] == 0:
+                        if not neighbor_checked[i][nstring_id]:
+                            self_atari_size += nstring.size
+                            libs_after_move += (nstring.libs - 1)
+                            # +1 libs_after_move if captured pos in own string neighbor
+                            board.get_neighbor4(second_neighbor4, npos)
+                            for j in range(4):
+                                second_npos = second_neighbor4[j]
+                                for k in range(n_capture_string):
+                                    capture_string = &game.string[capture_string_id[k]]
+                                    capture_pos = capture_string.origin
+                                    while capture_pos != string_end:
+                                        if capture_pos == second_npos:
+                                            libs_after_move += 1
+                                        capture_pos = game.string_next[capture_pos]
+                            # -1 libs_after_move if empty pos in string libs
+                            for j in range(4):
+                                if nempty[j] and nstring.lib[nempty[j]] != 0:
+                                    libs_after_move -= 1
+                    elif nstring.libs == 1 and nstring.lib[pos] != 0:
+                        if not neighbor_checked[i][nstring_id]:
+                            capture_size += nstring.size
                         libs_after_move += 1
-                elif game.board[npos] != board.S_OB:
-                    libs_after_move += 1
+
+                    neighbor_checked[i][nstring_id] = True
+
             # Capture size(8): How many opponent stones would be captured
             F[20 + board.MIN(capture_size, 7), i] = 1
             # Self-atari size(8): How many of own stones would be captured
-            if self_atari_size:
+            if libs_after_move == 1:
                 F[28 + board.MIN(self_atari_size, 8) - 1, i] = 1
             # Liberties after move(8): Number of liberties after this move is played
             F[36 + board.MIN(libs_after_move, 8) - 1, i] = 1

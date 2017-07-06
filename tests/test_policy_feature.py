@@ -19,8 +19,17 @@ class TestPolicyFeature(unittest.TestCase):
     def test_self_atari_size(self):
         ctest.test_self_atari_size()
 
+    def test_liberties_after_move(self):
+        ctest.test_liberties_after_move()
+
     def test_liberties_after_move_1(self):
         ctest.test_liberties_after_move_1()
+
+    def test_liberties_after_move_dupe_empty(self):
+        ctest.test_liberties_after_move_dupe_empty()
+
+    def test_liberties_after_move_captured(self):
+        ctest.test_liberties_after_move_captured()
 
     def test_sensibleness(self):
         ctest.test_sensibleness()
