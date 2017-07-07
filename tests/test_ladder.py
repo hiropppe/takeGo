@@ -27,3 +27,6 @@ class TestLadder(unittest.TestCase):
 
     def test_two_escapes(self):
         test_ladder.test_two_escapes()
+
+    def test_escapes_1(self):
+        test_ladder.test_escapes_1()
