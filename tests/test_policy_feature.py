@@ -31,5 +31,11 @@ class TestPolicyFeature(unittest.TestCase):
     def test_liberties_after_move_captured(self):
         ctest.test_liberties_after_move_captured()
 
+    def test_liberties_after_move_captured_1(self):
+        ctest.test_liberties_after_move_captured_1()
+
+    def test_liberties_after_move_captured_2(self):
+        ctest.test_liberties_after_move_captured_2()
+
     def test_sensibleness(self):
         ctest.test_sensibleness()

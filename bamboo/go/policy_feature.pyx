@@ -14,8 +14,9 @@ from libc.stdio cimport printf
 cimport board 
 cimport printer
 
-from bamboo.go.board cimport E_COMPLETE_ONE_EYE
-from bamboo.go.board cimport string_end, eye_condition
+from bamboo.go.board cimport LIBERTY_END, NEIGHBOR_END, E_COMPLETE_ONE_EYE
+from bamboo.go.board cimport NORTH, WEST, EAST, SOUTH
+from bamboo.go.board cimport board_size, liberty_end, string_end, eye_condition
 from bamboo.go.pattern cimport pat3
 
 
@@ -34,7 +35,6 @@ cdef policy_feature_t *allocate_feature():
 
 cdef void initialize_feature(policy_feature_t *feature):
     feature.planes[...] = 0
-
     for i in range(80):
         board.initialize_board(&feature.search_games[i], False)
 
@@ -50,35 +50,42 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     cdef char current_color = game.current_color
     cdef char other_color = board.FLIP_COLOR(game.current_color)
     cdef int neighbor4[4]
-    cdef int pos, npos
+    cdef int pos, npos, nlib
     cdef char color, ncolor
     cdef int string_id, nstring_id
     cdef board.string_t *string
     cdef board.string_t *nstring
     cdef int capture_size, self_atari_size, libs_after_move
-    cdef short ladder_checked[288] # MAX_STRING
-    cdef short neighbor_checked[365][288]
+    cdef short ladder_checked[288]          # MAX_STRING
+    cdef short neighbor_checked[361][288]   # PURE_BOARD_MAX:MAX_STRING
+    cdef int second_neighbor4[4]
+    cdef int second_npos
+    cdef board.string_t *capture_string
+    cdef int capture_pos
+    cdef int neighbor[361][288]
+    cdef int north_string_id, west_string_id, east_string_id, south_string_id
+    cdef int libpos_after_move[361][483]    # PURE_BOARD_MAX:STRING_LIB_MAX
+    cdef int libpos
     cdef int i, j
     cdef int ladder_capture, ladder_escape, ladder_x, ladder_y
     cdef int escape_options[4]
     cdef int escape_options_num
     cdef int ladder_moves[1] # workaround. wanna use int pointer
-    cdef int second_neighbor4[4]
-    cdef int second_npos
-    cdef int nempty[4]
-    cdef int capture_string_id[4]
-    cdef int n_capture_string
-    cdef int capture_pos
-    cdef board.string_t *capture_string
 
     F[...] = 0
     # Ones: A constant plane filled with 1
     F[3, :] = 1
-    #board.fill_n_short(ladder_checked, 288, 0)
-    for i in range(288):
-        ladder_checked[i] = False
-        for j in range(365):
-            neighbor_checked[j][i] = False
+
+    for i in range(361):
+        if i < 288:
+            ladder_checked[i] = False
+        for j in range(483):
+            if j < 288:
+                neighbor_checked[i][j] = False
+                neighbor[i][j] = 0
+            libpos_after_move[i][j] = 0
+        neighbor[i][0] = NEIGHBOR_END
+        libpos_after_move[i][0] = LIBERTY_END
 
     for i in range(board.pure_board_max):
         capture_size = 0
@@ -96,21 +103,6 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
 
         if board.is_legal(game, pos, current_color):
             board.get_neighbor4(neighbor4, pos)
-
-            n_capture_string = 0
-            for n in range(4):
-                nempty[n] = 0
-                npos = neighbor4[n]
-                nstring_id = game.string_id[npos]
-                if nstring_id:
-                    nstring = &game.string[nstring_id]
-                    if nstring.color != current_color and nstring.libs == 1 and nstring.lib[pos] != 0:
-                        capture_string_id[n_capture_string] = nstring_id
-                        n_capture_string += 1
-                elif game.board[npos] == board.S_EMPTY:
-                    nempty[n] = npos
-                    libs_after_move += 1
-
             for n in range(4):
                 npos = neighbor4[n]
                 nstring_id = game.string_id[npos]
@@ -119,28 +111,70 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                     if nstring.color == current_color:
                         if not neighbor_checked[i][nstring_id]:
                             self_atari_size += nstring.size
-                            libs_after_move += (nstring.libs - 1)
-                            # +1 libs_after_move if captured pos in own string neighbor
-                            board.get_neighbor4(second_neighbor4, npos)
-                            for j in range(4):
-                                second_npos = second_neighbor4[j]
-                                for k in range(n_capture_string):
-                                    capture_string = &game.string[capture_string_id[k]]
-                                    capture_pos = capture_string.origin
-                                    while capture_pos != string_end:
-                                        if capture_pos == second_npos:
-                                            libs_after_move += 1
-                                        capture_pos = game.string_next[capture_pos]
-                            # -1 libs_after_move if empty pos in string libs
-                            for j in range(4):
-                                if nempty[j] and nstring.lib[nempty[j]] != 0:
-                                    libs_after_move -= 1
-                    elif nstring.libs == 1 and nstring.lib[pos] != 0:
+                            nlib = nstring.lib[0]
+                            while nlib != liberty_end:
+                                if nlib != pos and libpos_after_move[i][nlib] == 0:
+                                    libpos_after_move[i][nlib] = libpos_after_move[i][0]
+                                    libpos_after_move[i][0] = nlib
+                                nlib = nstring.lib[nlib]
+                            if neighbor[i][nstring_id] == 0:
+                                neighbor[i][nstring_id] = neighbor[i][0]
+                                neighbor[i][0] = nstring_id
+                            neighbor_checked[i][nstring_id] = True
+                elif game.board[npos] == board.S_EMPTY:
+                    if libpos_after_move[i][npos] == 0:
+                        libpos_after_move[i][npos] = libpos_after_move[i][0]
+                        libpos_after_move[i][0] = npos
+
+            for n in range(4):
+                npos = neighbor4[n]
+                nstring_id = game.string_id[npos]
+                if nstring_id:
+                    nstring = &game.string[nstring_id]
+                    if nstring.color != current_color and nstring.libs == 1 and nstring.lib[pos] != 0:
+                        # add neighbor pos
+                        if libpos_after_move[i][npos] == 0:
+                            libpos_after_move[i][npos] = libpos_after_move[i][0]
+                            libpos_after_move[i][0] = npos
+                        # add captured pos at own string neighbor 
                         if not neighbor_checked[i][nstring_id]:
                             capture_size += nstring.size
-                        libs_after_move += 1
+                            capture_string = &game.string[nstring_id]
+                            capture_pos = capture_string.origin
+                            while capture_pos != string_end:
+                                if capture_pos != npos and libpos_after_move[i][capture_pos] == 0:
+                                    north_string_id = game.string_id[NORTH(capture_pos, board_size)]
+                                    if north_string_id and neighbor[i][north_string_id] != 0:
+                                        libpos_after_move[i][capture_pos] = libpos_after_move[i][0]
+                                        libpos_after_move[i][0] = capture_pos
+                                        capture_pos = game.string_next[capture_pos]
+                                        continue
+                                    west_string_id = game.string_id[WEST(capture_pos)]
+                                    if west_string_id and neighbor[i][west_string_id] != 0:
+                                        libpos_after_move[i][capture_pos] = libpos_after_move[i][0]
+                                        libpos_after_move[i][0] = capture_pos
+                                        capture_pos = game.string_next[capture_pos]
+                                        continue
+                                    east_string_id = game.string_id[EAST(capture_pos)]
+                                    if east_string_id and neighbor[i][east_string_id] != 0:
+                                        libpos_after_move[i][capture_pos] = libpos_after_move[i][0]
+                                        libpos_after_move[i][0] = capture_pos
+                                        capture_pos = game.string_next[capture_pos]
+                                        continue
+                                    south_string_id = game.string_id[SOUTH(capture_pos, board_size)]
+                                    if south_string_id and neighbor[i][south_string_id] != 0:
+                                        libpos_after_move[i][capture_pos] = libpos_after_move[i][0]
+                                        libpos_after_move[i][0] = capture_pos
+                                        capture_pos = game.string_next[capture_pos]
+                                        continue
+                                capture_pos = game.string_next[capture_pos]
+                            neighbor_checked[i][nstring_id] = True
 
-                    neighbor_checked[i][nstring_id] = True
+            # count libs_after_move
+            libpos = libpos_after_move[i][0]
+            while libpos != LIBERTY_END:
+                libs_after_move += 1
+                libpos = libpos_after_move[i][libpos]
 
             # Capture size(8): How many opponent stones would be captured
             F[20 + board.MIN(capture_size, 7), i] = 1
