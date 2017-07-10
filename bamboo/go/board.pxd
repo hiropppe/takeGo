@@ -193,6 +193,7 @@ cdef void remove_neighbor_string(string_t *string, int id) nogil
 cdef int add_empty(string_t *string, int pos, int head) nogil
 cdef void remove_empty(string_t *string, int pos) nogil
 
+cdef void get_diagonals(int diagonals[4], int pos) nogil
 cdef void get_neighbor4(int neighbor4[4], int pos) nogil
 cdef void get_neighbor8(int neighbor8[8], int pos) nogil
 cdef void get_neighbor8_in_order(int neighbor8[8], int pos) nogil

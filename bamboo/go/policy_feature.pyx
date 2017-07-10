@@ -10,13 +10,16 @@ from libc.stdlib cimport malloc, free
 from libc.string cimport memset, memcpy
 from libc.stdint cimport intptr_t
 from libc.stdio cimport printf
+from libcpp.stack cimport stack as cppstack
+from libcpp.set cimport set as cppset
 
 cimport board 
 cimport printer
 
 from bamboo.go.board cimport LIBERTY_END, NEIGHBOR_END, E_COMPLETE_ONE_EYE
 from bamboo.go.board cimport NORTH, WEST, EAST, SOUTH
-from bamboo.go.board cimport board_size, liberty_end, string_end, eye_condition
+from bamboo.go.board cimport board_size, liberty_end, string_end, eye_condition, board_dis_x, board_dis_y
+from bamboo.go.board cimport get_diagonals, get_neighbor4_empty
 from bamboo.go.pattern cimport pat3
 
 
@@ -71,6 +74,8 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     cdef int escape_options[4]
     cdef int escape_options_num
     cdef int ladder_moves[1] # workaround. wanna use int pointer
+    cdef cppstack[int] true_eye_diagonal_stack
+    cdef cppset[int] true_eye_diagonal_set
 
     F[...] = 0
     # Ones: A constant plane filled with 1
@@ -93,6 +98,10 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
         libs_after_move = 0
         pos = board.onboard_pos[i]
         color = game.board[pos]
+
+        true_eye_diagonal_stack = cppstack[int]()
+        true_eye_diagonal_set = cppset[int]()
+
         # Stone colour(3): Player stone(0) / opponent stone(1) / empty(2)
         if color == current_color:
             F[0, i] = 1
@@ -125,6 +134,8 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                     if libpos_after_move[i][npos] == 0:
                         libpos_after_move[i][npos] = libpos_after_move[i][0]
                         libpos_after_move[i][0] = npos
+                else:
+                    allowable_bad_diagonal = 0
 
             for n in range(4):
                 npos = neighbor4[n]
@@ -185,7 +196,8 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
             F[36 + board.MIN(libs_after_move, 8) - 1, i] = 1
             # Whether a move is legal and does not fill its own eyes
             if eye_condition[pat3(game.pat, pos)] != E_COMPLETE_ONE_EYE:
-                F[46, i] = 1
+                if not is_true_eye(game, pos, color, true_eye_diagonal_stack, true_eye_diagonal_set):
+                    F[46, i] = 1
         else:
             if color:
                 string_id = game.string_id[pos]
@@ -249,6 +261,43 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                                 F[45, board.POS(ladder_x, ladder_y, board.pure_board_size)] = 1
                             """
                     ladder_checked[string_id] = True
+
+
+cdef bint is_true_eye(board.game_state_t *game, int pos, char color, cppstack[int] diagonal_stack, cppset[int] diagonal_set):
+    cdef int allowable_bad_diagonal
+    cdef int num_bad_diagonal
+    cdef int diagonals[4]
+    cdef int dpos, dcolor
+    cdef int i
+
+    allowable_bad_diagonal = 1
+    num_bad_diagonal = 0
+
+    if get_neighbor4_empty(game, pos) != 0:
+        return False
+
+    if board_dis_x[pos] == 1 and board_dis_y[pos] == 1:
+        allowable_bad_diagonal = 0
+
+    get_diagonals(diagonals, pos)
+
+    for i in range(4):
+        dpos = diagonals[i]
+        dcolor = game.board[dpos]
+        if dcolor == board.FLIP_COLOR(dcolor):
+            num_bad_diagonal += 1
+        elif dcolor == board.S_EMPTY and diagonal_set.find(dpos) != diagonal_set.end():
+            diagonal_stack.push(dpos)
+            diagonal_set.insert(dpos)
+            if not is_true_eye(game, dpos, color, diagonal_stack, diagonal_set):
+                num_bad_diagonal += 1
+            diagonal_set.erase(diagonal_stack.top())
+            diagonal_stack.pop()
+
+        if num_bad_diagonal > allowable_bad_diagonal:
+            return False
+
+    return True
 
 
 cdef bint has_atari_neighbor(board.game_state_t *game, int string_id, char escape_color):

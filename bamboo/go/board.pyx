@@ -574,6 +574,13 @@ cdef void remove_neighbor_string(string_t *string, int string_id) nogil:
     string.neighbors -= 1
 
 
+cdef void get_diagonals(int diagonals[4], int pos) nogil:
+    diagonals[0] = NORTH_WEST(pos, board_size)
+    diagonals[1] = NORTH_EAST(pos, board_size)
+    diagonals[2] = SOUTH_WEST(pos, board_size)
+    diagonals[3] = SOUTH_EAST(pos, board_size)
+
+
 cdef void get_neighbor4(int neighbor4[4], int pos) nogil:
     neighbor4[0] = NORTH(pos, board_size)
     neighbor4[1] = WEST(pos)
@@ -912,7 +919,7 @@ cdef void initialize_const():
 
     init_board_position()
 
-    #init_line_number()
+    init_line_number()
 
     #init_move_distance()
 

@@ -357,6 +357,28 @@ def test_liberties_after_move_captured_2():
     eq_(planes[36 + 5 - 1, pure_moves['a']], 1)
 
 
-def test_sensibleness():
-    pass
+def test_sensibleness_eye_1():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                             "B W W W B B .|"
+                             "B B . W B . .|"
+                             "W B W W B . .|"
+                             "B W W B W B .|"
+                             "B W B B W W W|"
+                             "B B a B B B B|"
+                             "W B b c d . .|")
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    board.put_stone(game, moves['a'], board.S_WHITE)
+    board.put_stone(game, moves['b'], board.S_BLACK)
+    board.put_stone(game, moves['c'], board.S_WHITE)
+    board.put_stone(game, moves['d'], board.S_BLACK)
+
+    game.current_color = board.S_BLACK
+    
+    policy_feature.update(feature, game)
+    eq_(planes[46, pure_moves['a']], 0)
+    eq_(planes[46, pure_moves['c']], 0)
 

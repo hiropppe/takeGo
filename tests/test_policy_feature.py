@@ -37,5 +37,5 @@ class TestPolicyFeature(unittest.TestCase):
     def test_liberties_after_move_captured_2(self):
         ctest.test_liberties_after_move_captured_2()
 
-    def test_sensibleness(self):
-        ctest.test_sensibleness()
+    def test_sensibleness_eye_1(self):
+        ctest.test_sensibleness_eye_1()
