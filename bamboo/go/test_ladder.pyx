@@ -118,7 +118,7 @@ def test_capture_to_escape_1():
     ladder_moves[0] = 0 
     game = board.allocate_game()
     (moves, pure_moves) = parseboard.parse(game,
-                                "d O X c . . .|"
+                                "c O X b . . .|"
                                 ". X O X . . .|"
                                 ". . O X . . .|"
                                 ". . a . . . .|"
@@ -135,8 +135,11 @@ def test_capture_to_escape_1():
     #policy_feature.is_ladder_escape(game, game.string_id[25], 24, False, feature.search_games, 0, ladder_moves)
     policy_feature.update(feature, game)
     eq_(planes[44, pure_moves['a']], 0)
+    eq_(planes[45, pure_moves['b']], 1)
+    # prior escape to capture
+    #eq_(planes[45, pure_moves['c']], 0)
+    # allow all escape(capture) 
     eq_(planes[45, pure_moves['c']], 1)
-    eq_(planes[45, pure_moves['d']], 1)
 
     board.free_game(game)
     policy_feature.free_feature(feature)

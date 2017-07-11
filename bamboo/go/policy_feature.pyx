@@ -72,7 +72,8 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     cdef int ladder_capture, ladder_escape, ladder_x, ladder_y
     cdef int escape_options[4]
     cdef int escape_options_num
-    cdef int ladder_moves[1] # workaround. wanna use int pointer
+    cdef int ladder_moves_value = 0
+    cdef int *ladder_moves = &ladder_moves_value
     cdef int i, j
 
     F[...] = 0
@@ -236,6 +237,7 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                             if is_ladder_escape(game,
                                                 string_id,
                                                 escape_options[j],
+                                                #j == 0, # is atari-pos. prior escape to capture
                                                 j == escape_option_num - 1, # is atari-pos
                                                 feature.search_games,
                                                 0,
@@ -243,17 +245,7 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                                 ladder_x = board.CORRECT_X(escape_options[j], board.board_size, board.OB_SIZE)
                                 ladder_y = board.CORRECT_Y(escape_options[j], board.board_size, board.OB_SIZE)
                                 F[45, board.POS(ladder_x, ladder_y, board.pure_board_size)] = 1
-                            """
-                            # see break ladder if capture one of neighbors. no additional search
-                            if escape_options[j] != string.lib[0]:
-                                ladder_x = board.CORRECT_X(escape_options[j], board.board_size, board.OB_SIZE)
-                                ladder_y = board.CORRECT_Y(escape_options[j], board.board_size, board.OB_SIZE)
-                                F[45, board.POS(ladder_x, ladder_y, board.pure_board_size)] = 1
-                            elif is_ladder_escape(game, string_id, escape_options[j], j == escape_option_num - 1, feature.search_games, 0):
-                                ladder_x = board.CORRECT_X(escape_options[j], board.board_size, board.OB_SIZE)
-                                ladder_y = board.CORRECT_Y(escape_options[j], board.board_size, board.OB_SIZE)
-                                F[45, board.POS(ladder_x, ladder_y, board.pure_board_size)] = 1
-                            """
+
                     ladder_checked[string_id] = True
 
 
@@ -307,21 +299,6 @@ cdef bint is_true_eye(board.game_state_t *game, int pos, char color, char other_
     return True
 
 
-cdef bint has_atari_neighbor(board.game_state_t *game, int string_id, char escape_color):
-    cdef board.string_t *string
-    cdef board.string_t *neighbor
-    cdef int neighbor_id
-
-    string = &game.string[string_id]
-    neighbor_id = string.neighbor[0]
-    while neighbor_id != board.NEIGHBOR_END:
-        neighbor = &game.string[neighbor_id]
-        if neighbor.libs == 1 and board.is_legal(game, neighbor.lib[0], escape_color):
-            return True
-        else:
-            neighbor_id = string.neighbor[neighbor_id]
-
-
 cdef int get_escape_options(board.game_state_t *game,
                             int escape_options[4],
                             int atari_pos,
@@ -332,8 +309,11 @@ cdef int get_escape_options(board.game_state_t *game,
     cdef int neighbor_id
     cdef int escape_options_num = 0 
 
+    # prior escape to capture
+    #escape_options[escape_options_num] = atari_pos
+    #escape_options_num += 1
+
     # Add capturing atari neighbor to options
-    # prior to escape atari
     string = &game.string[string_id]
     neighbor_id = string.neighbor[0]
     while neighbor_id != board.NEIGHBOR_END:
@@ -343,6 +323,7 @@ cdef int get_escape_options(board.game_state_t *game,
             escape_options_num += 1
         neighbor_id = string.neighbor[neighbor_id]
 
+    # prior capture to escape
     escape_options[escape_options_num] = atari_pos
     escape_options_num += 1
 
@@ -355,7 +336,7 @@ cdef bint is_ladder_capture(board.game_state_t *game,
                             int atari_pos,
                             board.game_state_t search_games[80],
                             int depth,
-                            int ladder_moves[1]):
+                            int *ladder_moves):
     cdef board.game_state_t *ladder_game = &search_games[depth]
     cdef board.string_t *string
     cdef char capture_color = game.current_color
@@ -388,11 +369,7 @@ cdef bint is_ladder_capture(board.game_state_t *game,
 
     board.copy_game(ladder_game, game)
     board.do_move(ladder_game, pos)
-    """
-    # see break ladder if capture one of neighbors. no additional search
-    return not (has_atari_neighbor(ladder_game, string_id, escape_color) or
-           is_ladder_escape(ladder_game, string_id, atari_pos, True, search_games, depth+1))
-    """
+
     escape_options_num = get_escape_options(ladder_game,
                                             escape_options,
                                             atari_pos,
@@ -402,6 +379,7 @@ cdef bint is_ladder_capture(board.game_state_t *game,
         if is_ladder_escape(ladder_game,
                             string_id,
                             escape_options[i],
+                            #i == 0, # is atari-pos. prior escape to capture
                             i == escape_options_num - 1, # is atari-pos
                             search_games,
                             depth+1,
@@ -416,7 +394,7 @@ cdef bint is_ladder_escape(board.game_state_t *game,
                            bint is_atari_pos,
                            board.game_state_t search_games[80],
                            int depth,
-                           int ladder_moves[1]):
+                           int *ladder_moves):
     cdef board.game_state_t *ladder_game = &search_games[depth]
     cdef board.string_t *string
     cdef char escape_color = game.current_color
