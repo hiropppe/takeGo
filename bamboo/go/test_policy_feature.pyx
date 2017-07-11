@@ -11,7 +11,7 @@ cimport policy_feature
 cimport parseboard
 cimport printer
 
-from bamboo.go.board cimport is_legal_not_eye
+from bamboo.go.board cimport is_legal
 
 
 def test_stone_color():
@@ -357,7 +357,86 @@ def test_liberties_after_move_captured_2():
     eq_(planes[36 + 5 - 1, pure_moves['a']], 1)
 
 
-def test_sensibleness_eye_1():
+def test_sensibleness_not_suicide():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                            "W W W . . . .|"
+                            "W W B W . . .|"
+                            "W B B B W . .|"
+                            "B a B W . . .|"
+                            "B B B W . . .|"
+                            "W B W . . . .|"
+                            ". W . . . . .|")
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    game.current_color = board.S_WHITE
+    
+    policy_feature.update(feature, game)
+    ok_(is_legal(game, moves['a'], board.S_WHITE))
+    eq_(planes[46, pure_moves['a']], 1)
+
+
+def test_sensibleness_true_eye():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                            "B a B . B W W|"
+                            "B B B W W d W|"
+                            "B b B W e W W|"
+                            "B B . B W f W|"
+                            "B B B W g W W|"
+                            "B c B W W W W|"
+                            "B B B W h W i|")
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    game.current_color = board.S_BLACK
+    
+    policy_feature.update(feature, game)
+    eq_(planes[46, pure_moves['a']], 0)
+    eq_(planes[46, pure_moves['b']], 0)
+    eq_(planes[46, pure_moves['c']], 0)
+    
+    game.current_color = board.S_WHITE
+    policy_feature.update(feature, game)
+    eq_(planes[46, pure_moves['d']], 0)
+    eq_(planes[46, pure_moves['e']], 0)
+    eq_(planes[46, pure_moves['f']], 0)
+    eq_(planes[46, pure_moves['g']], 0)
+    eq_(planes[46, pure_moves['h']], 0)
+    eq_(planes[46, pure_moves['i']], 0)
+
+
+def test_sensibleness_not_true_eye():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                            "B B B . . W c|"
+                            "B a B . . . W|"
+                            "W B . . . . .|"
+                            "W b W . . . .|"
+                            "W W W . . . .|"
+                            ". . . . . W W|"
+                            ". . . . W d W|")
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    game.current_color = board.S_BLACK
+    
+    policy_feature.update(feature, game)
+    eq_(planes[46, pure_moves['a']], 1)
+    
+    game.current_color = board.S_WHITE
+
+    policy_feature.update(feature, game)
+    eq_(planes[46, pure_moves['b']], 1)
+    eq_(planes[46, pure_moves['c']], 1)
+    eq_(planes[46, pure_moves['d']], 1)
+
+
+def test_sensibleness_true_eye_remove_stone():
     game = board.allocate_game()
     (moves, pure_moves) = parseboard.parse(game,
                              "B W W W B B .|"
