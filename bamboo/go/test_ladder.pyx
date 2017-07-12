@@ -136,10 +136,11 @@ def test_capture_to_escape_1():
     policy_feature.update(feature, game)
     eq_(planes[44, pure_moves['a']], 0)
     eq_(planes[45, pure_moves['b']], 1)
-    # prior escape to capture
-    #eq_(planes[45, pure_moves['c']], 0)
-    # allow all escape(capture) 
-    eq_(planes[45, pure_moves['c']], 1)
+
+    # search only neighbor string of 'c'
+    eq_(planes[45, pure_moves['c']], 0)
+    # search all escape routes
+    #eq_(planes[45, pure_moves['c']], 1)
 
     board.free_game(game)
     policy_feature.free_feature(feature)
@@ -267,7 +268,10 @@ def test_escapes_1():
 
     policy_feature.update(feature, game)
     eq_(planes[45, pure_moves['a']], 1)
-    eq_(planes[45, pure_moves['b']], 1)
+    # search only neighbor string of 'b'
+    eq_(planes[45, pure_moves['b']], 0)
+    # search all escape routes
+    #eq_(planes[45, pure_moves['b']], 1)
 
     board.free_game(game)
     policy_feature.free_feature(feature)

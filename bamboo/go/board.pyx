@@ -85,15 +85,15 @@ cdef void free_game(game_state_t *game) nogil:
 
 
 cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
-    #memcpy(dst.record, src.record, sizeof(move_t) * max_records)
-    #memcpy(dst.prisoner, src.prisoner, sizeof(int) * S_MAX)
+    memcpy(dst.record, src.record, sizeof(move_t) * max_records)
+    memcpy(dst.prisoner, src.prisoner, sizeof(int) * S_MAX)
     memcpy(dst.board, src.board, sizeof(char) * board_max)
-    #memcpy(dst.birth_move, src.birth_move, sizeof(int) * board_max)
+    memcpy(dst.birth_move, src.birth_move, sizeof(int) * board_max)
     memcpy(dst.pat, src.pat, sizeof(pattern_t) * board_max)
     memcpy(dst.string_id, src.string_id, sizeof(int) * string_pos_max)
     memcpy(dst.string_next, src.string_next, sizeof(int) * string_pos_max)
-    #memcpy(dst.candidates, src.candidates, sizeof(bint) * board_max)
-    #memcpy(dst.capture_num, src.capture_num, sizeof(int) * S_OB)
+    memcpy(dst.candidates, src.candidates, sizeof(int) * BOARD_MAX)
+    memcpy(dst.capture_num, src.capture_num, sizeof(int) * S_OB)
 
     for i in range(max_string):
         if src.string[i].flag:
@@ -101,8 +101,10 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
         else:
             dst.string[i].flag = False
 
+    dst.current_hash = src.current_hash
+
     dst.current_color = src.current_color
-    #dst.pass_count = src.pass_count
+    dst.pass_count = src.pass_count
     dst.moves = src.moves
     dst.ko_move = src.ko_move
     dst.ko_pos = src.ko_pos
