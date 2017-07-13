@@ -30,3 +30,6 @@ class TestLadder(unittest.TestCase):
 
     def test_escapes_1(self):
         test_ladder.test_escapes_1()
+
+    def test_escapes_require_many_moves(self):
+        test_ladder.test_escapes_require_many_moves()

@@ -346,7 +346,7 @@ cdef bint is_ladder_capture(board.game_state_t *game,
     cdef int escape_options_num
     cdef int i
 
-    if depth >= 80 or ladder_moves[0] > 200:
+    if depth >= 80 or ladder_moves[0] > 250:
         return False
 
     """
@@ -404,7 +404,7 @@ cdef bint is_ladder_escape(board.game_state_t *game,
     cdef int ladder_capture, ladder_escape
     cdef int j
 
-    if depth >= 80 or ladder_moves[0] > 200:
+    if depth >= 80 or ladder_moves[0] > 250:
        return False
 
     """
