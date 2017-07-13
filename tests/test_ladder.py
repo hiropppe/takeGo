@@ -33,3 +33,10 @@ class TestLadder(unittest.TestCase):
 
     def test_escapes_require_many_moves(self):
         test_ladder.test_escapes_require_many_moves()
+
+    def test_captured_require_many_moves(self):
+        test_ladder.test_captured_require_many_moves()
+
+    def test_captured_2(self):
+        test_ladder.test_captured_2()
+

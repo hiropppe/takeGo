@@ -312,4 +312,74 @@ def test_escapes_require_many_moves():
     eq_(planes[45, pure_moves['a']], 1)
 
     board.free_game(game)
+
+
+def test_captured_require_many_moves():
+    game = board.allocate_game()
+    moves, pure_moves = parseboard.parse(game,
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . B . . . . . . . . . . . . .|"
+                            ". . . B . . . . . . . . . . . B . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . W . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . W . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . a W|"
+                            ". . . . . . . . . . . . . . W . W W B|"
+                            ". . B . . . . . . . . . . B B . B B B|"
+                            ". . . . . . . . . . . W W W B B B W .|"
+                            ". . . B . . . . . . B B . B W W W W .|"
+                            ". . . . . W . . . . . . . B W . . . .|"
+                            ". . . . . . . . . . . . . . B W . . .|")
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    game.current_color = board.S_BLACK
+
+    policy_feature.update(feature, game)
+    eq_(planes[44, pure_moves['a']], 1)
+
+    board.free_game(game)
+    policy_feature.free_feature(feature)
+
+
+def test_captured_2():
+    game = board.allocate_game()
+    moves, pure_moves = parseboard.parse(game,
+                            ". . b . . . . . . . . . . . . . . . .|"
+                            ". W B a . . . . . . . . . . . . . . .|"
+                            ". W B W . . . . . . . . . . . . . . .|"
+                            ". . W B B . . W . . . . . . . B . . .|"
+                            ". . W B W B . . . . . . . . . . . . .|"
+                            ". W B W W . . . . . . . . . . . . . .|"
+                            ". B B B W . . . . . . . . . . . . . .|"
+                            ". . . . B . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . B . . . . . . . . . . . B . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|"
+                            ". . . . . . . . . . . . . . . . . . .|")
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    game.current_color = board.S_WHITE
+
+    policy_feature.update(feature, game)
+    eq_(planes[44, pure_moves['a']], 1)
+    eq_(planes[44, pure_moves['b']], 0)
+
+    board.free_game(game)
     policy_feature.free_feature(feature)
