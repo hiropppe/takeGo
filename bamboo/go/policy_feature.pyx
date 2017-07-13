@@ -16,7 +16,7 @@ cimport printer
 
 from bamboo.go.board cimport LIBERTY_END, NEIGHBOR_END
 from bamboo.go.board cimport NORTH, WEST, EAST, SOUTH
-from bamboo.go.board cimport board_size, liberty_end, string_end, eye_condition, board_dis_x, board_dis_y
+from bamboo.go.board cimport board_size, liberty_end, string_end, onboard_index, eye_condition, board_dis_x, board_dis_y
 from bamboo.go.board cimport get_diagonals, get_neighbor4, get_neighbor4_empty
 from bamboo.go.pattern cimport pat3
 
@@ -72,10 +72,8 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     cdef int ladder_capture, ladder_escape, ladder_x, ladder_y
     cdef int escape_options[4]
     cdef int escape_options_num
-    #cdef int ladder_moves_value = 0
-    #cdef int *ladder_moves = &ladder_moves_value
-    cdef int ladder_moves_limit = 200
-    cdef int *remaining_ladder_moves = &ladder_moves_limit
+    cdef int ladder_moves_value = 0
+    cdef int *ladder_moves = &ladder_moves_value
     cdef int i, j
 
     F[...] = 0
@@ -179,26 +177,6 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                                         continue
                                 capture_pos = game.string_next[capture_pos]
                             neighbor_checked[i][nstring_id] = True
-                    # Ladder capture(1): Whether a move at this point is a successful ladder capture
-                    elif nstring.color != current_color and nstring.libs == 2:
-                        if is_successful_ladder_capture(game,
-                                                        pos,
-                                                        nstring_id,
-                                                        feature.search_games,
-                                                        80,
-                                                        remaining_ladder_moves):
-                            F[44, i] = 1
-                    # Ladder escape(1): Whether a move at this point is a successful ladder escape
-                    elif nstring.color == current_color and nstring.libs == 1:
-                        if is_successful_ladder_escape(game,
-                                                       pos,
-                                                       nstring_id,
-                                                       feature.search_games,
-                                                       True,
-                                                       80,
-                                                       remaining_ladder_moves):
-                            F[45, i] = 1
-
             # count libs_after_move
             libpos = libpos_after_move[i][0]
             while libpos != LIBERTY_END:
@@ -226,7 +204,6 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                 # Liberties(8): Number of liberties (empty adjacent points)
                 F[12 + board.MIN(string.libs, 8) - 1, i] = 1
 
-                """ Other implementations of Ladder check which search more escape routes.
                 if not ladder_checked[string_id]:
                     # Ladder capture(1): Whether a move at this point is a successful ladder capture
                     if string.libs == 2 and string.color == other_color:
@@ -245,11 +222,19 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                                                  feature.search_games,
                                                  0,
                                                  ladder_moves):
-                                ladder_x = board.CORRECT_X(ladder_capture, board.board_size, board.OB_SIZE)
-                                ladder_y = board.CORRECT_Y(ladder_capture, board.board_size, board.OB_SIZE)
-                                F[44, board.POS(ladder_x, ladder_y, board.pure_board_size)] = 1
+                                F[44, onboard_index[ladder_capture]] = 1
                     # Ladder escape(1): Whether a move at this point is a successful ladder escape
                     elif string.libs == 1 and string.color == current_color:
+                        ladder_moves[0] = 0
+                        if is_ladder_escape(game,
+                                            string_id,
+                                            string.lib[0],
+                                            True, # is atari-pos
+                                            feature.search_games,
+                                            0,
+                                            ladder_moves):
+                            F[45, onboard_index[string.lib[0]]] = 1
+                        """ Add capturing opponent stones to escape options
                         escape_option_num = get_escape_options(game,
                                                                escape_options,
                                                                string.lib[0],
@@ -264,12 +249,10 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                                                 feature.search_games,
                                                 0,
                                                 ladder_moves):
-                                ladder_x = board.CORRECT_X(escape_options[j], board.board_size, board.OB_SIZE)
-                                ladder_y = board.CORRECT_Y(escape_options[j], board.board_size, board.OB_SIZE)
-                                F[45, board.POS(ladder_x, ladder_y, board.pure_board_size)] = 1
-
+                                F[45, onboard_index[escape_options[j]]] = 1
+                        """
                     ladder_checked[string_id] = True
-                """
+
 
 cdef bint is_true_eye(board.game_state_t *game, int pos, char color, char other_color, int empty_diagonal_stack[200], int empty_diagonal_top):
     cdef int allowable_bad_diagonal
@@ -321,149 +304,6 @@ cdef bint is_true_eye(board.game_state_t *game, int pos, char color, char other_
     return True
 
 
-cdef int get_capturable_neighbor(board.game_state_t *game,
-                                 board.string_t *prey_string,
-                                 int escape_options[4],
-                                 int escape_color):
-    cdef board.string_t *neighbor
-    cdef int neighbor_id
-    cdef int escape_options_num = 0 
-
-    neighbor_id = prey_string.neighbor[0]
-    while neighbor_id != board.NEIGHBOR_END:
-        neighbor = &game.string[neighbor_id]
-        if neighbor.libs == 1 and board.is_legal(game, neighbor.lib[0], escape_color):
-            escape_options[escape_options_num] = neighbor.lib[0]
-            escape_options_num += 1
-        neighbor_id = prey_string.neighbor[neighbor_id]
-
-    return escape_options_num
-
-
-cdef bint is_successful_ladder_capture(board.game_state_t *game,
-                                       int capture_pos,
-                                       int prey_string_id,
-                                       board.game_state_t search_games[80],
-                                       int remaining_depth,
-                                       int *remaining_moves):
-    cdef board.game_state_t *ladder_game
-    cdef board.string_t *prey_string
-    cdef char capture_color = game.current_color
-    cdef char escape_color = board.FLIP_COLOR(game.current_color)
-    cdef int escape_options[4]
-    cdef int escape_options_num
-    cdef int i
-
-    if remaining_depth <= 0:
-        return False
-
-    remaining_depth -= 1
-    remaining_moves[0] -= 1
-
-    if not board.is_legal(game, capture_pos, capture_color):
-        return False
-
-    ladder_game = &search_games[remaining_depth]
-
-    board.copy_game(ladder_game, game)
-    board.do_move(ladder_game, capture_pos)
-
-    prey_string = &ladder_game.string[prey_string_id]
-
-    # Put in last liberty and escape
-    if is_successful_ladder_escape(ladder_game,
-                                   prey_string.lib[0],
-                                   prey_string_id,
-                                   search_games,
-                                   True,
-                                   remaining_depth,
-                                   remaining_moves):
-        return False
-
-    n_capturable = get_capturable_neighbor(ladder_game,
-                                           prey_string,
-                                           escape_options,
-                                           escape_color)
-
-    # Capture atari neighbor and escape
-    for i in range(n_capturable):
-        if is_successful_ladder_escape(ladder_game,
-                                       escape_options[i],
-                                       prey_string_id,
-                                       search_games,
-                                       False,
-                                       remaining_depth,
-                                       remaining_moves):
-            return False
-
-    return True
-
-
-cdef bint is_successful_ladder_escape(board.game_state_t *game,
-                                      int escape_pos,
-                                      int prey_string_id,
-                                      board.game_state_t search_games[80],
-                                      bint put_in_last_liberty,
-                                      int remaining_depth,
-                                      int *remaining_moves):
-    cdef board.game_state_t *ladder_game
-    cdef board.string_t *prey_string
-    cdef char escape_color = game.current_color
-    cdef char capture_color = board.FLIP_COLOR(game.current_color)
-    cdef board.string_t *neighbor_string
-    cdef int capture_pos
-    cdef int capture_num = 0
-    cdef int j
-
-    if remaining_depth <= 0:
-       return False
-
-    remaining_depth -= 1
-    remaining_moves[0] -= 1
-
-    if not board.is_legal(game, escape_pos, escape_color):
-        return False
-
-    ladder_game = &search_games[remaining_depth]
-
-    board.copy_game(ladder_game, game)
-    board.do_move(ladder_game, escape_pos)
-
-    # May change string_id by string merge
-    if put_in_last_liberty:
-        prey_string_id = ladder_game.string_id[escape_pos]
-
-    prey_string = &ladder_game.string[prey_string_id]
-
-    if prey_string.libs == 1:
-        return False
-    elif prey_string.libs >= 3:
-        return True
-
-    if is_successful_ladder_capture(ladder_game,
-                                    prey_string.lib[0],
-                                    prey_string_id,
-                                    search_games,
-                                    remaining_depth,
-                                    remaining_moves):
-        return False
-
-    if is_successful_ladder_capture(ladder_game,
-                                    prey_string.lib[prey_string.lib[0]],
-                                    prey_string_id,
-                                    search_games,
-                                    remaining_depth,
-                                    remaining_moves):
-        return False
-
-    return True
-
-
-""" Other implementations of Ladder check which search more escape routes.
-    - get_escape_options
-    - is_ladder_capture
-    - is_ladder_escape
-"""
 cdef int get_escape_options(board.game_state_t *game,
                             int escape_options[4],
                             int atari_pos,

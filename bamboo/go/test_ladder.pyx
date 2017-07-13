@@ -240,7 +240,10 @@ def test_two_escapes():
 
     policy_feature.update(feature, game)
     eq_(planes[45, pure_moves['a']], 1)
-    eq_(planes[45, pure_moves['b']], 1)
+    # search only neighbor string of 'b'
+    eq_(planes[45, pure_moves['b']], 0)
+    # search all escape routes
+    #eq_(planes[45, pure_moves['b']], 1)
 
     board.free_game(game)
     policy_feature.free_feature(feature)

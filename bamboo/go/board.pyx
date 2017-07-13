@@ -85,17 +85,17 @@ cdef void free_game(game_state_t *game) nogil:
 
 
 cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
-    memcpy(dst.record, src.record, sizeof(move_t) * max_records)
+    memcpy(dst.record, src.record, sizeof(move_t) * MAX_RECORDS)
     memcpy(dst.prisoner, src.prisoner, sizeof(int) * S_MAX)
-    memcpy(dst.board, src.board, sizeof(char) * board_max)
-    memcpy(dst.birth_move, src.birth_move, sizeof(int) * board_max)
-    memcpy(dst.pat, src.pat, sizeof(pattern_t) * board_max)
-    memcpy(dst.string_id, src.string_id, sizeof(int) * string_pos_max)
-    memcpy(dst.string_next, src.string_next, sizeof(int) * string_pos_max)
+    memcpy(dst.board, src.board, sizeof(char) * BOARD_MAX)
+    memcpy(dst.birth_move, src.birth_move, sizeof(int) * BOARD_MAX)
+    memcpy(dst.pat, src.pat, sizeof(pattern_t) * BOARD_MAX)
+    memcpy(dst.string_id, src.string_id, sizeof(int) * STRING_POS_MAX)
+    memcpy(dst.string_next, src.string_next, sizeof(int) * STRING_POS_MAX)
     memcpy(dst.candidates, src.candidates, sizeof(int) * BOARD_MAX)
     memcpy(dst.capture_num, src.capture_num, sizeof(int) * S_OB)
 
-    for i in range(max_string):
+    for i in range(MAX_STRING):
         if src.string[i].flag:
             memcpy(&dst.string[i], &src.string[i], sizeof(string_t))
         else:
@@ -113,8 +113,8 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
 cdef void initialize_board(game_state_t *game, bint rollout):
     cdef int i, x, y, pos
 
-    memset(game.record, 0, sizeof(move_t) * max_records)
-    memset(game.pat, 0, sizeof(pattern_t) * board_max)
+    memset(game.record, 0, sizeof(move_t) * MAX_RECORDS)
+    memset(game.pat, 0, sizeof(pattern_t) * BOARD_MAX)
 
     game.current_color = S_BLACK
     game.moves = 0
