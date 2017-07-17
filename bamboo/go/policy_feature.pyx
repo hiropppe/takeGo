@@ -58,8 +58,6 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     cdef board.string_t *nstring
     cdef int capture_size, self_atari_size, libs_after_move
     cdef short neighbor_checked[361][288]   # PURE_BOARD_MAX:MAX_STRING
-    cdef int second_neighbor4[4]
-    cdef int second_npos
     cdef board.string_t *capture_string
     cdef int capture_pos
     cdef int neighbor[361][288]
@@ -74,6 +72,7 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     cdef int escape_options_num
     cdef int ladder_moves_value = 0
     cdef int *ladder_moves = &ladder_moves_value
+    cdef int ladder_result
     cdef int i, j
 
     F[...] = 0
@@ -215,24 +214,26 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                                 ladder_capture = string.lib[string.lib[0]]
                                 ladder_escape = string.lib[0]
                             ladder_moves[0] = 0
-                            if is_ladder_capture(game,
+                            ladder_result = is_ladder_capture(game,
                                                  string_id,
                                                  ladder_capture,
                                                  ladder_escape,
                                                  feature.search_games,
                                                  0,
-                                                 ladder_moves):
+                                                 ladder_moves)
+                            if ladder_result == 1:
                                 F[44, onboard_index[ladder_capture]] = 1
                     # Ladder escape(1): Whether a move at this point is a successful ladder escape
                     elif string.libs == 1 and string.color == current_color:
                         ladder_moves[0] = 0
-                        if is_ladder_escape(game,
+                        ladder_result =  is_ladder_escape(game,
                                             string_id,
                                             string.lib[0],
                                             True, # is atari-pos
                                             feature.search_games,
                                             0,
-                                            ladder_moves):
+                                            ladder_moves)
+                        if ladder_result == 1:
                             F[45, onboard_index[string.lib[0]]] = 1
                         """ Add capturing opponent stones to escape options
                         escape_option_num = get_escape_options(game,
@@ -331,7 +332,7 @@ cdef int get_escape_options(board.game_state_t *game,
     return escape_options_num
 
 
-cdef bint is_ladder_capture(board.game_state_t *game,
+cdef int is_ladder_capture(board.game_state_t *game,
                             int string_id,
                             int pos,
                             int atari_pos,
@@ -344,10 +345,14 @@ cdef bint is_ladder_capture(board.game_state_t *game,
     cdef char escape_color = board.FLIP_COLOR(game.current_color)
     cdef int escape_options[4]
     cdef int escape_options_num
+    cdef int escape_result
     cdef int i
 
-    if depth >= 80 or ladder_moves[0] > 300:
-        return False
+    if depth >= MAX_LADDER_DEPTH:
+        return 0
+
+    if ladder_moves[0] > MAX_LADDER_MOVES:
+        return -1
 
     """
     printer.print_board(game)
@@ -364,7 +369,7 @@ cdef bint is_ladder_capture(board.game_state_t *game,
         print('Unable to capture !! Illegal Move: ({:d}, {:d}) Color: {:d}'.format(
             board.CORRECT_X(pos, board.board_size, board.OB_SIZE), board.CORRECT_Y(pos, board.board_size, board.OB_SIZE), capture_color))
         """
-        return False
+        return -1
 
     ladder_moves[0] += 1
 
@@ -377,18 +382,21 @@ cdef bint is_ladder_capture(board.game_state_t *game,
                                             escape_color,
                                             string_id)
     for i in range(escape_options_num):
-        if is_ladder_escape(ladder_game,
+        escape_result =  is_ladder_escape(ladder_game,
                             string_id,
                             escape_options[i],
                             i == escape_options_num - 1, # is atari-pos
                             search_games,
                             depth+1,
-                            ladder_moves):
-            return False
-    return True
+                            ladder_moves)
+        if escape_result == 0:
+            continue
+        elif escape_result == 1:
+            return -1
+    return 1
 
 
-cdef bint is_ladder_escape(board.game_state_t *game,
+cdef int is_ladder_escape(board.game_state_t *game,
                            int string_id,
                            int pos,
                            bint is_atari_pos,
@@ -402,10 +410,14 @@ cdef bint is_ladder_escape(board.game_state_t *game,
     cdef int neighbor_id
     cdef board.string_t *neighbor_string
     cdef int ladder_capture, ladder_escape
+    cdef int capture_result
     cdef int j
 
-    if depth >= 80 or ladder_moves[0] > 300:
-       return False
+    if depth >= MAX_LADDER_DEPTH:
+       return 0
+
+    if ladder_moves[0] > MAX_LADDER_MOVES:
+       return 1
 
     """
     printer.print_board(game)
@@ -422,7 +434,7 @@ cdef bint is_ladder_escape(board.game_state_t *game,
         print('Unable to escape !! Illegal Move: ({:d}, {:d}) Color: {:d}'.format(
             board.CORRECT_X(pos, board.board_size, board.OB_SIZE), board.CORRECT_Y(pos, board.board_size, board.OB_SIZE), capture_color))
         """
-        return False
+        return -1
 
     ladder_moves[0] += 1
 
@@ -439,13 +451,13 @@ cdef bint is_ladder_escape(board.game_state_t *game,
         printer.print_board(ladder_game)
         print 'Captured !!'
         """
-        return False
+        return -1
     elif string.libs >= 3:
         """
         printer.print_board(ladder_game)
         print 'Escaped !!'
         """
-        return True
+        return 1
     else:
         for j in range(2):
             if j == 0:
@@ -455,13 +467,15 @@ cdef bint is_ladder_escape(board.game_state_t *game,
                 ladder_capture = string.lib[string.lib[0]]
                 ladder_escape = string.lib[0]
 
-            if is_ladder_capture(ladder_game,
+            capture_result = is_ladder_capture(ladder_game,
                                  string_id,
                                  ladder_capture,
                                  ladder_escape,
                                  search_games,
                                  depth+1,
-                                 ladder_moves):
-                return False
-
-        return True
+                                 ladder_moves)
+            if capture_result == 0:
+                continue
+            elif capture_result == 1:
+                return -1
+        return 1
