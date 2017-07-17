@@ -41,12 +41,21 @@ cpdef min_sgf_extract(sgf_string):
 
 cdef class SGFMoveIterator:
 
-    def __cinit__(self, int bsize, object sgf_string, bint verbose=False):
+    def __cinit__(self,
+                  int bsize,
+                  object sgf_string,
+                  int too_few_moves_threshold=50,
+                  int too_many_moves_threshold=500,
+                  bint ignore_not_legal=True,
+                  bint verbose=False):
         self.bsize = bsize
         self.game = allocate_game()
         self.moves = list()
         self.i = 0
         self.next_move = None
+        self.too_few_moves_threshold = too_few_moves_threshold
+        self.too_many_moves_threshold = too_many_moves_threshold
+        self.ignore_not_legal = ignore_not_legal
         self.verbose = verbose
 
         sgf_string = min_sgf_extract(sgf_string)
@@ -61,9 +70,9 @@ cdef class SGFMoveIterator:
             raise
 
         sgf_game = collection[0]
-        if len(sgf_game.nodes) < 50:
+        if len(sgf_game.nodes) < self.too_few_moves_threshold:
             raise TooFewMove(len(sgf_game.nodes))
-        if len(sgf_game.nodes) > 500:
+        if len(sgf_game.nodes) > self.too_many_moves_threshold:
             raise TooManyMove(len(sgf_game.nodes))
 
         self.sgf_init_game(sgf_game.root)
@@ -90,11 +99,14 @@ cdef class SGFMoveIterator:
         return self
 
     def __next__(self):
+        cdef bint is_legal
         if self.i == 0:
             move = self.moves[0]
         else:
             prev_move = self.moves[self.i-1]
-            put_stone(self.game, prev_move[0], prev_move[1])
+            is_legal = put_stone(self.game, prev_move[0], prev_move[1])
+            if not (is_legal or self.ignore_not_legal):
+                raise IllegalMove(prev_move)
             if self.i >= len(self.moves):
                 raise StopIteration()
             move = self.moves[self.i]
