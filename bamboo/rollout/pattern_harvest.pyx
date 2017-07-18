@@ -43,7 +43,7 @@ def harvest_3x3_pattern(file_name, verbose=False, quiet=False):
     game = sgf_iter.game
     try:
         for i, move in enumerate(sgf_iter):
-            if move[0] != PASS:
+            if game.moves > 0 and game.record[game.moves - 1].pos != PASS:
                 updated_string_num = &game.updated_string_num[<int>game.current_color]
                 updated_string_id = game.updated_string_id[<int>game.current_color]
                 for i in range(updated_string_num[0]):
@@ -55,7 +55,7 @@ def harvest_3x3_pattern(file_name, verbose=False, quiet=False):
                         if pat3[onboard_index[center]] != pat:
                             pat3[onboard_index[center]] = pat
                             freq_dict[pat] += 1
-                            if sgf_iter.next_move and sgf_iter.next_move[0] == center:
+                            if move and move[0] == center:
                                 move_dict[pat] += 1
                             else:
                                 move_dict[pat] += 0 
@@ -105,14 +105,16 @@ def harvest_12diamond_pattern(file_name, verbose=False, quiet=False):
     game = sgf_iter.game
     try:
         for i, move in enumerate(sgf_iter):
-            if move[0] != PASS:
+            if game.moves > 0 and game.record[game.moves - 1].pos != PASS:
+                prev_pos = game.record[game.moves - 1].pos
+                prev_color = game.record[game.moves - 1].color
                 # generate base bits (color and liberty count)
-                bits = d12_bits(game, move[0], move[1], empty_ix, empty_pos, n_empty)
+                bits = d12_bits(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
                 for j in range(n_empty_val):
                     # add candidate(empty) position bit (no legal check)
                     positional_bits = bits | (1 << empty_ix[j])
                     freq_dict[positional_bits] += 1
-                    if sgf_iter.next_move and sgf_iter.next_move[0] == empty_pos[j]:
+                    if move and move[0] == empty_pos[j]:
                         move_dict[positional_bits] += 1
                     else:
                         move_dict[positional_bits] += 0 

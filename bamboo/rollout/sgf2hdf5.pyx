@@ -62,7 +62,6 @@ cdef class GameConverter(object):
 
         game = sgf_iter.game
         for i, move in enumerate(sgf_iter):
-            next_move = sgf_iter.next_move
             if move[0] != PASS:
                 s = time.time()
                 self.preprocessor.update(game)
@@ -72,7 +71,7 @@ cdef class GameConverter(object):
                 if onboard_index[move[0]] >= pure_board_max:
                     continue
                 else:
-                    yield (onehot_index_array, onboard_index[next_move[0]])
+                    yield (onehot_index_array, onboard_index[move[0]])
 
     def sgfs_to_hdf5(self,
                      sgf_files,
