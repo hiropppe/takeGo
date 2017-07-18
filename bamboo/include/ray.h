@@ -193,6 +193,10 @@ typedef struct {
     int updated_string_id[S_OB][MAX_RECORDS];   // 前の着手から更新された連のID
 
     bool rollout;
+
+    double rollout_probs[S_OB][PURE_BOARD_MAX];
+    double rollout_logits[S_OB][PURE_BOARD_MAX];
+    double rollout_logits_sum[S_OB];
 } game_state_t;
 
 //int onboard_pos[PURE_BOARD_MAX];

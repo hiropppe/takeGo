@@ -39,11 +39,18 @@ cdef float calculate_u(tree_node_t *node):
 
 cdef class MCTS(object):
 
-    def __cinit__(self, object policy):
+    def __cinit__(self,
+                 object policy,
+                 int nakade_size,
+                 int x33_size,
+                 int d12_size):
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         self.current_root = uct_hash_size
         self.policy = policy
         self.policy_feature = allocate_feature()
+        self.nakade_size = nakade_size
+        self.x33_size = x33_size
+        self.d12_size = d12_size
         self.pondering = False
 
         initialize_feature(self.policy_feature) 
@@ -92,7 +99,10 @@ cdef class MCTS(object):
 
         free_game(search_game)
 
-    cdef void search(self, tree_node_t *node, game_state_t *search_game, int player_color) nogil:
+    cdef void search(self,
+                     tree_node_t *node,
+                     game_state_t *search_game,
+                     int player_color) nogil:
         # selection
         while True:
             if node.is_edge:
@@ -141,7 +151,8 @@ cdef class MCTS(object):
 
     cdef tree_node_t *select(self, tree_node_t *node, game_state_t *game) nogil:
         cdef int i
-        cdef tree_node_t *child, *max_child
+        cdef tree_node_t *child
+        cdef tree_node_t *max_child
         cdef float Qu_tmp = 0, Qu_max = 0
 
         for i in range(node.num_child):
@@ -192,7 +203,10 @@ cdef class MCTS(object):
 
                 self.policy_network_queue.push(node[0])
 
-    cdef void evaluate_and_backup(self, tree_node_t *node, game_state_t *game, int player_color) nogil:
+    cdef void evaluate_and_backup(self,
+                                  tree_node_t *node,
+                                  game_state_t *game,
+                                  int player_color) nogil:
         cdef int score
         cdef char winner
         cdef int Wr
@@ -217,16 +231,7 @@ cdef class MCTS(object):
         self.backup(node, 1, Wr)
 
     cdef void rollout(self, game_state_t *game) nogil:
-        cdef int length = MAX_RECORDS - 1 - game.moves 
-        cdef int *moves
-        cdef int i, pos
-
-        set_moves(moves, 361)
-
-        for i in range(361):
-            pos = onboard_pos[moves[i]]
-            if is_legal(game, pos, game.current_color):
-                do_move(game, pos)
+        pass
 
     cdef void backup(self, tree_node_t *node, int Nr, int Wr) nogil:
         return
@@ -275,6 +280,6 @@ def testes(model, weights):
     game = allocate_game()
 
     set_board_size(19)
-    initialize_board(game, False)
+    initialize_board(game)
 
     mcts.start_search_thread(game, S_BLACK)

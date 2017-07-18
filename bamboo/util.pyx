@@ -133,7 +133,7 @@ cdef class SGFMoveIterator:
             raise SizeMismatchError()
 
         set_board_size(int(s_size))
-        initialize_board(self.game, False)
+        initialize_board(self.game)
 
         # handle 'add black' property
         if 'AB' in props:

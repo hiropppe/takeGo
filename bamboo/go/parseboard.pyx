@@ -18,7 +18,7 @@ cdef tuple parse(board.game_state_t *game, boardstr):
     # assert board_size in (7, 9, 13, 19), "Illegal board size"
     board.set_board_size(board_size)
 
-    board.initialize_board(game, False)
+    board.initialize_board(game)
 
     for row, rowstr in enumerate(boardstr.split('|')):
         for col, c in enumerate(rowstr):

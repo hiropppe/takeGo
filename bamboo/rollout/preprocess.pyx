@@ -17,6 +17,58 @@ from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout.pattern cimport d12_hash, d12_hashmap, d12_pos_mt
 
 
+cdef void initialize_feature(int nakade_size, int x33_size, int d12_size) nogil:
+    pass
+
+
+cdef void update_all(game_state_t *game) nogil:
+    pass
+
+
+cdef void update(game_state_t *game) nogil:
+    pass
+
+
+cdef void update_save_atari(rollout_feature_t *feature, game_state_t *game, string_t *string) nogil:
+    pass
+
+
+cdef void update_neighbor(rollout_feature_t *feature, game_state_t *game, int pos) nogil:
+    pass
+
+
+cdef void update_d12(rollout_feature_t *feature, game_state_t *game, int prev_pos, int prev_color) nogil:
+    pass
+
+
+cdef void update_3x3(rollout_feature_t *feature, game_state_t *game, int pos, int color) nogil:
+    pass
+
+
+cdef void clear_neighbor(rollout_feature_t *feature) nogil:
+    pass
+
+
+cdef void clear_d12(rollout_feature_t *feature) nogil:
+    pass
+
+
+cdef void clear_onehot_index(rollout_feature_t *feature, int pos) nogil:
+    pass
+
+
+cdef void clear_updated_string_cache(game_state_t *game) nogil:
+    pass
+
+
+cdef void clear_planes(game_state_t *game) nogil:
+    pass
+
+
+cdef bint memorize_updated(rollout_feature_t *feature, int pos) nogil:
+    pass
+
+
 cdef class RolloutFeature:
 
     def __cinit__(self, int nakade_size=0, int x33_size=0, int d12_size=0):

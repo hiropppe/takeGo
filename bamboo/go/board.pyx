@@ -6,6 +6,8 @@ import numpy as np
 
 cimport numpy as np
 
+import h5py as h5
+
 from libc.stdlib cimport malloc, free
 from libc.string cimport memset, memcpy
 from libc.math cimport exp as cexp
@@ -92,7 +94,6 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
     memcpy(dst.pat, src.pat, sizeof(pattern_t) * BOARD_MAX)
     memcpy(dst.string_id, src.string_id, sizeof(int) * STRING_POS_MAX)
     memcpy(dst.string_next, src.string_next, sizeof(int) * STRING_POS_MAX)
-    memcpy(dst.candidates, src.candidates, sizeof(int) * BOARD_MAX)
     memcpy(dst.capture_num, src.capture_num, sizeof(int) * S_OB)
 
     for i in range(MAX_STRING):
@@ -110,8 +111,8 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
     dst.ko_pos = src.ko_pos
 
 
-cdef void initialize_board(game_state_t *game, bint rollout):
-    cdef int i, x, y, pos
+cdef void initialize_board(game_state_t *game):
+    cdef int i, j, x, y, pos
 
     memset(game.record, 0, sizeof(move_t) * MAX_RECORDS)
     memset(game.pat, 0, sizeof(pattern_t) * BOARD_MAX)
@@ -122,12 +123,11 @@ cdef void initialize_board(game_state_t *game, bint rollout):
     game.ko_move = 0
     game.pass_count = 0
     game.current_hash = 0
-    game.rollout = rollout
+    game.rollout = False
 
     fill_n_char(game.board, BOARD_MAX, 0)
     fill_n_int(game.birth_move, BOARD_MAX, 0)
     fill_n_int(game.capture_num, S_OB, 0)
-    fill_n_int(game.candidates, BOARD_MAX, 0)
 
     for y in range(board_size):
         for x in range(OB_SIZE):
@@ -136,13 +136,14 @@ cdef void initialize_board(game_state_t *game, bint rollout):
             game.board[POS(y, board_size - 1 - x, board_size)] = S_OB
             game.board[POS(board_size - 1 - x, y, board_size)] = S_OB
 
-    for y in range(board_start, board_end + 1):
-        for x in range(board_start, board_end + 1):
-            pos = POS(x, y, board_size)
-            game.candidates[pos] = 1 
-
     for i in range(max_string):
         game.string[i].flag = False
+
+    for i in range(OB_SIZE):
+        game.rollout_logits_sum[i] = .0
+        for j in range(PURE_BOARD_MAX):
+            game.rollout_probs[i][j] = .0
+            game.rollout_logits[i][j] = .0
 
     pat.clear_pattern(game.pat)
 
@@ -188,8 +189,6 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
     game.board[pos] = color
 
     game.current_hash ^= hash_bit[pos][<int>color]
-
-    game.candidates[pos] = 0
 
     pat.update_md2_stone(game.pat, pos, color)
 
@@ -1018,7 +1017,6 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
         return True
 
     if game.board[pos] != S_EMPTY:
-        game.candidates[pos] = False
         return False
 
     if (eye[pat.pat3(game.pat, pos)] != color or
@@ -1034,7 +1032,6 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
             return False
 
         if false_eye[pat.pat3(game.pat, pos)] == color:
-            game.candidates[pos] = False
             return False
 
     return True
@@ -1085,6 +1082,72 @@ cdef void memorize_updated_string(game_state_t *game, int string_id) nogil:
         num_for_white[0] += 1
 
 
+cdef void set_rollout_parameter(object weights_hdf5, double temperature):
+    cdef int i
+
+    global rollout_weights
+    global rollout_temperature
+
+    weights_data = h5.File(weights_hdf5, 'r')
+    W = weights_data['W']
+    for i in range(W.shape[0]):
+        rollout_weights[i] = W[i]
+
+    rollout_temperature = temperature
+
+
+cdef void calculate_rollout_softmax(game_state_t *game, int onehot_ix[6][361]) nogil:
+    cdef int color = <int>game.current_color
+    cdef double *probs = game.rollout_probs[color]
+    cdef double *logits = game.rollout_logits[color]
+    cdef double logits_sum = game.rollout_logits_sum[color]
+    cdef int i, j
+
+    for i in range(PURE_BOARD_MAX):
+        for j in range(6):
+            if onehot_ix[j][i] != -1:
+                logits[i] += rollout_weights[onehot_ix[j][i]]
+        logits[i] = cexp(logits[i]/rollout_temperature)
+        logits_sum += logits[i]
+
+    if logits_sum > .0:
+        for i in range(PURE_BOARD_MAX):
+            probs[i] = logits[i]/logits_sum
+
+
+cdef void update_rollout_softmax(game_state_t *game, int positions[529], int onehot_ix[6][361]) nogil:
+    cdef int color = <int>game.current_color
+    cdef double *probs = game.rollout_probs[color]
+    cdef double *logits = game.rollout_logits[color]
+    cdef double logits_sum = game.rollout_logits_sum[color]
+    cdef int pos, tmp_pos
+    cdef int pure_pos
+    cdef double updated_sum = .0
+    cdef double updated_old_sum = .0
+    cdef int i, j
+
+    pos = positions[0]
+    while pos != BOARD_MAX:
+        pure_pos = onboard_index[pos]
+        updated_old_sum += logits[pure_pos]
+        logits[pure_pos] = .0
+        for j in range(6):
+            if onehot_ix[j][pure_pos] != -1:
+                logits[pure_pos] += rollout_weights[onehot_ix[j][pure_pos]]
+        logits[pure_pos] = cexp(logits[pure_pos]/rollout_temperature)
+        updated_sum += logits[pure_pos]
+        # Must be cleared for next feature calculation
+        tmp_pos = positions[pos]
+        positions[pos] = 0
+        pos = tmp_pos
+
+    logits_sum = logits_sum - updated_old_sum + updated_sum
+
+    if logits_sum > .0:
+        for i in range(PURE_BOARD_MAX):
+            probs[i] = logits[i]/logits_sum
+
+
 cpdef test_playout(int n_playout=1, int move_limit=500):
     """ benchmark playout speed
     """
@@ -1114,7 +1177,7 @@ cpdef test_playout(int n_playout=1, int move_limit=500):
     for n in range(n_playout):
         poos = time.time()
 
-        initialize_board(game, False)
+        initialize_board(game)
         #policy_feature.initialize_feature(feature)
 
         #policy_feature.update(feature, game)

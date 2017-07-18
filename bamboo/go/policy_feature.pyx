@@ -37,7 +37,7 @@ cdef policy_feature_t *allocate_feature():
 cdef void initialize_feature(policy_feature_t *feature):
     feature.planes[...] = 0
     for i in range(80):
-        board.initialize_board(&feature.search_games[i], False)
+        board.initialize_board(&feature.search_games[i])
 
 
 cdef void free_feature(policy_feature_t *feature):

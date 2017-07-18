@@ -112,6 +112,10 @@ cdef extern from "ray.h":
 
         bint rollout
 
+        double rollout_probs[3][361]            # S_OB, PURE_BOARD_MAX
+        double rollout_logits[3][361]           # S_OB, PURE_BOARD_MAX
+        double rollout_logits_sum[3]            # S_OB
+
 
 cdef int pure_board_size
 cdef int pure_board_max
@@ -160,6 +164,8 @@ cdef unsigned char territory[65536]     # PAT3_MAX
 cdef unsigned char nb4_empty[65536]     # PAT3_MAX
 cdef unsigned char eye_condition[65536] # PAT3_MAX
 
+cdef double rollout_weights[100000]
+cdef double rollout_temperature
 
 cdef void fill_n_char (char *arr, int size, char v) nogil
 cdef void fill_n_short (short *arr, int size, short v) nogil
@@ -172,7 +178,7 @@ cdef void set_board_size(int size)
 cdef game_state_t *allocate_game() nogil
 cdef void free_game(game_state_t *game) nogil
 cdef void copy_game(game_state_t *dst, game_state_t *src) nogil
-cdef void initialize_board(game_state_t *game, bint rollout)
+cdef void initialize_board(game_state_t *game)
 
 cdef bint do_move(game_state_t *game, int pos) nogil
 
@@ -212,3 +218,8 @@ cdef bint is_legal(game_state_t *game, int pos, char color) nogil
 cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil
 cdef bint is_suicide(game_state_t *game, int pos, char color) nogil
 cdef int calculate_score(game_state_t *game) nogil
+
+cdef void set_rollout_parameter(object weights_hdf5, double temperature) 
+cdef void calculate_rollout_softmax(game_state_t *game, int onehot_ix[6][361]) nogil
+cdef void update_rollout_softmax(game_state_t *game, int positions[529], int onehot_ix[6][361]) nogil
+

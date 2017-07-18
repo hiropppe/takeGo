@@ -583,7 +583,7 @@ cdef board.game_state_t* __initialize_game(int board_size=9):
     board.set_board_size(board_size)
 
     game = board.allocate_game()
-    board.initialize_board(game, False)
+    board.initialize_board(game)
 
     return game
 

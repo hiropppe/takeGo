@@ -41,7 +41,7 @@ cdef class RolloutPolicyPlayer(object):
         s = time.time()
         # generate and sort probs
         self.linear_softmax.update_softmax(feature_t.updated, feature_t.tensor)
-        print('Forward Speed. {:.3f} ms'.format((time.time()-s)*1000))
+        print('Forward Speed. {:.3f} us'.format((time.time()-s)*1000*1000))
         probs = np.asarray(self.linear_softmax.probs)
         pos = np.argmax(probs)
 
@@ -50,11 +50,12 @@ cdef class RolloutPolicyPlayer(object):
         else:
             # allow up to the 3rd candidate
             candidate = 1
-            while candidate < 3:
+            while candidate < 10:
                 pos = np.argsort(probs)[::-1][candidate]
                 if is_legal(game, pos, game.current_color):
                     return pos
                 else:
+                    print('Candidate number {:d} is not legal. {:d}'.format(candidate, pos))
                     candidate += 1
 
         # No 'sensible' moves available, so do pass move

@@ -1,8 +1,8 @@
 from libcpp.queue cimport queue as cppqueue
 
 from bamboo.go.board cimport game_state_t
-
 from bamboo.go.policy_feature cimport policy_feature_t
+from bamboo.rollout.preprocess cimport RolloutFeature
 
 cimport openmp
 
@@ -57,6 +57,9 @@ cdef class MCTS:
     cdef policy_feature_t *policy_feature
     cdef cppqueue[tree_node_t] policy_network_queue
     cdef cppqueue[tree_node_t] value_network_queue
+    cdef int nakade_size
+    cdef int x33_size
+    cdef int d12_size
     cdef bint pondering
     cdef openmp.omp_lock_t tree_lock
     

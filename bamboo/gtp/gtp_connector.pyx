@@ -84,7 +84,7 @@ cdef class GTPGameConnector(object):
 
     def set_size(self, n):
         set_board_size(n)
-        initialize_board(self.game, False)
+        initialize_board(self.game)
 
     def set_komi(self, k):
         pass
