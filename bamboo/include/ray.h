@@ -160,6 +160,29 @@ typedef struct {
 } string_t;
 
 
+enum rollout_feature_e {
+    F_RESPONSE,
+    F_SAVE_ATARI,
+    F_NEIGHBOR,
+    F_NAKADE,
+    F_RESPONSE_PAT,
+    F_NON_RESPONSE_PAT,
+    F_MAX
+};
+
+
+typedef struct {
+    int color;
+    int tensor[F_MAX][PURE_BOARD_MAX]; // hold one-hot index for each feature
+    int prev_neighbor8[8];
+    int prev_neighbor8_num;
+    int prev_d12[12];
+    int prev_d12_num;
+    int updated[BOARD_MAX];
+    int updated_num;
+} rollout_feature_t;
+
+
 typedef struct {
     char current_color; 
     struct move record[MAX_RECORDS];    // 着手箇所と色の記録
@@ -194,6 +217,7 @@ typedef struct {
 
     bool rollout;
 
+    rollout_feature_t rollout_feature_planes[S_OB];
     double rollout_probs[S_OB][PURE_BOARD_MAX];
     double rollout_logits[S_OB][PURE_BOARD_MAX];
     double rollout_logits_sum[S_OB];

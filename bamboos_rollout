@@ -1,7 +1,6 @@
 from bamboo.ai.rollout import RolloutPolicyPlayer
-from bamboo.models.linear_softmax import LinearSoftmax
-from bamboo.rollout.preprocess import RolloutFeature
 from bamboo.rollout.pattern import read_rands, init_nakade_hash, init_x33_hash, init_d12_hash
+from bamboo.rollout.preprocess import initialize_const
 from bamboo.gtp.gtp_connector import GTPGameConnector
 from bamboo.gtp.gtp_wrapper import ExtendedGtpEngine
 
@@ -32,9 +31,10 @@ if __name__ == "__main__":
     x33_size = init_x33_hash(args.x33_file)
     d12_size = init_d12_hash(args.d12_file)
 
-    policy = LinearSoftmax(args.weights, args.policy_temp)
-    feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    player = RolloutPolicyPlayer(policy, feature)
+    set_rollout_parameter(args.weights, args.policy_temp)
+    initialize_const(nakade_size, x33_size, d12_size)
+
+    player = RolloutPolicyPlayer()
 
     gtp_game = GTPGameConnector()
     gtp_game.set_rollout(player)

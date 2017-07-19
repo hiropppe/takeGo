@@ -61,6 +61,15 @@ cdef extern from "ray.h":
         E_COMPLETE_ONE_EYE
         E_MAX
 
+    ctypedef enum:
+        F_RESPONSE
+        F_SAVE_ATARI
+        F_NEIGHBOR
+        F_NAKADE
+        F_RESPONSE_PAT
+        F_NON_RESPONSE_PAT
+        F_MAX
+ 
     ctypedef struct move_t:
         int color
         int pos
@@ -80,6 +89,16 @@ cdef extern from "ray.h":
     ctypedef struct pattern_t:
         unsigned int *list
         unsigned long long *large_list
+
+    ctypedef struct rollout_feature_t:
+        int color
+        int tensor[6][361]
+        int prev_neighbor8[8]
+        int prev_neighbor8_num
+        int prev_d12[12]
+        int prev_d12_num
+        int updated[529]
+        int updated_num
 
     ctypedef struct game_state_t:
         char current_color
@@ -112,9 +131,10 @@ cdef extern from "ray.h":
 
         bint rollout
 
-        double rollout_probs[3][361]            # S_OB, PURE_BOARD_MAX
-        double rollout_logits[3][361]           # S_OB, PURE_BOARD_MAX
-        double rollout_logits_sum[3]            # S_OB
+        rollout_feature_t rollout_feature_planes[3] # S_OB
+        double rollout_probs[3][361]    # S_OB, PURE_BOARD_MAX
+        double rollout_logits[3][361]   # S_OB, PURE_BOARD_MAX
+        double rollout_logits_sum[3]    # S_OB
 
 
 cdef int pure_board_size
@@ -219,7 +239,7 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil
 cdef bint is_suicide(game_state_t *game, int pos, char color) nogil
 cdef int calculate_score(game_state_t *game) nogil
 
-cdef void set_rollout_parameter(object weights_hdf5, double temperature) 
+cpdef void set_rollout_parameter(object weights_hdf5, double temperature) 
 cdef void calculate_rollout_softmax(game_state_t *game, int onehot_ix[6][361]) nogil
 cdef void update_rollout_softmax(game_state_t *game, int positions[529], int onehot_ix[6][361]) nogil
 

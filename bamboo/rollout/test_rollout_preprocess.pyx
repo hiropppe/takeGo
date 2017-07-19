@@ -9,14 +9,14 @@ from nose.tools import ok_, eq_
 
 from bamboo.go.board cimport BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, PASS
 from bamboo.go.board cimport FLIP_COLOR
-from bamboo.go.board cimport game_state_t, board_size, pure_board_size, pure_board_max
+from bamboo.go.board cimport game_state_t, rollout_feature_t, board_size, pure_board_size, pure_board_max
 from bamboo.go.board cimport allocate_game, free_game, put_stone
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
 
-from bamboo.rollout.preprocess cimport RESPONSE, SAVE_ATARI, NEIGHBOR, RESPONSE_PAT, NON_RESPONSE_PAT
-from bamboo.rollout.preprocess cimport rollout_feature_t
-from bamboo.rollout.preprocess cimport RolloutFeature
+from bamboo.rollout.preprocess cimport F_RESPONSE, F_SAVE_ATARI, F_NEIGHBOR, F_NAKADE, F_RESPONSE_PAT, F_NON_RESPONSE_PAT
+from bamboo.rollout.preprocess cimport response_start, save_atari_start, neighbor_start, nakade_start, d12_start, x33_start
+from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, update_planes, update_planes_all, memorize_updated 
 from bamboo.rollout.pattern cimport initialize_rands, put_x33_hash, put_d12_hash
 from bamboo.rollout.pattern import print_x33
 
@@ -26,8 +26,7 @@ cdef int x33_size = 100
 cdef int d12_size = 100
 
 def setup():
-    global nakade_size, x33_size, d12_size
-
+    initialize_const(nakade_size, x33_size, d12_size)
     initialize_rands()
 
     put_12diamond_test_patterns()
@@ -372,8 +371,7 @@ def put_3x3_test_patterns():
 
 def test_update_save_atari():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
+    cdef rollout_feature_t *black
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -386,16 +384,19 @@ def test_update_save_atari():
 
     game.current_color = S_BLACK
 
-    feature.update(game)
+    update_planes(game)
 
-    eq_(black.tensor[SAVE_ATARI][pure_moves['a']], feature.save_atari_start) 
-    eq_(number_of_active_positions(black, SAVE_ATARI), 1)
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(black.tensor[F_SAVE_ATARI][pure_moves['a']], save_atari_start) 
+    eq_(number_of_active_positions(black, F_SAVE_ATARI), 1)
+
+    free_game(game)
 
 
 def test_update_save_atari_connect_string():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -408,16 +409,19 @@ def test_update_save_atari_connect_string():
 
     game.current_color = S_WHITE
 
-    feature.update(game)
+    update_planes(game)
 
-    eq_(white.tensor[SAVE_ATARI][pure_moves['a']], feature.save_atari_start) 
-    eq_(number_of_active_positions(white, SAVE_ATARI), 1)
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(white.tensor[F_SAVE_ATARI][pure_moves['a']], save_atari_start) 
+    eq_(number_of_active_positions(white, F_SAVE_ATARI), 1)
+
+    free_game(game)
 
 
 def test_update_save_atari_not_escape():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
+    cdef rollout_feature_t *black
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -430,16 +434,19 @@ def test_update_save_atari_not_escape():
 
     game.current_color = S_BLACK
 
-    feature.update(game)
+    update_planes(game)
 
-    eq_(black.tensor[SAVE_ATARI][pure_moves['a']], -1) 
-    eq_(number_of_active_positions(black, SAVE_ATARI), 0)
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(black.tensor[F_SAVE_ATARI][pure_moves['a']], -1) 
+    eq_(number_of_active_positions(black, F_SAVE_ATARI), 0)
+
+    free_game(game)
 
 
 def test_update_save_atari_not_escape_on_edge():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               "W B . . . . .|"
@@ -452,17 +459,20 @@ def test_update_save_atari_not_escape_on_edge():
 
     game.current_color = S_WHITE
 
-    feature.update(game)
+    update_planes(game)
 
-    eq_(white.tensor[SAVE_ATARI][pure_moves['a']], -1) 
-    eq_(number_of_active_positions(white, SAVE_ATARI), 0)
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(white.tensor[F_SAVE_ATARI][pure_moves['a']], -1) 
+    eq_(number_of_active_positions(white, F_SAVE_ATARI), 0)
+
+    free_game(game)
 
 
 def test_update_neighbor_0():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *black
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               ". . . . .|"
@@ -473,71 +483,73 @@ def test_update_neighbor_0():
 
     game.current_color = S_BLACK
 
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
     # put B[a]
     put_stone(game, moves['a'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['a'] 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']-pure_board_size-1], feature.neighbor_start) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']-pure_board_size], feature.neighbor_start+1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']-pure_board_size+1], feature.neighbor_start+2) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']-1], feature.neighbor_start+3) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']+1], feature.neighbor_start+4) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']+pure_board_size-1], feature.neighbor_start+5) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']+pure_board_size], feature.neighbor_start+6) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']+pure_board_size+1], feature.neighbor_start+7) 
-    eq_(number_of_active_positions(white, NEIGHBOR), 8)
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']-pure_board_size-1], neighbor_start) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']-pure_board_size], neighbor_start+1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']-pure_board_size+1], neighbor_start+2) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']-1], neighbor_start+3) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']+1], neighbor_start+4) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']+pure_board_size-1], neighbor_start+5) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']+pure_board_size], neighbor_start+6) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']+pure_board_size+1], neighbor_start+7) 
+    eq_(number_of_active_positions(white, F_NEIGHBOR), 8)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['b'] 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']-pure_board_size-1], feature.neighbor_start) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']-pure_board_size], feature.neighbor_start+1) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']-pure_board_size+1], feature.neighbor_start+2) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']-1], -1) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']+1], feature.neighbor_start+4) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']+pure_board_size-1], feature.neighbor_start+5) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']+pure_board_size], feature.neighbor_start+6) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']+pure_board_size+1], feature.neighbor_start+7) 
-    eq_(number_of_active_positions(black, NEIGHBOR), 7)
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']-pure_board_size-1], neighbor_start) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']-pure_board_size], neighbor_start+1) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']-pure_board_size+1], neighbor_start+2) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']-1], -1) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']+1], neighbor_start+4) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']+pure_board_size-1], neighbor_start+5) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']+pure_board_size], neighbor_start+6) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']+pure_board_size+1], neighbor_start+7) 
+    eq_(number_of_active_positions(black, F_NEIGHBOR), 7)
 
     # put B[c]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['c'] 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']-pure_board_size-1], feature.neighbor_start) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']-pure_board_size], feature.neighbor_start+1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']-pure_board_size+1], -1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']-1], -1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']+1], -1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']+pure_board_size-1], feature.neighbor_start+5) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']+pure_board_size], feature.neighbor_start+6) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']+pure_board_size+1], -1) 
-    eq_(number_of_active_positions(white, NEIGHBOR), 4)
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']-pure_board_size-1], neighbor_start) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']-pure_board_size], neighbor_start+1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']-pure_board_size+1], -1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']-1], -1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']+1], -1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']+pure_board_size-1], neighbor_start+5) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']+pure_board_size], neighbor_start+6) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']+pure_board_size+1], -1) 
+    eq_(number_of_active_positions(white, F_NEIGHBOR), 4)
 
     # PASS W
     put_stone(game, PASS, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # cleared around move['b'] 
-    eq_(number_of_active_positions(black, NEIGHBOR), 0)
+    eq_(number_of_active_positions(black, F_NEIGHBOR), 0)
 
     # PASS B
     put_stone(game, PASS, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # cleared around move['c'] 
-    eq_(number_of_active_positions(white, NEIGHBOR), 0)
+    eq_(number_of_active_positions(white, F_NEIGHBOR), 0)
 
 
 def test_update_12diamond_0():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *black
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . . . .|"
@@ -552,121 +564,124 @@ def test_update_12diamond_0():
 
     game.current_color = S_BLACK
 
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
     # put B[a]
     put_stone(game, moves['a'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['a'] 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-2*pure_board_size], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-pure_board_size-1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-pure_board_size], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-pure_board_size+1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-2], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+2], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+pure_board_size-1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+pure_board_size], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+pure_board_size+1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+2*pure_board_size], feature.response_start) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-2*pure_board_size], feature.d12_start) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-pure_board_size-1], feature.d12_start+1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-pure_board_size], feature.d12_start+2) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-pure_board_size+1], feature.d12_start+1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-2], feature.d12_start) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-1], feature.d12_start+2) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+1], feature.d12_start+2) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+2], feature.d12_start) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+pure_board_size-1], feature.d12_start+1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+pure_board_size], feature.d12_start+2) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+pure_board_size+1], feature.d12_start+1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+2*pure_board_size], feature.d12_start) 
-    eq_(number_of_active_positions(white, RESPONSE), 12)
-    eq_(number_of_active_positions(white, RESPONSE_PAT), 12)
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-2*pure_board_size], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-pure_board_size-1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-pure_board_size], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-pure_board_size+1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-2], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+2], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+pure_board_size-1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+pure_board_size], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+pure_board_size+1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+2*pure_board_size], response_start) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-2*pure_board_size], d12_start) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], d12_start+1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-pure_board_size], d12_start+2) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], d12_start+1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-2], d12_start) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-1], d12_start+2) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+1], d12_start+2) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+2], d12_start) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], d12_start+1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+pure_board_size], d12_start+2) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], d12_start+1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+2*pure_board_size], d12_start) 
+    eq_(number_of_active_positions(white, F_RESPONSE), 12)
+    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 12)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['b']
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-2*pure_board_size], feature.d12_start) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-pure_board_size-1], feature.d12_start+1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-pure_board_size], feature.d12_start+2) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-pure_board_size+1], feature.d12_start+1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-2], feature.d12_start) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-1], feature.d12_start+2) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+1], feature.d12_start+2) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+2], feature.d12_start) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+pure_board_size-1], feature.d12_start+1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+pure_board_size], feature.d12_start+2) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+pure_board_size+1], feature.d12_start+1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+2*pure_board_size], feature.d12_start) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-2*pure_board_size], d12_start) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], d12_start+1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-pure_board_size], d12_start+2) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], d12_start+1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-2], d12_start) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-1], d12_start+2) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+1], d12_start+2) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+2], d12_start) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], d12_start+1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+pure_board_size], d12_start+2) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], d12_start+1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+2*pure_board_size], d12_start) 
     # no others
-    eq_(number_of_active_positions(black, RESPONSE), 12)
-    eq_(number_of_active_positions(black, RESPONSE_PAT), 12)
+    eq_(number_of_active_positions(black, F_RESPONSE), 12)
+    eq_(number_of_active_positions(black, F_RESPONSE_PAT), 12)
 
     # put B[b]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['c']
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-2*pure_board_size], feature.d12_start+13) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-pure_board_size], feature.d12_start+12) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-pure_board_size+1], feature.d12_start+11) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-2], feature.d12_start+10) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-1], feature.d12_start+9) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+1], feature.d12_start+8) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+2], feature.d12_start+7) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+pure_board_size-1], feature.d12_start+6) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+pure_board_size], feature.d12_start+5) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+pure_board_size+1], feature.d12_start+4) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+2*pure_board_size], feature.d12_start+3) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-2*pure_board_size], d12_start+13) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-pure_board_size], d12_start+12) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], d12_start+11) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-2], d12_start+10) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-1], d12_start+9) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+1], d12_start+8) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+2], d12_start+7) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], d12_start+6) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+pure_board_size], d12_start+5) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], d12_start+4) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+2*pure_board_size], d12_start+3) 
     # no others
-    eq_(number_of_active_positions(white, RESPONSE), 11)
-    eq_(number_of_active_positions(white, RESPONSE_PAT), 11)
+    eq_(number_of_active_positions(white, F_RESPONSE), 11)
+    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 11)
 
     # put W[d]
     put_stone(game, moves['d'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['d']
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-2*pure_board_size], feature.d12_start+22) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-pure_board_size-1], feature.d12_start+21) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-pure_board_size], -1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-pure_board_size+1], feature.d12_start+20) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-2], feature.d12_start+19) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-1], feature.d12_start+18) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+1], -1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+2], feature.d12_start+17) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+pure_board_size-1], feature.d12_start+16) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+pure_board_size], feature.d12_start+15) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+pure_board_size+1], feature.d12_start+14) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+2*pure_board_size], -1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-2*pure_board_size], d12_start+22) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-pure_board_size-1], d12_start+21) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-pure_board_size], -1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-pure_board_size+1], d12_start+20) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-2], d12_start+19) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-1], d12_start+18) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+1], -1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+2], d12_start+17) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+pure_board_size-1], d12_start+16) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+pure_board_size], d12_start+15) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+pure_board_size+1], d12_start+14) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+2*pure_board_size], -1) 
     # no others, previous positions are cleared
-    eq_(number_of_active_positions(black, RESPONSE), 9)
-    eq_(number_of_active_positions(black, RESPONSE_PAT), 9)
+    eq_(number_of_active_positions(black, F_RESPONSE), 9)
+    eq_(number_of_active_positions(black, F_RESPONSE_PAT), 9)
 
     # put B[e]
     put_stone(game, moves['e'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['e']
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-2*pure_board_size], feature.d12_start+31) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-pure_board_size-1], feature.d12_start+30) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-pure_board_size], feature.d12_start+29) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-pure_board_size+1], feature.d12_start+28) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-2], feature.d12_start+27) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-1], -1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+1], feature.d12_start+26) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+2], feature.d12_start+25) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+pure_board_size-1], -1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+pure_board_size], -1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+pure_board_size+1], feature.d12_start+24) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+2*pure_board_size], feature.d12_start+23) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-2*pure_board_size], d12_start+31) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-pure_board_size-1], d12_start+30) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-pure_board_size], d12_start+29) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-pure_board_size+1], d12_start+28) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-2], d12_start+27) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-1], -1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+1], d12_start+26) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+2], d12_start+25) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+pure_board_size-1], -1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+pure_board_size], -1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+pure_board_size+1], d12_start+24) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+2*pure_board_size], d12_start+23) 
     # no others, previous positions are cleared
-    eq_(number_of_active_positions(white, RESPONSE), 9)
-    eq_(number_of_active_positions(white, RESPONSE_PAT), 9)
+    eq_(number_of_active_positions(white, F_RESPONSE), 9)
+    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 9)
 
     # print_board(game)
 
@@ -675,9 +690,8 @@ def test_update_12diamond_0():
 
 def test_update_12diamond_after_pass_0():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *black
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . . . .|"
@@ -692,31 +706,33 @@ def test_update_12diamond_after_pass_0():
 
     game.current_color = S_BLACK
 
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
     # put B[e]
     put_stone(game, moves['e'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
 
     # put W[f]
     put_stone(game, moves['f'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
 
     # B PASS
     put_stone(game, PASS, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
 
-    eq_(number_of_active_positions(white, RESPONSE_PAT), 0)
+    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 0)
 
     free_game(game)
 
 
 def test_update_3x3_0():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *black
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . . . .|"
@@ -731,93 +747,96 @@ def test_update_3x3_0():
 
     game.current_color = S_BLACK
 
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
     # put B[a]
     put_stone(game, moves['a'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['a'] 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], feature.x33_start) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], feature.x33_start+1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], feature.x33_start) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']-1], feature.x33_start+1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']+1], feature.x33_start+1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], feature.x33_start) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], feature.x33_start+1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], feature.x33_start) 
-    eq_(number_of_active_positions(white, NON_RESPONSE_PAT), 8)
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], x33_start) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], x33_start+1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], x33_start) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-1], x33_start+1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+1], x33_start+1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], x33_start) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], x33_start+1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], x33_start) 
+    eq_(number_of_active_positions(white, F_NON_RESPONSE_PAT), 8)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['a'] 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], feature.x33_start + 2) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], feature.x33_start + 2) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']-1], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']+1], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], feature.x33_start + 2) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], feature.x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-1], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+1], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], x33_start + 2) 
     # updated around move['b']
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], feature.x33_start+1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-1], feature.x33_start+1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+1], feature.x33_start+1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], feature.x33_start+1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], feature.x33_start) 
-    eq_(number_of_active_positions(black, NON_RESPONSE_PAT), 16)
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], x33_start+1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-1], x33_start+1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+1], x33_start+1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], x33_start+1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], x33_start) 
+    eq_(number_of_active_positions(black, F_NON_RESPONSE_PAT), 16)
 
     # put B[c]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['b']
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], feature.x33_start + 2) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], feature.x33_start + 3) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], feature.x33_start + 2) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']-1], feature.x33_start + 3) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']+1], feature.x33_start + 4) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], feature.x33_start + 2) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], feature.x33_start + 4) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], -1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], x33_start + 2) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], x33_start + 3) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], x33_start + 2) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-1], x33_start + 3) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+1], x33_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], x33_start + 2) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], x33_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], -1) 
     # updated around move['c']
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], feature.x33_start + 4) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], feature.x33_start) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']-1], feature.x33_start + 4) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']+1], feature.x33_start + 1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], feature.x33_start + 5) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], feature.x33_start + 5) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], feature.x33_start) 
-    eq_(number_of_active_positions(white, NON_RESPONSE_PAT), 18)
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], x33_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], x33_start) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-1], x33_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+1], x33_start + 1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], x33_start + 5) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], x33_start + 5) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], x33_start) 
+    eq_(number_of_active_positions(white, F_NON_RESPONSE_PAT), 18)
 
     # put W[d]
     put_stone(game, moves['d'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update(game)
+    update_planes(game)
     # updated around move['c']
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], feature.x33_start + 6) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], feature.x33_start + 2) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']-1], -1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']+1], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], feature.x33_start + 7) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], feature.x33_start + 8) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], feature.x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], x33_start + 6) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-1], -1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+1], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], x33_start + 7) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], x33_start + 8) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], x33_start + 2) 
     # updated around move['d']
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], feature.x33_start + 1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-1], feature.x33_start + 9) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+1], feature.x33_start + 6) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['d']-1], feature.x33_start + 9) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['d']+pure_board_size-1], feature.x33_start + 10) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['d']+pure_board_size], feature.x33_start + 7) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['d']+pure_board_size+1], feature.x33_start + 8) 
-    eq_(number_of_active_positions(black, NON_RESPONSE_PAT), 17)
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], x33_start + 1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-1], x33_start + 9) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+1], x33_start + 6) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']-1], x33_start + 9) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']+pure_board_size-1], x33_start + 10) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']+pure_board_size], x33_start + 7) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']+pure_board_size+1], x33_start + 8) 
+    eq_(number_of_active_positions(black, F_NON_RESPONSE_PAT), 17)
 
     # print_board(game)
 
@@ -826,9 +845,8 @@ def test_update_3x3_0():
 
 def test_update_all_save_atari():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *black
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -839,20 +857,22 @@ def test_update_all_save_atari():
                               ". . . . . . .|"
                               ". . . . . . .|")
 
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
     game.current_color = S_BLACK
-    feature.update_all(game)
-    eq_(number_of_active_positions(black, SAVE_ATARI), 7)
+    update_planes_all(game)
+    eq_(number_of_active_positions(black, F_SAVE_ATARI), 7)
 
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update_all(game)
-    eq_(number_of_active_positions(white, SAVE_ATARI), 6)
+    update_planes_all(game)
+    eq_(number_of_active_positions(white, F_SAVE_ATARI), 6)
 
 
 def test_update_all_neighbor():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *black
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               ". . . . .|"
@@ -863,75 +883,73 @@ def test_update_all_neighbor():
 
     game.current_color = S_BLACK
 
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
     # put B[a]
     put_stone(game, moves['a'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['a'] 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']-pure_board_size-1], feature.neighbor_start) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']-pure_board_size], feature.neighbor_start+1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']-pure_board_size+1], feature.neighbor_start+2) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']-1], feature.neighbor_start+3) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']+1], feature.neighbor_start+4) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']+pure_board_size-1], feature.neighbor_start+5) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']+pure_board_size], feature.neighbor_start+6) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['a']+pure_board_size+1], feature.neighbor_start+7) 
-    eq_(number_of_active_positions(white, NEIGHBOR), 8)
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']-pure_board_size-1], neighbor_start) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']-pure_board_size], neighbor_start+1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']-pure_board_size+1], neighbor_start+2) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']-1], neighbor_start+3) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']+1], neighbor_start+4) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']+pure_board_size-1], neighbor_start+5) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']+pure_board_size], neighbor_start+6) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['a']+pure_board_size+1], neighbor_start+7) 
+    eq_(number_of_active_positions(white, F_NEIGHBOR), 8)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['b'] 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']-pure_board_size-1], feature.neighbor_start) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']-pure_board_size], feature.neighbor_start+1) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']-pure_board_size+1], feature.neighbor_start+2) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']-1], -1) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']+1], feature.neighbor_start+4) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']+pure_board_size-1], feature.neighbor_start+5) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']+pure_board_size], feature.neighbor_start+6) 
-    eq_(black.tensor[NEIGHBOR][pure_moves['b']+pure_board_size+1], feature.neighbor_start+7) 
-    eq_(number_of_active_positions(black, NEIGHBOR), 7)
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']-pure_board_size-1], neighbor_start) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']-pure_board_size], neighbor_start+1) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']-pure_board_size+1], neighbor_start+2) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']-1], -1) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']+1], neighbor_start+4) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']+pure_board_size-1], neighbor_start+5) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']+pure_board_size], neighbor_start+6) 
+    eq_(black.tensor[F_NEIGHBOR][pure_moves['b']+pure_board_size+1], neighbor_start+7) 
+    eq_(number_of_active_positions(black, F_NEIGHBOR), 7)
 
     # put B[c]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['c'] 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']-pure_board_size-1], feature.neighbor_start) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']-pure_board_size], feature.neighbor_start+1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']-pure_board_size+1], -1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']-1], -1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']+1], -1) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']+pure_board_size-1], feature.neighbor_start+5) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']+pure_board_size], feature.neighbor_start+6) 
-    eq_(white.tensor[NEIGHBOR][pure_moves['c']+pure_board_size+1], -1) 
-    eq_(number_of_active_positions(white, NEIGHBOR), 4)
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']-pure_board_size-1], neighbor_start) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']-pure_board_size], neighbor_start+1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']-pure_board_size+1], -1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']-1], -1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']+1], -1) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']+pure_board_size-1], neighbor_start+5) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']+pure_board_size], neighbor_start+6) 
+    eq_(white.tensor[F_NEIGHBOR][pure_moves['c']+pure_board_size+1], -1) 
+    eq_(number_of_active_positions(white, F_NEIGHBOR), 4)
 
     # PASS W
     put_stone(game, PASS, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # cleared around move['b'] 
-    eq_(number_of_active_positions(black, NEIGHBOR), 0)
+    eq_(number_of_active_positions(black, F_NEIGHBOR), 0)
 
     # PASS B
     put_stone(game, PASS, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # cleared around move['c'] 
-    eq_(number_of_active_positions(white, NEIGHBOR), 0)
+    eq_(number_of_active_positions(white, F_NEIGHBOR), 0)
 
 
 def test_update_all_12diamond():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *black
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . . . .|"
@@ -946,126 +964,124 @@ def test_update_all_12diamond():
 
     game.current_color = S_BLACK
 
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
     # put B[a]
     put_stone(game, moves['a'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['a'] 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-2*pure_board_size], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-pure_board_size-1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-pure_board_size], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-pure_board_size+1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-2], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']-1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+2], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+pure_board_size-1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+pure_board_size], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+pure_board_size+1], feature.response_start) 
-    eq_(white.tensor[RESPONSE][pure_moves['a']+2*pure_board_size], feature.response_start) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-2*pure_board_size], feature.d12_start) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-pure_board_size-1], feature.d12_start+1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-pure_board_size], feature.d12_start+2) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-pure_board_size+1], feature.d12_start+1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-2], feature.d12_start) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']-1], feature.d12_start+2) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+1], feature.d12_start+2) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+2], feature.d12_start) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+pure_board_size-1], feature.d12_start+1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+pure_board_size], feature.d12_start+2) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+pure_board_size+1], feature.d12_start+1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['a']+2*pure_board_size], feature.d12_start) 
-    eq_(number_of_active_positions(white, RESPONSE), 12)
-    eq_(number_of_active_positions(white, RESPONSE_PAT), 12)
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-2*pure_board_size], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-pure_board_size-1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-pure_board_size], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-pure_board_size+1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-2], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']-1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+2], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+pure_board_size-1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+pure_board_size], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+pure_board_size+1], response_start) 
+    eq_(white.tensor[F_RESPONSE][pure_moves['a']+2*pure_board_size], response_start) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-2*pure_board_size], d12_start) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], d12_start+1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-pure_board_size], d12_start+2) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], d12_start+1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-2], d12_start) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-1], d12_start+2) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+1], d12_start+2) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+2], d12_start) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], d12_start+1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+pure_board_size], d12_start+2) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], d12_start+1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+2*pure_board_size], d12_start) 
+    eq_(number_of_active_positions(white, F_RESPONSE), 12)
+    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 12)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['b']
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-2*pure_board_size], feature.d12_start) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-pure_board_size-1], feature.d12_start+1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-pure_board_size], feature.d12_start+2) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-pure_board_size+1], feature.d12_start+1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-2], feature.d12_start) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']-1], feature.d12_start+2) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+1], feature.d12_start+2) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+2], feature.d12_start) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+pure_board_size-1], feature.d12_start+1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+pure_board_size], feature.d12_start+2) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+pure_board_size+1], feature.d12_start+1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['b']+2*pure_board_size], feature.d12_start) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-2*pure_board_size], d12_start) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], d12_start+1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-pure_board_size], d12_start+2) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], d12_start+1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-2], d12_start) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-1], d12_start+2) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+1], d12_start+2) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+2], d12_start) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], d12_start+1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+pure_board_size], d12_start+2) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], d12_start+1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+2*pure_board_size], d12_start) 
     # no others
-    eq_(number_of_active_positions(black, RESPONSE), 12)
-    eq_(number_of_active_positions(black, RESPONSE_PAT), 12)
+    eq_(number_of_active_positions(black, F_RESPONSE), 12)
+    eq_(number_of_active_positions(black, F_RESPONSE_PAT), 12)
 
     # put B[b]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['c']
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-2*pure_board_size], feature.d12_start+13) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-pure_board_size], feature.d12_start+12) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-pure_board_size+1], feature.d12_start+11) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-2], feature.d12_start+10) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']-1], feature.d12_start+9) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+1], feature.d12_start+8) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+2], feature.d12_start+7) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+pure_board_size-1], feature.d12_start+6) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+pure_board_size], feature.d12_start+5) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+pure_board_size+1], feature.d12_start+4) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['c']+2*pure_board_size], feature.d12_start+3) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-2*pure_board_size], d12_start+13) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-pure_board_size], d12_start+12) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], d12_start+11) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-2], d12_start+10) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-1], d12_start+9) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+1], d12_start+8) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+2], d12_start+7) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], d12_start+6) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+pure_board_size], d12_start+5) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], d12_start+4) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+2*pure_board_size], d12_start+3) 
     # no others
-    eq_(number_of_active_positions(white, RESPONSE), 11)
-    eq_(number_of_active_positions(white, RESPONSE_PAT), 11)
+    eq_(number_of_active_positions(white, F_RESPONSE), 11)
+    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 11)
 
     # put W[d]
     put_stone(game, moves['d'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['d']
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-2*pure_board_size], feature.d12_start+22) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-pure_board_size-1], feature.d12_start+21) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-pure_board_size], -1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-pure_board_size+1], feature.d12_start+20) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-2], feature.d12_start+19) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']-1], feature.d12_start+18) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+1], -1) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+2], feature.d12_start+17) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+pure_board_size-1], feature.d12_start+16) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+pure_board_size], feature.d12_start+15) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+pure_board_size+1], feature.d12_start+14) 
-    eq_(black.tensor[RESPONSE_PAT][pure_moves['d']+2*pure_board_size], -1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-2*pure_board_size], d12_start+22) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-pure_board_size-1], d12_start+21) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-pure_board_size], -1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-pure_board_size+1], d12_start+20) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-2], d12_start+19) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-1], d12_start+18) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+1], -1) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+2], d12_start+17) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+pure_board_size-1], d12_start+16) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+pure_board_size], d12_start+15) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+pure_board_size+1], d12_start+14) 
+    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+2*pure_board_size], -1) 
     # no others, previous positions are cleared
-    eq_(number_of_active_positions(black, RESPONSE), 9)
-    eq_(number_of_active_positions(black, RESPONSE_PAT), 9)
+    eq_(number_of_active_positions(black, F_RESPONSE), 9)
+    eq_(number_of_active_positions(black, F_RESPONSE_PAT), 9)
 
     # put B[e]
     put_stone(game, moves['e'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['e']
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-2*pure_board_size], feature.d12_start+31) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-pure_board_size-1], feature.d12_start+30) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-pure_board_size], feature.d12_start+29) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-pure_board_size+1], feature.d12_start+28) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-2], feature.d12_start+27) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']-1], -1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+1], feature.d12_start+26) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+2], feature.d12_start+25) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+pure_board_size-1], -1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+pure_board_size], -1) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+pure_board_size+1], feature.d12_start+24) 
-    eq_(white.tensor[RESPONSE_PAT][pure_moves['e']+2*pure_board_size], feature.d12_start+23) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-2*pure_board_size], d12_start+31) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-pure_board_size-1], d12_start+30) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-pure_board_size], d12_start+29) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-pure_board_size+1], d12_start+28) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-2], d12_start+27) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-1], -1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+1], d12_start+26) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+2], d12_start+25) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+pure_board_size-1], -1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+pure_board_size], -1) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+pure_board_size+1], d12_start+24) 
+    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+2*pure_board_size], d12_start+23) 
     # no others, previous positions are cleared
-    eq_(number_of_active_positions(white, RESPONSE), 9)
-    eq_(number_of_active_positions(white, RESPONSE_PAT), 9)
+    eq_(number_of_active_positions(white, F_RESPONSE), 9)
+    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 9)
 
     # print_board(game)
 
@@ -1074,9 +1090,8 @@ def test_update_all_12diamond():
 
 def test_update_all_3x3():
     cdef game_state_t *game = allocate_game()
-    cdef RolloutFeature feature = RolloutFeature(nakade_size, x33_size, d12_size)
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
-    cdef rollout_feature_t *white = &feature.feature_planes[<int>S_WHITE]
+    cdef rollout_feature_t *black
+    cdef rollout_feature_t *white
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . . . .|"
@@ -1091,97 +1106,96 @@ def test_update_all_3x3():
 
     game.current_color = S_BLACK
 
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
     # put B[a]
     put_stone(game, moves['a'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['a'] 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], feature.x33_start) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], feature.x33_start+1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], feature.x33_start) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']-1], feature.x33_start+1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']+1], feature.x33_start+1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], feature.x33_start) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], feature.x33_start+1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], feature.x33_start) 
-    eq_(number_of_active_positions(white, NON_RESPONSE_PAT), 8)
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], x33_start) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], x33_start+1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], x33_start) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-1], x33_start+1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+1], x33_start+1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], x33_start) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], x33_start+1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], x33_start) 
+    eq_(number_of_active_positions(white, F_NON_RESPONSE_PAT), 8)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['a'] 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], feature.x33_start + 2) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], feature.x33_start + 2) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']-1], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']+1], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], feature.x33_start + 2) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], feature.x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-1], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+1], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], x33_start + 2) 
     # updated around move['b']
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], feature.x33_start+1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-1], feature.x33_start+1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+1], feature.x33_start+1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], feature.x33_start+1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], feature.x33_start) 
-    eq_(number_of_active_positions(black, NON_RESPONSE_PAT), 16)
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], x33_start+1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-1], x33_start+1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+1], x33_start+1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], x33_start+1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], x33_start) 
+    eq_(number_of_active_positions(black, F_NON_RESPONSE_PAT), 16)
 
     # put B[c]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['b']
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], feature.x33_start + 2) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], feature.x33_start + 3) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], feature.x33_start + 2) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']-1], feature.x33_start + 3) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']+1], feature.x33_start + 4) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], feature.x33_start + 2) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], feature.x33_start + 4) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], -1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], x33_start + 2) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], x33_start + 3) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], x33_start + 2) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-1], x33_start + 3) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+1], x33_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], x33_start + 2) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], x33_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], -1) 
     # updated around move['c']
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], feature.x33_start + 4) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], feature.x33_start) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']-1], feature.x33_start + 4) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']+1], feature.x33_start + 1) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], feature.x33_start + 5) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], feature.x33_start + 5) 
-    eq_(white.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], feature.x33_start) 
-    eq_(number_of_active_positions(white, NON_RESPONSE_PAT), 18)
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], x33_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], x33_start) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-1], x33_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+1], x33_start + 1) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], x33_start + 5) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], x33_start + 5) 
+    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], x33_start) 
+    eq_(number_of_active_positions(white, F_NON_RESPONSE_PAT), 18)
 
     # put W[d]
     put_stone(game, moves['d'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
-    feature.clear_planes()
-    feature.update_all(game)
+    update_planes_all(game)
     # updated around move['c']
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], feature.x33_start + 6) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], feature.x33_start + 2) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']-1], -1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']+1], feature.x33_start + 3) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], feature.x33_start + 7) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], feature.x33_start + 8) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], feature.x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], x33_start + 6) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], x33_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-1], -1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+1], x33_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], x33_start + 7) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], x33_start + 8) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], x33_start + 2) 
     # updated around move['d']
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], feature.x33_start + 1) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], feature.x33_start) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']-1], feature.x33_start + 9) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['b']+1], feature.x33_start + 6) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['d']-1], feature.x33_start + 9) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['d']+pure_board_size-1], feature.x33_start + 10) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['d']+pure_board_size], feature.x33_start + 7) 
-    eq_(black.tensor[NON_RESPONSE_PAT][pure_moves['d']+pure_board_size+1], feature.x33_start + 8) 
-    eq_(number_of_active_positions(black, NON_RESPONSE_PAT), 17)
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], x33_start + 1) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], x33_start) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-1], x33_start + 9) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+1], x33_start + 6) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']-1], x33_start + 9) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']+pure_board_size-1], x33_start + 10) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']+pure_board_size], x33_start + 7) 
+    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']+pure_board_size+1], x33_start + 8) 
+    eq_(number_of_active_positions(black, F_NON_RESPONSE_PAT), 17)
 
     # print_board(game)
 
@@ -1189,29 +1203,32 @@ def test_update_all_3x3():
 
 
 def test_memorize_updated():
-    cdef RolloutFeature feature = RolloutFeature()
-    cdef rollout_feature_t *black = &feature.feature_planes[<int>S_BLACK]
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *black = &game.rollout_feature_planes[<int>S_BLACK]
+
+    initialize_planes(game)
 
     eq_(black.updated[0], BOARD_MAX)
 
     # add 264
-    eq_(feature.memorize_updated(black, 264), True)
+    eq_(memorize_updated(black, 264), True)
     eq_(black.updated[0], 264)
     eq_(black.updated[264], BOARD_MAX)
 
     # 264 already exists
-    eq_(feature.memorize_updated(black, 264), False)
+    eq_(memorize_updated(black, 264), False)
 
     # add 48, 480
-    eq_(feature.memorize_updated(black, 48), True)
+    eq_(memorize_updated(black, 48), True)
     eq_(black.updated[0], 48)
     eq_(black.updated[48], 264)
     eq_(black.updated[264], BOARD_MAX)
-    eq_(feature.memorize_updated(black, 480), True)
+    eq_(memorize_updated(black, 480), True)
     eq_(black.updated[0], 480)
     eq_(black.updated[480], 48)
     eq_(black.updated[48], 264)
     eq_(black.updated[264], BOARD_MAX)
+
 
 cdef int number_of_active_positions(rollout_feature_t *feature, int feature_id):
     cdef int i

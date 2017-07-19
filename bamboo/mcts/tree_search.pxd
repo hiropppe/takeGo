@@ -2,7 +2,6 @@ from libcpp.queue cimport queue as cppqueue
 
 from bamboo.go.board cimport game_state_t
 from bamboo.go.policy_feature cimport policy_feature_t
-from bamboo.rollout.preprocess cimport RolloutFeature
 
 cimport openmp
 

@@ -22,7 +22,7 @@ cimport policy_feature
 
 from bamboo.go.zobrist_hash cimport HASH_PASS, HASH_BLACK, HASH_WHITE, HASH_KO
 from bamboo.go.zobrist_hash cimport hash_bit
-
+from bamboo.rollout.preprocess cimport initialize_planes
 
 pure_board_size = PURE_BOARD_SIZE
 pure_board_max = PURE_BOARD_MAX
@@ -123,7 +123,6 @@ cdef void initialize_board(game_state_t *game):
     game.ko_move = 0
     game.pass_count = 0
     game.current_hash = 0
-    game.rollout = False
 
     fill_n_char(game.board, BOARD_MAX, 0)
     fill_n_int(game.birth_move, BOARD_MAX, 0)
@@ -139,16 +138,21 @@ cdef void initialize_board(game_state_t *game):
     for i in range(max_string):
         game.string[i].flag = False
 
+    pat.clear_pattern(game.pat)
+
+    initialize_neighbor()
+    initialize_eye()
+
+    game.rollout = False
+
+    # init rollout data
+    initialize_planes(game)
+
     for i in range(OB_SIZE):
         game.rollout_logits_sum[i] = .0
         for j in range(PURE_BOARD_MAX):
             game.rollout_probs[i][j] = .0
             game.rollout_logits[i][j] = .0
-
-    pat.clear_pattern(game.pat)
-
-    initialize_neighbor()
-    initialize_eye()
 
 
 cdef bint do_move(game_state_t *game, int pos) nogil:
@@ -1082,7 +1086,7 @@ cdef void memorize_updated_string(game_state_t *game, int string_id) nogil:
         num_for_white[0] += 1
 
 
-cdef void set_rollout_parameter(object weights_hdf5, double temperature):
+cpdef void set_rollout_parameter(object weights_hdf5, double temperature):
     cdef int i
 
     global rollout_weights

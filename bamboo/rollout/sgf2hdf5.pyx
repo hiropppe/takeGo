@@ -18,55 +18,56 @@ from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFe
 
 from bamboo.util cimport SGFMoveIterator
 from bamboo.go.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
-from bamboo.go.board cimport game_state_t, pure_board_size, pure_board_max, onboard_index
+from bamboo.go.board cimport game_state_t, rollout_feature_t, pure_board_size, pure_board_max, onboard_index
 from bamboo.go.printer cimport print_board
 from bamboo.rollout.pattern cimport read_rands, init_nakade_hash, init_x33_hash, init_d12_hash
 from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
-from bamboo.rollout.preprocess cimport RolloutFeature, rollout_feature_t
+from bamboo.rollout.preprocess cimport feature_size
+from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, update_planes 
 
 
 cdef class GameConverter(object):
 
     cdef:
-        RolloutFeature preprocessor
         int bsize
-        int nakade_size, x33_size, d12_size
-        int n_features
         list update_speeds
 
     def __cinit__(self, bsize=19, rands_file=None, nakade_file=None, x33_file=None, d12_file=None):
+        cdef int nakade_size, x33_size, d12_size
+
         self.bsize = bsize
 
         read_rands(rands_file)
-        self.nakade_size = init_nakade_hash(nakade_file)
-        self.x33_size = init_x33_hash(x33_file)
-        self.d12_size = init_d12_hash(d12_file)
+
+        nakade_size = init_nakade_hash(nakade_file)
+        x33_size = init_x33_hash(x33_file)
+        d12_size = init_d12_hash(d12_file)
+
         self.update_speeds = list()
+
+        initialize_const(nakade_size, x33_size, d12_size)
 
     def __dealloc__(self):
         pass
 
     def convert_game(self, file_name, verbose=False):
         cdef game_state_t *game
-        cdef SGFMoveIterator sgf_iter
         cdef rollout_feature_t *feature
+        cdef SGFMoveIterator sgf_iter
         cdef int i, j
-
-        self.preprocessor = RolloutFeature(self.nakade_size,
-                                           self.x33_size,
-                                           self.d12_size)
-        self.n_features = self.preprocessor.feature_size
 
         with open(file_name, 'r') as file_object:
             sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
-
         game = sgf_iter.game
+
+        initialize_planes(game)
         for i, move in enumerate(sgf_iter):
             if move[0] != PASS:
                 s = time.time()
-                self.preprocessor.update(game)
+                update_planes(game)
                 self.update_speeds.append(time.time()-s)
-                feature = &self.preprocessor.feature_planes[<int>game.current_color]
+
+                feature = &game.rollout_feature_planes[<int>game.current_color]
                 onehot_index_array = np.asarray(feature.tensor)
                 if onboard_index[move[0]] >= pure_board_max:
                     continue
@@ -160,7 +161,7 @@ cdef class GameConverter(object):
             os.remove(tmp_file)
             raise e
 
-        h5f['n_features'] = self.n_features
+        h5f['n_features'] = feature_size 
 
         if verbose:
             print("finished. renaming %s to %s" % (tmp_file, hdf5_file))
