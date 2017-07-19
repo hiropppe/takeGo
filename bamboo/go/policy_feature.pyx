@@ -17,7 +17,7 @@ cimport printer
 from bamboo.go.board cimport LIBERTY_END, NEIGHBOR_END
 from bamboo.go.board cimport NORTH, WEST, EAST, SOUTH
 from bamboo.go.board cimport board_size, liberty_end, string_end, onboard_index, eye_condition, board_dis_x, board_dis_y
-from bamboo.go.board cimport get_diagonals, get_neighbor4, get_neighbor4_empty
+from bamboo.go.board cimport is_true_eye, get_neighbor4, get_neighbor4_empty
 from bamboo.go.pattern cimport pat3
 
 
@@ -253,56 +253,6 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                                 F[45, onboard_index[escape_options[j]]] = 1
                         """
                     ladder_checked[string_id] = True
-
-
-cdef bint is_true_eye(board.game_state_t *game, int pos, char color, char other_color, int empty_diagonal_stack[200], int empty_diagonal_top):
-    cdef int allowable_bad_diagonal
-    cdef int num_bad_diagonal
-    cdef int neighbor4[4]
-    cdef int diagonals[4]
-    cdef int dpos, dcolor
-    cdef int i, j
-    cdef bint found
-
-    allowable_bad_diagonal = 1
-    num_bad_diagonal = 0
-
-    if get_neighbor4_empty(game, pos) != 0:
-        return False
-
-    get_neighbor4(neighbor4, pos)
-    for i in range(4):
-        if game.board[neighbor4[i]] == other_color:
-            return False
-
-    if board_dis_x[pos] == 1 or board_dis_y[pos] == 1:
-        allowable_bad_diagonal = 0
-
-    get_diagonals(diagonals, pos)
-
-    for i in range(4):
-        dpos = diagonals[i]
-        dcolor = game.board[dpos]
-        if dcolor == other_color:
-            num_bad_diagonal += 1
-        elif dcolor == board.S_EMPTY:
-            found = False
-            for j in range(empty_diagonal_top):
-                if empty_diagonal_stack[j] == dpos:
-                    found = True
-                    break
-            if found:
-                continue
-            empty_diagonal_stack[empty_diagonal_top] = dpos
-            empty_diagonal_top += 1
-            if not is_true_eye(game, dpos, color, other_color, empty_diagonal_stack, empty_diagonal_top):
-                num_bad_diagonal += 1
-            empty_diagonal_top -= 1
-
-        if num_bad_diagonal > allowable_bad_diagonal:
-            return False
-
-    return True
 
 
 cdef int get_escape_options(board.game_state_t *game,

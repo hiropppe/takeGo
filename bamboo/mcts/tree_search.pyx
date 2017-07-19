@@ -11,17 +11,19 @@ from libcpp.queue cimport queue as cppqueue
 from cython import cdivision
 from cython.parallel import prange
 
-from bamboo.go.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, S_BLACK, S_WHITE
+from bamboo.go.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport onboard_pos
 from bamboo.go.board cimport game_state_t
 from bamboo.go.board cimport set_board_size, initialize_board
-from bamboo.go.board cimport is_legal, do_move, allocate_game, free_game, copy_game, calculate_score
+from bamboo.go.board cimport put_stone, is_legal, do_move, allocate_game, free_game, copy_game, calculate_score
 from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit
 from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, search_empty_index
 
 from bamboo.go.policy_feature cimport policy_feature_t
 from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
+
+from bamboo.rollout.preprocess cimport initialize_rollout, update_planes, update_planes_all, update_probs, update_probs_all
 
 cimport openmp
 
@@ -231,7 +233,30 @@ cdef class MCTS(object):
         self.backup(node, 1, Wr)
 
     cdef void rollout(self, game_state_t *game) nogil:
-        pass
+        cdef int color
+        cdef int pos
+        cdef int pass_count = 0
+        cdef int moves_remain = MAX_MOVES - game.moves
+
+        if moves_remain < 0:
+            return
+
+        color = game.current_color
+        pos = PASS
+
+        initialize_rollout(game)
+
+        # update all position
+        update_planes_all(game)
+        pos = update_probs_all(game)
+        put_stone(game, pos, color)
+        moves_remain -= 1
+
+        while moves_remain and pass_count < 2:
+            put_stone(game, pos, color)
+            pass_count = pass_count + 1 if pos == PASS else 0
+            color = FLIP_COLOR(color)
+            moves_remain -= 1
 
     cdef void backup(self, tree_node_t *node, int Nr, int Wr) nogil:
         return

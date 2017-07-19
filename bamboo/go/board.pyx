@@ -22,7 +22,7 @@ cimport policy_feature
 
 from bamboo.go.zobrist_hash cimport HASH_PASS, HASH_BLACK, HASH_WHITE, HASH_KO
 from bamboo.go.zobrist_hash cimport hash_bit
-from bamboo.rollout.preprocess cimport initialize_planes
+from bamboo.rollout.preprocess cimport initialize_rollout
 
 pure_board_size = PURE_BOARD_SIZE
 pure_board_max = PURE_BOARD_MAX
@@ -145,14 +145,7 @@ cdef void initialize_board(game_state_t *game):
 
     game.rollout = False
 
-    # init rollout data
-    initialize_planes(game)
-
-    for i in range(OB_SIZE):
-        game.rollout_logits_sum[i] = .0
-        for j in range(PURE_BOARD_MAX):
-            game.rollout_probs[i][j] = .0
-            game.rollout_logits[i][j] = .0
+    initialize_rollout(game)
 
 
 cdef bint do_move(game_state_t *game, int pos) nogil:
@@ -1017,25 +1010,79 @@ cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
 
 
 cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
+    cdef int empty_diagonal_stack[200]
+    cdef int empty_diagonal_top = 0
+    cdef char other_color = FLIP_COLOR(color)
+
     if pos == PASS:
         return True
 
     if game.board[pos] != S_EMPTY:
         return False
 
-    if (eye[pat.pat3(game.pat, pos)] != color or
-        game.string[game.string_id[NORTH(pos, board_size)]].libs == 1 or
-        game.string[game.string_id[WEST(pos)]].libs == 1 or
-        game.string[game.string_id[EAST(pos)]].libs == 1 or
-        game.string[game.string_id[SOUTH(pos, board_size)]].libs == 1):
-
-        if nb4_empty[pat.pat3(game.pat, pos)] == 0 and is_suicide(game, pos, color):
+    if nb4_empty[pat.pat3(game.pat, pos)] == 0:
+        if is_suicide(game, pos, color):
             return False
 
-        if game.ko_pos == pos and game.ko_move == (game.moves - 1):
+        if is_true_eye(game, pos, color, other_color, empty_diagonal_stack, empty_diagonal_top):
             return False
 
-        if false_eye[pat.pat3(game.pat, pos)] == color:
+    if game.ko_pos == pos and game.ko_move == (game.moves - 1):
+        return False
+
+    return True
+
+
+cdef bint is_true_eye(game_state_t *game,
+                      int pos,
+                      char color,
+                      char other_color,
+                      int empty_diagonal_stack[200],
+                      int empty_diagonal_top) nogil:
+    cdef int allowable_bad_diagonal
+    cdef int num_bad_diagonal
+    cdef int neighbor4[4]
+    cdef int diagonals[4]
+    cdef int dpos, dcolor
+    cdef int i, j
+    cdef bint found
+
+    allowable_bad_diagonal = 1
+    num_bad_diagonal = 0
+
+    if nb4_empty[pat.pat3(game.pat, pos)] != 0:
+        return False
+
+    get_neighbor4(neighbor4, pos)
+    for i in range(4):
+        if game.board[neighbor4[i]] == other_color:
+            return False
+
+    if board_dis_x[pos] == 1 or board_dis_y[pos] == 1:
+        allowable_bad_diagonal = 0
+
+    get_diagonals(diagonals, pos)
+
+    for i in range(4):
+        dpos = diagonals[i]
+        dcolor = game.board[dpos]
+        if dcolor == other_color:
+            num_bad_diagonal += 1
+        elif dcolor == S_EMPTY:
+            found = False
+            for j in range(empty_diagonal_top):
+                if empty_diagonal_stack[j] == dpos:
+                    found = True
+                    break
+            if found:
+                continue
+            empty_diagonal_stack[empty_diagonal_top] = dpos
+            empty_diagonal_top += 1
+            if not is_true_eye(game, dpos, color, other_color, empty_diagonal_stack, empty_diagonal_top):
+                num_bad_diagonal += 1
+            empty_diagonal_top -= 1
+
+        if num_bad_diagonal > allowable_bad_diagonal:
             return False
 
     return True
@@ -1084,72 +1131,6 @@ cdef void memorize_updated_string(game_state_t *game, int string_id) nogil:
     if num_for_white[0] < MAX_RECORDS:
         game.updated_string_id[<int>S_WHITE][num_for_white[0]] = string_id
         num_for_white[0] += 1
-
-
-cpdef void set_rollout_parameter(object weights_hdf5, double temperature):
-    cdef int i
-
-    global rollout_weights
-    global rollout_temperature
-
-    weights_data = h5.File(weights_hdf5, 'r')
-    W = weights_data['W']
-    for i in range(W.shape[0]):
-        rollout_weights[i] = W[i]
-
-    rollout_temperature = temperature
-
-
-cdef void calculate_rollout_softmax(game_state_t *game, int onehot_ix[6][361]) nogil:
-    cdef int color = <int>game.current_color
-    cdef double *probs = game.rollout_probs[color]
-    cdef double *logits = game.rollout_logits[color]
-    cdef double logits_sum = game.rollout_logits_sum[color]
-    cdef int i, j
-
-    for i in range(PURE_BOARD_MAX):
-        for j in range(6):
-            if onehot_ix[j][i] != -1:
-                logits[i] += rollout_weights[onehot_ix[j][i]]
-        logits[i] = cexp(logits[i]/rollout_temperature)
-        logits_sum += logits[i]
-
-    if logits_sum > .0:
-        for i in range(PURE_BOARD_MAX):
-            probs[i] = logits[i]/logits_sum
-
-
-cdef void update_rollout_softmax(game_state_t *game, int positions[529], int onehot_ix[6][361]) nogil:
-    cdef int color = <int>game.current_color
-    cdef double *probs = game.rollout_probs[color]
-    cdef double *logits = game.rollout_logits[color]
-    cdef double logits_sum = game.rollout_logits_sum[color]
-    cdef int pos, tmp_pos
-    cdef int pure_pos
-    cdef double updated_sum = .0
-    cdef double updated_old_sum = .0
-    cdef int i, j
-
-    pos = positions[0]
-    while pos != BOARD_MAX:
-        pure_pos = onboard_index[pos]
-        updated_old_sum += logits[pure_pos]
-        logits[pure_pos] = .0
-        for j in range(6):
-            if onehot_ix[j][pure_pos] != -1:
-                logits[pure_pos] += rollout_weights[onehot_ix[j][pure_pos]]
-        logits[pure_pos] = cexp(logits[pure_pos]/rollout_temperature)
-        updated_sum += logits[pure_pos]
-        # Must be cleared for next feature calculation
-        tmp_pos = positions[pos]
-        positions[pos] = 0
-        pos = tmp_pos
-
-    logits_sum = logits_sum - updated_old_sum + updated_sum
-
-    if logits_sum > .0:
-        for i in range(PURE_BOARD_MAX):
-            probs[i] = logits[i]/logits_sum
 
 
 cpdef test_playout(int n_playout=1, int move_limit=500):

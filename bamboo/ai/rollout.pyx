@@ -6,8 +6,8 @@ from operator import itemgetter
 
 from bamboo.go.board cimport PURE_BOARD_SIZE, PASS
 from bamboo.go.board cimport game_state_t, rollout_feature_t
-from bamboo.go.board cimport is_legal, update_rollout_softmax 
-from bamboo.rollout.preprocess cimport update_planes
+from bamboo.go.board cimport is_legal
+from bamboo.rollout.preprocess cimport update_planes, update_probs
 
 import time
 
@@ -33,7 +33,7 @@ cdef class RolloutPolicyPlayer(object):
         print('Feature Calculation Speed. {:.3f} us'.format((time.time()-s)*1000*1000))
         s = time.time()
         # generate and sort probs
-        update_rollout_softmax(game, feature_t.updated, feature_t.tensor)
+        update_probs(game)
         print('Forward Speed. {:.3f} us'.format((time.time()-s)*1000*1000))
         probs = np.asarray(game.rollout_probs)
         pos = np.argmax(probs)
