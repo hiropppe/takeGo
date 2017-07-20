@@ -321,7 +321,7 @@ const int VIRTUAL_LOSS = 3;
 
 const int EXPANSION_THRESHOLD = 40;
 const int EXPLORATION_CONSTANT = 5;
-const int MIXING_PARAMETER = 0.5;
+const int MIXING_PARAMETER = 1.0;
 
 /*
 enum SEARCH_MODE {

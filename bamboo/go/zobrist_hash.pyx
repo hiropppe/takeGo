@@ -31,7 +31,7 @@ cdef unsigned long long mt() nogil:
 
 
 cdef unsigned int trans_hash(unsigned long long hash) nogil:
-    return ((hash & <unsigned long long>0xffffffff) ^ ((hash >> <unsigned long long>32) & <unsigned long long>0xffffffff)) & (uct_hash_size - 1)
+    return ((hash & <unsigned long long>0xffffffff) ^ ((hash >> 32) & <unsigned long long>0xffffffff)) & (uct_hash_size - 1)
 
 
 cdef void set_hash_size(unsigned int new_size):

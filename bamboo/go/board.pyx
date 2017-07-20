@@ -142,6 +142,7 @@ cdef void initialize_board(game_state_t *game):
 
     initialize_neighbor()
     initialize_eye()
+    initialize_territory()
 
     game.rollout = False
 
@@ -907,6 +908,16 @@ cdef void initialize_eye():
         false_eye[pat.pat3_reverse(transp[j])] = S_WHITE;
 
 
+cdef void initialize_territory():
+    cdef int i
+
+    for i in range(pat.PAT3_MAX):
+        if (i & 0x1144) == 0x1144:
+            territory[i] = S_BLACK
+        elif (i & 0x2288) == 0x2288: 
+            territory[i] = S_WHITE
+
+
 cdef void initialize_const():
     #global komi
 
@@ -923,7 +934,7 @@ cdef void initialize_const():
 
     #init_board_position_id()
 
-    #init_corner()
+    init_corner()
 
 
 cdef void clear_const():
@@ -1109,7 +1120,63 @@ cdef bint is_suicide(game_state_t *game, int pos, char color) nogil:
 
 
 cdef int calculate_score(game_state_t *game) nogil:
-    return 0
+    cdef int i
+    cdef int pos
+    cdef int color
+    cdef int *scores = [0, 0, 0, 0]
+
+    check_bent_four_in_the_corner(game)
+
+    for i in range(pure_board_max):
+        pos = onboard_pos[i]
+        color = game.board[pos]
+        if color == S_EMPTY:
+            color = territory[pat.pat3(game.pat, pos)]
+        scores[color]+=1
+
+    return scores[<int>S_BLACK] - scores[<int>S_WHITE]
+
+
+cdef void check_bent_four_in_the_corner(game_state_t *game) nogil:
+    cdef char *board = game.board
+    cdef string_t *string = game.string
+    cdef int *string_id = game.string_id
+    cdef int *string_next = game.string_next
+    cdef int pos
+    cdef int i
+    cdef int id
+    cdef int neighbor
+    cdef int color
+    cdef int lib1, lib2
+    cdef int neighbor_lib1, neighbor_lib2
+
+    # 四隅について隅のマガリ四目が存在するか確認し
+    # 存在すれば地を訂正する
+    for i in range(4):
+        id = string_id[corner[i]];
+        if (string[id].size == 3 and
+            string[id].libs == 2 and
+            string[id].neighbors == 1):
+            color = string[id].color
+            lib1 = string[id].lib[0]
+            lib2 = string[id].lib[lib1]
+            if ((board[corner_neighbor[i][0]] == S_EMPTY or board[corner_neighbor[i][0]] == color) and
+                (board[corner_neighbor[i][1]] == S_EMPTY or board[corner_neighbor[i][1]] == color)):
+                neighbor = string[id].neighbor[0];
+                if string[neighbor].libs == 2 and string[neighbor].size > 6:
+                    # 呼吸点を共有しているかの確認
+                    neighbor_lib1 = string[neighbor].lib[0];
+                    neighbor_lib2 = string[neighbor].lib[neighbor_lib1];
+                    if ((neighbor_lib1 == lib1 and neighbor_lib2 == lib2) or
+                        (neighbor_lib1 == lib2 and neighbor_lib2 == lib1)):
+                        pos = string[neighbor].origin
+                        while pos != string_end:
+                            board[pos] = <char>color
+                            pos = string_next[pos]
+                        pos = string[neighbor].lib[0]
+                        board[pos] = <char>color
+                        pos = string[neighbor].lib[pos]
+                        board[pos] = <char>color
 
 
 cdef void memorize_updated_string(game_state_t *game, int string_id) nogil:

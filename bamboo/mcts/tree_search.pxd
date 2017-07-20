@@ -31,6 +31,7 @@ ctypedef struct tree_node_t:
     int Wr    # rollout value
     float Q     # action-value for edge
     float u     # PUCT algorithm
+    bint is_root
     bint is_edge
 
     tree_node_t *parent
@@ -44,22 +45,18 @@ ctypedef struct tree_node_t:
     openmp.omp_lock_t node_lock
 
 
-cdef float calculate_Q(tree_node_t *node)
-
-cdef float calculate_u(tree_node_t *node)
-
-
 cdef class MCTS:
     cdef tree_node_t *nodes
     cdef unsigned int current_root
     cdef object policy
     cdef policy_feature_t *policy_feature
-    cdef cppqueue[tree_node_t] policy_network_queue
-    cdef cppqueue[tree_node_t] value_network_queue
+    cdef cppqueue[tree_node_t *] policy_network_queue
+    cdef cppqueue[tree_node_t *] value_network_queue
     cdef int nakade_size
     cdef int x33_size
     cdef int d12_size
     cdef bint pondering
+    cdef int n_threads
     cdef openmp.omp_lock_t tree_lock
     
     cdef void start_search_thread(self, game_state_t *game, int player_color)

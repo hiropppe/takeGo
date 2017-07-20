@@ -1,3 +1,7 @@
+# cython: boundscheck = False
+# cython: wraparound = False
+# cython: cdivision = True
+
 import numpy as np
 
 cimport numpy as np
@@ -16,7 +20,7 @@ from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport onboard_pos
 from bamboo.go.board cimport game_state_t
 from bamboo.go.board cimport set_board_size, initialize_board
-from bamboo.go.board cimport put_stone, is_legal, do_move, allocate_game, free_game, copy_game, calculate_score
+from bamboo.go.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
 from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit
 from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, search_empty_index
 
@@ -28,32 +32,15 @@ from bamboo.rollout.preprocess cimport initialize_rollout, update_planes, update
 cimport openmp
 
 
-@cdivision(True)
-cdef float calculate_Q(tree_node_t *node):
-    # return (1 - MIXING_PARAMETER) * node.Wv/node.Nv + MIXING_PARAMETER * node.Wr/node.Nr
-    return node.Wr/node.Nr
-
-
-@cdivision(True)
-cdef float calculate_u(tree_node_t *node):
-    return EXPLORATION_CONSTANT * node.P * csqrt(node.parent.Nr) / (1 + node.Nr)
-
-
 cdef class MCTS(object):
 
-    def __cinit__(self,
-                 object policy,
-                 int nakade_size,
-                 int x33_size,
-                 int d12_size):
+    def __cinit__(self, object policy, int n_threads = 1):
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         self.current_root = uct_hash_size
         self.policy = policy
         self.policy_feature = allocate_feature()
-        self.nakade_size = nakade_size
-        self.x33_size = x33_size
-        self.d12_size = d12_size
         self.pondering = False
+        self.n_threads = n_threads
 
         initialize_feature(self.policy_feature) 
 
@@ -76,8 +63,11 @@ cdef class MCTS(object):
         if node.is_edge:
             self.expand(node, game)
 
-        for i in prange(4, nogil=True):
+        if self.n_threads <= 1:
             self.run_search(game, player_color) 
+        else:
+            for i in prange(self.n_threads, nogil=True):
+                self.run_search(game, player_color) 
 
     cdef void stop_search_thread(self):
         self.pondering = False
@@ -94,8 +84,9 @@ cdef class MCTS(object):
             if previous_hash != game.current_hash:
                 previous_hash = game.current_hash
                 self.seek_root(game)
-                copy_game(search_game, game)
                 node = &self.nodes[self.current_root]
+
+            copy_game(search_game, game)
 
             self.search(node, search_game, player_color)
 
@@ -121,20 +112,24 @@ cdef class MCTS(object):
         self.evaluate_and_backup(node, search_game, player_color)
 
     cdef void seek_root(self, game_state_t *game) nogil:
-        cdef tree_node_t node
-        cdef int pos = game.record[game.moves - 1].pos
-        cdef int color = <int>game.record[game.moves - 1].color
+        cdef tree_node_t *node
+        cdef int pos
+        cdef int color
+
+        color = <int>game.current_color
 
         self.current_root = find_same_hash_index(game.current_hash, color, game.moves) 
 
         if self.current_root == uct_hash_size:
             self.current_root = search_empty_index(game.current_hash, color, game.moves)
 
-            node = self.nodes[self.current_root]
+            node = &self.nodes[self.current_root]
             node.node_i = self.current_root
             node.time_step = game.moves
-            node.pos = pos
-            node.color = color
+            if game.moves > 0:
+                node.pos = game.record[game.moves - 1].pos
+                node.color = <int>game.record[game.moves - 1].color
+
             node.P = 0  # evaluate tree policy
             node.Nv = 0
             node.Nr = 0
@@ -143,12 +138,15 @@ cdef class MCTS(object):
             node.Q = 0
             node.u = 0
             node.num_child = 0
+            node.is_root = True
             node.is_edge = True
-            node.game = game
+
+            node.game = allocate_game()
+            copy_game(node.game, game)
 
             self.policy_network_queue.push(node)
         else:
-            node = self.nodes[self.current_root]
+            node = &self.nodes[self.current_root]
             node.time_step = game.moves
 
     cdef tree_node_t *select(self, tree_node_t *node, game_state_t *game) nogil:
@@ -195,15 +193,19 @@ cdef class MCTS(object):
                 child.Q = 0
                 child.u = 0
                 child.num_child = 0
+                child.is_root = False
                 child.is_edge = True
-                child.game = game
+                child.parent = node
 
                 node.children[i] = child
                 node.children_pos[i] = child_pos
                 node.num_child += 1
                 node.is_edge = False
 
-                self.policy_network_queue.push(node[0])
+                node.game = allocate_game()
+                copy_game(node.game, game)
+
+                self.policy_network_queue.push(node)
 
     cdef void evaluate_and_backup(self,
                                   tree_node_t *node,
@@ -227,9 +229,6 @@ cdef class MCTS(object):
         else:
             Wr = 0
 
-        node.Nr += 1 
-        node.Wr += Wr
-
         self.backup(node, 1, Wr)
 
     cdef void rollout(self, game_state_t *game) nogil:
@@ -241,28 +240,35 @@ cdef class MCTS(object):
         if moves_remain < 0:
             return
 
-        color = game.current_color
-        pos = PASS
-
         initialize_rollout(game)
 
-        # update all position
-        update_planes_all(game)
-        pos = update_probs_all(game)
-        put_stone(game, pos, color)
-        moves_remain -= 1
-
+        color = game.current_color
         while moves_remain and pass_count < 2:
+            update_planes(game)
+            while True:
+                pos = update_probs(game)
+                if is_legal_not_eye(game, pos, color):
+                    break
             put_stone(game, pos, color)
             pass_count = pass_count + 1 if pos == PASS else 0
             color = FLIP_COLOR(color)
             moves_remain -= 1
 
-    cdef void backup(self, tree_node_t *node, int Nr, int Wr) nogil:
-        return
+    cdef void backup(self, tree_node_t *edge_node, int Nr, int Wr) nogil:
+        cdef tree_node_t *node = edge_node
+
+        while True:
+            node.Nr += 1
+            node.Wr += Wr
+            node.Q = (1 - MIXING_PARAMETER) * node.Wv/node.Nv + MIXING_PARAMETER * node.Wr/node.Nr
+            node.u = EXPLORATION_CONSTANT * node.P * csqrt(node.parent.Nr) / (1 + node.Nr) 
+            if node.is_root:
+                break
+            else:
+                node = node.parent
 
     def run_policy_network(self):
-        cdef tree_node_t node
+        cdef tree_node_t *node
         cdef int i, pos
 
         while True:
@@ -283,6 +289,7 @@ cdef class MCTS(object):
             free_game(node.game)
 
             self.policy_network_queue.pop()
+
 
 # for random rollout test    
 cdef void set_moves(int moves[], int size) nogil:
