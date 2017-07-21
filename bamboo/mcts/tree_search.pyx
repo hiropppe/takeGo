@@ -111,7 +111,7 @@ cdef class MCTS(object):
         # evaluation then backup
         self.evaluate_and_backup(node, search_game, player_color)
 
-    cdef void seek_root(self, game_state_t *game) nogil:
+    cdef bint seek_root(self, game_state_t *game) nogil:
         cdef tree_node_t *node
         cdef int pos
         cdef int color
@@ -143,11 +143,19 @@ cdef class MCTS(object):
 
             node.game = allocate_game()
             copy_game(node.game, game)
+            node.has_game = True
 
-            self.policy_network_queue.push(node)
+            return False
         else:
             node = &self.nodes[self.current_root]
             node.time_step = game.moves
+
+            if not node.has_game:
+                node.game = allocate_game()
+                copy_game(node.game, game)
+                node.has_game = True
+
+            return True
 
     cdef tree_node_t *select(self, tree_node_t *node, game_state_t *game) nogil:
         cdef int i
@@ -156,7 +164,7 @@ cdef class MCTS(object):
         cdef float Qu_tmp = 0, Qu_max = 0
 
         for i in range(node.num_child):
-            child = &node.children[i]
+            child = node.children[node.children_pos[i]]
             Qu_tmp = child.Q + child.u
             if Qu_tmp > Qu_max:
                 Qu_max = Qu_tmp
@@ -167,24 +175,25 @@ cdef class MCTS(object):
         return max_child
 
     cdef int expand(self, tree_node_t *node, game_state_t *game) nogil:
-        cdef tree_node_t child
+        cdef tree_node_t *child
         cdef int child_pos, child_i
         cdef int child_moves = game.moves + 1
-        cdef char other = FLIP_COLOR(game.current_color)
+        cdef char color = game.current_color
+        cdef char other_color = FLIP_COLOR(color)
         cdef unsigned long long child_hash
         cdef int i
 
         for i in range(PURE_BOARD_MAX):
             child_pos = onboard_pos[i]
-            if is_legal(game, child_pos, game.current_color):
-                child_hash = game.current_hash ^ hash_bit[child_pos][<int>game.current_color]
-                child_i = search_empty_index(child_hash, other, child_moves)
+            if is_legal(game, child_pos, color):
+                child_hash = game.current_hash ^ hash_bit[child_pos][<int>color]
+                child_i = search_empty_index(child_hash, other_color, child_moves)
                 # initialize new edge
-                child = self.nodes[child_i]
+                child = &self.nodes[child_i]
                 child.node_i = child_i
                 child.time_step = child_moves
                 child.pos = child_pos
-                child.color = game.current_color
+                child.color = color
                 child.P = 0  # evaluate tree policy
                 child.Nv = 0
                 child.Nr = 0
@@ -196,16 +205,18 @@ cdef class MCTS(object):
                 child.is_root = False
                 child.is_edge = True
                 child.parent = node
+                child.has_game = False
 
                 node.children[i] = child
-                node.children_pos[i] = child_pos
+                node.children_pos[node.num_child] = i
                 node.num_child += 1
-                node.is_edge = False
 
-                node.game = allocate_game()
-                copy_game(node.game, game)
+        node.is_edge = False
 
-                self.policy_network_queue.push(node)
+        node.game = allocate_game()
+        copy_game(node.game, game)
+
+        self.policy_network_queue.push(node)
 
     cdef void evaluate_and_backup(self,
                                   tree_node_t *node,
@@ -275,20 +286,29 @@ cdef class MCTS(object):
             if self.policy_network_queue.empty():
                 continue
 
-            node = self.policy_network_queue.back()
+            node = self.policy_network_queue.front()
 
-            update(self.policy_feature, node.game)
-            tensor = np.asarray(self.policy_feature.planes)
-            tensor = tensor.reshape((1, 48, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
-
-            probs = self.policy.eval_state(tensor)
-            for i in range(node.num_child):
-                pos = node.children_pos[i]
-                node.children[pos].P = probs[pos]
+            self.eval_leafs_by_policy_network(node)
 
             free_game(node.game)
 
             self.policy_network_queue.pop()
+
+    cdef void eval_leafs_by_policy_network(self, tree_node_t *node):
+        cdef i, pos
+        cdef tree_node_t *child
+
+        update(self.policy_feature, node.game)
+
+        tensor = np.asarray(self.policy_feature.planes)
+        tensor = tensor.reshape((1, 48, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
+
+        probs = self.policy.eval_state(tensor)
+        for i in range(node.num_child):
+            pos = node.children_pos[i]
+            child = node.children[pos]
+            child.P = probs[pos]
+            child.u = EXPLORATION_CONSTANT * child.P * csqrt(child.parent.Nr) / (1 + child.Nr) 
 
 
 # for random rollout test    
@@ -301,6 +321,7 @@ cdef void set_moves(int moves[], int size) nogil:
         t = moves[i]
         moves[i] = moves[j]
         moves[j] = t
+
 
 def testes(model, weights):
     cdef game_state_t *game

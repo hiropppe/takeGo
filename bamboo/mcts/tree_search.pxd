@@ -35,12 +35,13 @@ ctypedef struct tree_node_t:
     bint is_edge
 
     tree_node_t *parent
-    tree_node_t *children
+    tree_node_t *children[361]
 
     int children_pos[361]   # PURE_BOARD_MAX
     int num_child
 
     game_state_t *game
+    bint has_game
 
     openmp.omp_lock_t node_lock
 
@@ -52,9 +53,6 @@ cdef class MCTS:
     cdef policy_feature_t *policy_feature
     cdef cppqueue[tree_node_t *] policy_network_queue
     cdef cppqueue[tree_node_t *] value_network_queue
-    cdef int nakade_size
-    cdef int x33_size
-    cdef int d12_size
     cdef bint pondering
     cdef int n_threads
     cdef openmp.omp_lock_t tree_lock
@@ -65,7 +63,7 @@ cdef class MCTS:
 
     cdef void run_search(self, game_state_t *game, int player_color) nogil
 
-    cdef void seek_root(self, game_state_t *game) nogil
+    cdef bint seek_root(self, game_state_t *game) nogil
 
     cdef void search(self, tree_node_t *node, game_state_t *game, int player_color) nogil
     
@@ -78,3 +76,5 @@ cdef class MCTS:
     cdef void rollout(self, game_state_t *game) nogil
 
     cdef void backup(self, tree_node_t *node, int Nr, int Wr) nogil
+
+    cdef void eval_leafs_by_policy_network(self, tree_node_t *node)
