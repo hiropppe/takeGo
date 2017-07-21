@@ -25,12 +25,13 @@ ctypedef struct tree_node_t:
     int pos
     int color
     float P     # prior probability
-    int Nv    # evaluation count
-    int Nr    # rollout count(visit count)
+    int Nv      # evaluation count
+    int Nr      # rollout count(visit count)
     float Wv    # evaluation value
-    int Wr    # rollout value
+    int Wr      # rollout value
     float Q     # action-value for edge
     float u     # PUCT algorithm
+    int Ns      # select count
     bint is_root
     bint is_edge
 
@@ -54,6 +55,7 @@ cdef class MCTS:
     cdef cppqueue[tree_node_t *] policy_network_queue
     cdef cppqueue[tree_node_t *] value_network_queue
     cdef bint pondering
+    cdef int playout_limit
     cdef int n_threads
     cdef openmp.omp_lock_t tree_lock
     

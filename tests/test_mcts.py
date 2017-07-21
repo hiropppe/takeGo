@@ -36,5 +36,8 @@ class TestMCTS(unittest.TestCase):
     def test_expand(self):
         ctest.test_expand()
 
+    def test_select(self):
+        ctest.test_select()
+
     def test_eval_leafs_by_policy_network(self):
         ctest.test_eval_leafs_by_policy_network()

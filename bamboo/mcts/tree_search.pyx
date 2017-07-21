@@ -34,12 +34,13 @@ cimport openmp
 
 cdef class MCTS(object):
 
-    def __cinit__(self, object policy, int n_threads = 1):
+    def __cinit__(self, object policy, int playout_limit=1000, int n_threads=1):
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         self.current_root = uct_hash_size
         self.policy = policy
         self.policy_feature = allocate_feature()
         self.pondering = False
+        self.playout_limit = playout_limit
         self.n_threads = n_threads
 
         initialize_feature(self.policy_feature) 
@@ -77,6 +78,7 @@ cdef class MCTS(object):
         cdef tree_node_t *node
         cdef int pos
         cdef unsigned long long previous_hash = 0
+        cdef int n_playout = 0
 
         search_game = allocate_game()
 
@@ -89,6 +91,10 @@ cdef class MCTS(object):
             copy_game(search_game, game)
 
             self.search(node, search_game, player_color)
+
+            n_playout += 1
+            if n_playout > self.playout_limit:
+                break
 
         free_game(search_game)
 
@@ -137,6 +143,7 @@ cdef class MCTS(object):
             node.Wr = 0
             node.Q = 0
             node.u = 0
+            node.Ns = 0
             node.num_child = 0
             node.is_root = True
             node.is_edge = True
@@ -170,6 +177,9 @@ cdef class MCTS(object):
                 Qu_max = Qu_tmp
                 max_child = child
 
+        # increment select count
+        max_child.Ns += 1
+
         do_move(game, max_child.pos)
 
         return max_child
@@ -201,6 +211,7 @@ cdef class MCTS(object):
                 child.Wr = 0
                 child.Q = 0
                 child.u = 0
+                child.Ns = 0
                 child.num_child = 0
                 child.is_root = False
                 child.is_edge = True

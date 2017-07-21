@@ -1,3 +1,5 @@
+from __future__ import division
+
 import numpy as np
 cimport numpy as np
 
@@ -10,7 +12,7 @@ from nose.tools import ok_, eq_
 from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, PASS
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport game_state_t
-from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone
+from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
 
@@ -144,6 +146,73 @@ def test_expand():
 
     #node = &mcts.nodes[mcts.current_root]
     #print_board(node.game)
+
+
+def test_select():
+    cdef game_state_t *game = initialize_game()
+    cdef game_state_t *search_game = allocate_game()
+    cdef MCTS mcts = MCTS(None)
+    cdef tree_node_t *root_node
+    cdef tree_node_t *node
+    cdef tree_node_t *child
+
+    game.current_color = S_BLACK
+
+    mcts.seek_root(game)
+    root_node = &mcts.nodes[mcts.current_root]
+    node = root_node
+
+    copy_game(search_game, game)
+
+    mcts.expand(node, search_game)
+    child = node.children[60]; child.Q = 0.3; child.u = 0.52; # D16
+    child = node.children[72]; child.Q = 0.3; child.u = 0.79; # Q16
+    child = node.children[90]; child.Q = 0.5; child.u = 0.47; # P15
+
+    # select down the tree
+    node = mcts.select(node, search_game)
+    eq_(node.pos, 132) # B[Q16]
+    eq_(node.color, S_BLACK)
+    eq_(node.is_edge, True)
+    eq_(node.Ns, 1)
+
+    mcts.expand(node, search_game)
+    child = node.children[60]; child.Q = 0.3; child.u = 0.47;  # D16
+    child = node.children[288]; child.Q = 0.5; child.u = 0.60; # D4
+    child = node.children[300]; child.Q = 0.3; child.u = 0.79; # Q4
+
+    node = mcts.select(node, search_game)
+    eq_(node.pos, 396) # B[D4]
+    eq_(node.color, S_WHITE)
+    eq_(node.is_edge, True)
+    eq_(node.Ns, 1)
+
+    # one more from the beginning
+    node = root_node
+    copy_game(search_game, game)
+    node = mcts.select(node, search_game)
+    eq_(node.pos, 132) # B[Q16]
+    eq_(node.color, S_BLACK)
+    eq_(node.is_edge, False)
+    eq_(node.Ns, 2)
+    node = mcts.select(node, search_game)
+    eq_(node.pos, 396) # B[D4]
+    eq_(node.color, S_WHITE)
+    eq_(node.is_edge, True)
+    eq_(node.Ns, 2)
+
+    # put B[Q16]
+    put_stone(game, 132, game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color) 
+
+    mcts.seek_root(game)
+    root_node = &mcts.nodes[mcts.current_root]
+    node = root_node
+    node = mcts.select(node, search_game)
+    eq_(node.pos, 396) # B[D4]
+    eq_(node.color, S_WHITE)
+    eq_(node.is_edge, True)
+    eq_(node.Ns, 3)
 
 
 def test_eval_leafs_by_policy_network():
