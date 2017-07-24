@@ -7,10 +7,6 @@ import unittest
 class TestMCTS(unittest.TestCase):
     @classmethod
     def setUpClass(clazz):
-        d = os.path.dirname(os.path.abspath(__file__))
-        model = os.path.join(d, '../params/policy/policy.json')
-        weights = os.path.join(d, '../params/policy/weights.00088.hdf5')
-
         import tensorflow as tf
         from keras.backend.tensorflow_backend import set_session
         config = tf.ConfigProto(device_count={"GPU": 0})
@@ -18,11 +14,19 @@ class TestMCTS(unittest.TestCase):
         #config.gpu_options.per_process_gpu_memory_fraction = 0.2
         set_session(tf.Session(config=config))
 
-        ctest.setup_class(model, weights)
+        d = os.path.dirname(os.path.abspath(__file__))
+        # setup supervised policy
+        model = os.path.join(d, '../params/policy/policy.json')
+        weights = os.path.join(d, '../params/policy/weights.00088.hdf5')
+        ctest.setup_supervised_policy(model, weights)
+        # setup rollout policy
+        rollout_weights = os.path.join(d, '../params/rollout/sample.hdf5')
+        ctest.setup_rollout_policy(rollout_weights)
+
 
     @classmethod
     def tearDownClass(clazz):
-        ctest.teardown_class()
+        pass
 
     def setUp(self):
         ctest.setup()

@@ -13,7 +13,7 @@ from libc.stdio cimport printf
 from bamboo.go.board cimport BOARD_MAX, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END, OB_SIZE
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport game_state_t, rollout_feature_t, pure_board_max, onboard_index, onboard_pos
-from bamboo.go.board cimport get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
+from bamboo.go.board cimport is_legal, get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
 
 from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout.pattern cimport d12_hash, d12_hashmap, d12_pos_mt
@@ -80,6 +80,13 @@ cdef void initialize_probs(game_state_t *game) nogil:
         for j in range(PURE_BOARD_MAX):
             game.rollout_probs[i][j] = .0
             game.rollout_logits[i][j] = .0
+
+
+cdef int update_rollout(game_state_t *game) nogil:
+    cdef int pos
+    update_planes(game)
+    pos = update_probs(game)
+    return pos
 
 
 cdef void update_planes_all(game_state_t *game) nogil:
@@ -335,18 +342,15 @@ cdef bint memorize_updated(rollout_feature_t *feature, int pos) nogil:
     return True
 
 
-cpdef void set_rollout_parameter(object weights_hdf5, double temperature):
+cpdef void set_rollout_parameter(object weights_hdf5):
     cdef int i
 
     global rollout_weights
-    global rollout_temperature
 
     weights_data = h5.File(weights_hdf5, 'r')
     W = weights_data['W']
     for i in range(W.shape[0]):
         rollout_weights[i] = W[i]
-
-    rollout_temperature = temperature
 
 
 cdef int update_probs_all(game_state_t *game) nogil:
@@ -357,6 +361,7 @@ cdef int update_probs_all(game_state_t *game) nogil:
     cdef double logits_sum
     cdef double max_prob = .0
     cdef int max_pos = -1
+    cdef int pos
     cdef int i, j
 
     color = <int>game.current_color
@@ -366,11 +371,14 @@ cdef int update_probs_all(game_state_t *game) nogil:
     logits_sum = game.rollout_logits_sum[color]
 
     for i in range(PURE_BOARD_MAX):
-        for j in range(6):
-            if feature.tensor[j][i] != -1:
-                logits[i] += rollout_weights[feature.tensor[j][i]]
-        logits[i] = cexp(logits[i]/rollout_temperature)
-        logits_sum += logits[i]
+        if is_legal(game, onboard_pos[i], color):
+            for j in range(6):
+                if feature.tensor[j][i] != -1:
+                    logits[i] += rollout_weights[feature.tensor[j][i]]
+            logits[i] = cexp(logits[i])
+            logits_sum += logits[i]
+        else:
+            logits[i] = .0
 
     if logits_sum > .0:
         for i in range(PURE_BOARD_MAX):
@@ -380,6 +388,7 @@ cdef int update_probs_all(game_state_t *game) nogil:
                 max_pos = i
 
     return onboard_pos[max_pos]
+
 
 cdef int update_probs(game_state_t *game) nogil:
     cdef int color
@@ -403,14 +412,15 @@ cdef int update_probs(game_state_t *game) nogil:
 
     pos = feature.updated[0]
     while pos != BOARD_MAX:
-        pure_pos = onboard_index[pos]
-        updated_old_sum += logits[pure_pos]
-        logits[pure_pos] = .0
-        for j in range(6):
-            if feature.tensor[j][pure_pos] != -1:
-                logits[pure_pos] += rollout_weights[feature.tensor[j][pure_pos]]
-        logits[pure_pos] = cexp(logits[pure_pos]/rollout_temperature)
-        updated_sum += logits[pure_pos]
+        if is_legal(game, pos, color):
+            pure_pos = onboard_index[pos]
+            updated_old_sum += logits[pure_pos]
+            logits[pure_pos] = .0
+            for j in range(6):
+                if feature.tensor[j][pure_pos] != -1:
+                    logits[pure_pos] += rollout_weights[feature.tensor[j][pure_pos]]
+            logits[pure_pos] = cexp(logits[pure_pos])
+            updated_sum += logits[pure_pos]
         # Must be cleared for next feature calculation
         tmp_pos = feature.updated[pos]
         feature.updated[pos] = 0
@@ -426,3 +436,34 @@ cdef int update_probs(game_state_t *game) nogil:
                 max_pos = i
 
     return onboard_pos[max_pos]
+
+
+cdef int set_prob(game_state_t *game, int pos, double prob) nogil:
+    cdef int color
+    cdef rollout_feature_t *feature
+    cdef double *probs
+    cdef double *logits
+    cdef double logits_sum
+    cdef int pure_pos
+    cdef double max_prob = .0
+    cdef int max_pos = -1
+    cdef int i, j
+
+    color = <int>game.current_color
+    probs = game.rollout_probs[color]
+    logits = game.rollout_logits[color]
+    logits_sum = game.rollout_logits_sum[color]
+
+    pure_pos = onboard_index[pos]
+
+    logits_sum = logits_sum - logits[pure_pos] + prob
+    logits[pure_pos] = .0
+
+    for i in range(PURE_BOARD_MAX):
+        probs[i] = logits[i]/logits_sum
+        if max_prob < probs[i]:
+            max_prob = probs[i]
+            max_pos = i
+
+    return onboard_pos[max_pos]
+

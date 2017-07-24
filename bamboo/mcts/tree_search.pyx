@@ -27,7 +27,7 @@ from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, s
 from bamboo.go.policy_feature cimport policy_feature_t
 from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
 
-from bamboo.rollout.preprocess cimport initialize_rollout, update_planes, update_planes_all, update_probs, update_probs_all
+from bamboo.rollout.preprocess cimport initialize_rollout, update_rollout, update_planes, update_probs, set_prob
 
 cimport openmp
 
@@ -136,15 +136,17 @@ cdef class MCTS(object):
                 node.pos = game.record[game.moves - 1].pos
                 node.color = <int>game.record[game.moves - 1].color
 
-            node.P = 0  # evaluate tree policy
+            node.P = 0
             node.Nv = 0
             node.Nr = 0
             node.Wv = 0
             node.Wr = 0
             node.Q = 0
             node.u = 0
+            node.Qu = 0
             node.Ns = 0
             node.num_child = 0
+            node.max_child_Qu = -1.0
             node.is_root = True
             node.is_edge = True
 
@@ -165,24 +167,15 @@ cdef class MCTS(object):
             return True
 
     cdef tree_node_t *select(self, tree_node_t *node, game_state_t *game) nogil:
-        cdef int i
-        cdef tree_node_t *child
-        cdef tree_node_t *max_child
-        cdef float Qu_tmp = 0, Qu_max = 0
+        cdef char color = game.current_color
 
-        for i in range(node.num_child):
-            child = node.children[node.children_pos[i]]
-            Qu_tmp = child.Q + child.u
-            if Qu_tmp > Qu_max:
-                Qu_max = Qu_tmp
-                max_child = child
+        put_stone(game, node.max_child.pos, color)
+        game.current_color = FLIP_COLOR(color)
+        update_rollout(game)
 
-        # increment select count
-        max_child.Ns += 1
+        node.max_child.Ns += 1
 
-        do_move(game, max_child.pos)
-
-        return max_child
+        return node.max_child
 
     cdef int expand(self, tree_node_t *node, game_state_t *game) nogil:
         cdef tree_node_t *child
@@ -191,7 +184,11 @@ cdef class MCTS(object):
         cdef char color = game.current_color
         cdef char other_color = FLIP_COLOR(color)
         cdef unsigned long long child_hash
+        cdef double *move_probs
         cdef int i
+
+        # tree policy not implemented yet. substitutes by rollout policy
+        move_probs = game.rollout_probs[color]
 
         for i in range(PURE_BOARD_MAX):
             child_pos = onboard_pos[i]
@@ -204,15 +201,20 @@ cdef class MCTS(object):
                 child.time_step = child_moves
                 child.pos = child_pos
                 child.color = color
-                child.P = 0  # evaluate tree policy
+                child.P = move_probs[i]
                 child.Nv = 0
                 child.Nr = 0
                 child.Wv = 0
                 child.Wr = 0
                 child.Q = 0
-                child.u = 0
+                if node.Nr > 0:
+                    child.u = EXPLORATION_CONSTANT * child.P * csqrt(node.Nr) / (1 + child.Nr)
+                else:
+                    child.u = child.P
+                child.Qu = child.Q + child.u
                 child.Ns = 0
                 child.num_child = 0
+                child.max_child_Qu = -1.0
                 child.is_root = False
                 child.is_edge = True
                 child.parent = node
@@ -221,6 +223,10 @@ cdef class MCTS(object):
                 node.children[i] = child
                 node.children_pos[node.num_child] = i
                 node.num_child += 1
+
+                if child.Qu > node.max_child_Qu:
+                    node.max_child_Qu = child.Qu
+                    node.max_child = child
 
         node.is_edge = False
 
@@ -262,18 +268,21 @@ cdef class MCTS(object):
         if moves_remain < 0:
             return
 
-        initialize_rollout(game)
-
         color = game.current_color
         while moves_remain and pass_count < 2:
-            update_planes(game)
             while True:
                 pos = update_probs(game)
                 if is_legal_not_eye(game, pos, color):
                     break
+                else:
+                    pos = set_prob(game, pos, .0)
+
             put_stone(game, pos, color)
+            game.current_color = FLIP_COLOR(color)
+            color = game.current_color
+            update_rollout(game)
+
             pass_count = pass_count + 1 if pos == PASS else 0
-            color = FLIP_COLOR(color)
             moves_remain -= 1
 
     cdef void backup(self, tree_node_t *edge_node, int Nr, int Wr) nogil:
@@ -282,11 +291,16 @@ cdef class MCTS(object):
         while True:
             node.Nr += 1
             node.Wr += Wr
-            node.Q = (1 - MIXING_PARAMETER) * node.Wv/node.Nv + MIXING_PARAMETER * node.Wr/node.Nr
-            node.u = EXPLORATION_CONSTANT * node.P * csqrt(node.parent.Nr) / (1 + node.Nr) 
+
             if node.is_root:
                 break
             else:
+                node.Q = (1 - MIXING_PARAMETER) * node.Wv/node.Nv + MIXING_PARAMETER * node.Wr/node.Nr
+                node.u = EXPLORATION_CONSTANT * node.P * csqrt(node.parent.Nr + 1) / (1 + node.Nr) 
+                node.Qu = node.Q + node.u
+                if node.Qu > node.parent.max_child_Qu:
+                    node.parent.max_child = node
+                    node.parent.max_child_Qu = node.Qu
                 node = node.parent
 
     def run_policy_network(self):
@@ -306,7 +320,7 @@ cdef class MCTS(object):
             self.policy_network_queue.pop()
 
     cdef void eval_leafs_by_policy_network(self, tree_node_t *node):
-        cdef i, pos
+        cdef int i, pos
         cdef tree_node_t *child
 
         update(self.policy_feature, node.game)
@@ -319,19 +333,11 @@ cdef class MCTS(object):
             pos = node.children_pos[i]
             child = node.children[pos]
             child.P = probs[pos]
-            child.u = EXPLORATION_CONSTANT * child.P * csqrt(child.parent.Nr) / (1 + child.Nr) 
-
-
-# for random rollout test    
-cdef void set_moves(int moves[], int size) nogil:
-    cdef int i, j, t
-    for i in range(361):
-        moves[i] = i
-    for i in range(361):
-        j = rand() % size
-        t = moves[i]
-        moves[i] = moves[j]
-        moves[j] = t
+            if child.parent.Nr > 0:
+                child.u = EXPLORATION_CONSTANT * child.P * csqrt(child.parent.Nr) / (1 + child.Nr) 
+            else:
+                child.u = child.P 
+            child.Qu = child.Q + child.u
 
 
 def testes(model, weights):

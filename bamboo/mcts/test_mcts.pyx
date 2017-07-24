@@ -11,7 +11,7 @@ from nose.tools import ok_, eq_
 
 from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, PASS
 from bamboo.go.board cimport FLIP_COLOR
-from bamboo.go.board cimport game_state_t
+from bamboo.go.board cimport game_state_t, onboard_pos
 from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
@@ -20,10 +20,11 @@ from bamboo.go.zobrist_hash cimport uct_hash_size
 from bamboo.go.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
 from bamboo.mcts.tree_search cimport tree_node_t, MCTS
 
+from bamboo.rollout.preprocess cimport update_rollout, set_rollout_parameter
 
 sl_policy = None
 
-def setup_class(model, weights):
+def setup_supervised_policy(model, weights):
     global sl_policy
 
     initialize_hash()
@@ -31,14 +32,18 @@ def setup_class(model, weights):
     sl_policy = policy.CNNPolicy.load_model(model)
     sl_policy.model.load_weights(weights)
 
-def teardown_class():
-    pass
+
+def setup_rollout_policy(weights):
+    set_rollout_parameter(weights)
+
 
 def setup():
     initialize_uct_hash()
 
+
 def teardown():
     pass
+
 
 def test_seek_root():
     cdef game_state_t *game = initialize_game()
@@ -114,12 +119,14 @@ def test_expand():
     # put B[Q16]
     put_stone(game, 132, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color) 
+    update_rollout(game)
 
     eq_(mcts.seek_root(game), True)
 
     # put W[D4]
     put_stone(game, 396, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color) 
+    update_rollout(game)
 
     eq_(mcts.seek_root(game), False)
     node = &mcts.nodes[mcts.current_root]
@@ -140,6 +147,7 @@ def test_expand():
     # put B[D4]
     put_stone(game, 408, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color) 
+    update_rollout(game)
 
     # seek root matches expanded child node
     eq_(mcts.seek_root(game), True)
@@ -154,7 +162,9 @@ def test_select():
     cdef MCTS mcts = MCTS(None)
     cdef tree_node_t *root_node
     cdef tree_node_t *node
-    cdef tree_node_t *child
+    cdef int max_child_pos
+    cdef double max_child_Qu = .0
+    cdef int i
 
     game.current_color = S_BLACK
 
@@ -165,9 +175,8 @@ def test_select():
     copy_game(search_game, game)
 
     mcts.expand(node, search_game)
-    child = node.children[60]; child.Q = 0.3; child.u = 0.52; # D16
-    child = node.children[72]; child.Q = 0.3; child.u = 0.79; # Q16
-    child = node.children[90]; child.Q = 0.5; child.u = 0.47; # P15
+    # set max_child
+    node.max_child = node.children[72]
 
     # select down the tree
     node = mcts.select(node, search_game)
@@ -177,12 +186,15 @@ def test_select():
     eq_(node.Ns, 1)
 
     mcts.expand(node, search_game)
-    child = node.children[60]; child.Q = 0.3; child.u = 0.47;  # D16
-    child = node.children[288]; child.Q = 0.5; child.u = 0.60; # D4
-    child = node.children[300]; child.Q = 0.3; child.u = 0.79; # Q4
+
+    # get max child
+    for i in range(node.num_child):
+        if node.children[node.children_pos[i]].Qu > max_child_Qu:
+            max_child_Qu = node.children[node.children_pos[i]].Qu
+            max_child_pos = node.children_pos[i]
 
     node = mcts.select(node, search_game)
-    eq_(node.pos, 396) # B[D4]
+    eq_(node.pos, onboard_pos[max_child_pos])
     eq_(node.color, S_WHITE)
     eq_(node.is_edge, True)
     eq_(node.Ns, 1)
@@ -196,7 +208,7 @@ def test_select():
     eq_(node.is_edge, False)
     eq_(node.Ns, 2)
     node = mcts.select(node, search_game)
-    eq_(node.pos, 396) # B[D4]
+    eq_(node.pos, onboard_pos[max_child_pos])
     eq_(node.color, S_WHITE)
     eq_(node.is_edge, True)
     eq_(node.Ns, 2)
@@ -204,12 +216,13 @@ def test_select():
     # put B[Q16]
     put_stone(game, 132, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color) 
+    update_rollout(game)
 
     mcts.seek_root(game)
     root_node = &mcts.nodes[mcts.current_root]
     node = root_node
     node = mcts.select(node, search_game)
-    eq_(node.pos, 396) # B[D4]
+    eq_(node.pos, onboard_pos[max_child_pos])
     eq_(node.color, S_WHITE)
     eq_(node.is_edge, True)
     eq_(node.Ns, 3)
@@ -252,6 +265,7 @@ def test_eval_leafs_by_policy_network():
     # put B[Q16]
     put_stone(game, 132, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color) 
+    update_rollout(game)
 
     # seek and expand
     eq_(mcts.seek_root(game), True)
@@ -263,6 +277,7 @@ def test_eval_leafs_by_policy_network():
     # put W[D4]
     put_stone(game, 396, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color) 
+    update_rollout(game)
 
     # seek and expand
     eq_(mcts.seek_root(game), True)

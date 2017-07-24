@@ -31,6 +31,7 @@ ctypedef struct tree_node_t:
     int Wr      # rollout value
     float Q     # action-value for edge
     float u     # PUCT algorithm
+    float Qu    # Q + u
     int Ns      # select count
     bint is_root
     bint is_edge
@@ -40,6 +41,9 @@ ctypedef struct tree_node_t:
 
     int children_pos[361]   # PURE_BOARD_MAX
     int num_child
+
+    tree_node_t *max_child
+    float max_child_Qu
 
     game_state_t *game
     bint has_game
