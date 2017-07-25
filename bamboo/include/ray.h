@@ -219,6 +219,7 @@ typedef struct {
 
     rollout_feature_t rollout_feature_planes[S_OB];
     double rollout_probs[S_OB][PURE_BOARD_MAX];
+    double rollout_row_probs[S_OB][PURE_BOARD_SIZE];
     double rollout_logits[S_OB][PURE_BOARD_MAX];
     double rollout_logits_sum[S_OB];
 } game_state_t;

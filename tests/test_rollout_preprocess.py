@@ -50,3 +50,6 @@ class TestRolloutPreprocess(unittest.TestCase):
 
     def test_memorize_updated(self):
         ctest.test_memorize_updated()
+
+    def test_choice_rollout_move(self):
+        ctest.test_choice_rollout_move()

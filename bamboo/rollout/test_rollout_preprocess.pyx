@@ -16,7 +16,7 @@ from bamboo.go.parseboard cimport parse
 
 from bamboo.rollout.preprocess cimport F_RESPONSE, F_SAVE_ATARI, F_NEIGHBOR, F_NAKADE, F_RESPONSE_PAT, F_NON_RESPONSE_PAT
 from bamboo.rollout.preprocess cimport response_start, save_atari_start, neighbor_start, nakade_start, d12_start, x33_start
-from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, update_planes, update_planes_all, memorize_updated 
+from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_planes_all, memorize_updated, choice_rollout_move 
 from bamboo.rollout.pattern cimport initialize_rands, put_x33_hash, put_d12_hash
 from bamboo.rollout.pattern import print_x33
 
@@ -1228,6 +1228,29 @@ def test_memorize_updated():
     eq_(black.updated[480], 48)
     eq_(black.updated[48], 264)
     eq_(black.updated[264], BOARD_MAX)
+
+
+def test_choice_rollout_move():
+    cdef game_state_t *game = allocate_game()
+    cdef int pos, color 
+    cdef int i
+
+    initialize_probs(game)
+
+    game.current_color = S_BLACK
+    color = <int>S_BLACK
+
+    game.rollout_probs[color][60] = 0.3
+    game.rollout_probs[color][70] = 0.4
+    game.rollout_probs[color][288] = 0.1
+    game.rollout_probs[color][300] = 0.2
+
+    game.rollout_row_probs[color][3] = 0.7
+    game.rollout_row_probs[color][15] = 0.3
+
+    for i in range(100):
+        pos = choice_rollout_move(game)
+        ok_(pos in (60, 70, 288, 300))
 
 
 cdef int number_of_active_positions(rollout_feature_t *feature, int feature_id):

@@ -27,7 +27,7 @@ from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, s
 from bamboo.go.policy_feature cimport policy_feature_t
 from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
 
-from bamboo.rollout.preprocess cimport initialize_rollout, update_rollout, update_planes, update_probs, set_prob
+from bamboo.rollout.preprocess cimport initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move
 
 cimport openmp
 
@@ -271,16 +271,17 @@ cdef class MCTS(object):
         color = game.current_color
         while moves_remain and pass_count < 2:
             while True:
-                pos = update_probs(game)
+                pos = choice_rollout_move(game)
                 if is_legal_not_eye(game, pos, color):
                     break
                 else:
-                    pos = set_prob(game, pos, .0)
+                    set_illegal(game, pos)
 
             put_stone(game, pos, color)
             game.current_color = FLIP_COLOR(color)
-            color = game.current_color
             update_rollout(game)
+
+            color = game.current_color
 
             pass_count = pass_count + 1 if pos == PASS else 0
             moves_remain -= 1

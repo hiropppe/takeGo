@@ -133,6 +133,7 @@ cdef extern from "ray.h":
 
         rollout_feature_t rollout_feature_planes[3] # S_OB
         double rollout_probs[3][361]    # S_OB, PURE_BOARD_MAX
+        double rollout_row_probs[3][19] # S_OB, PURE_BOARD_SIZE
         double rollout_logits[3][361]   # S_OB, PURE_BOARD_MAX
         double rollout_logits_sum[3]    # S_OB
 

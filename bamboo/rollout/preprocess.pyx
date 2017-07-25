@@ -1,6 +1,7 @@
 # cython: boundscheck = False
 # cython: wraparound = False
 # cython: cdivision = True
+from __future__ import division
 
 import h5py as h5
 import numpy as np
@@ -8,10 +9,11 @@ import numpy as np
 cimport numpy as np
 
 from libc.math cimport exp as cexp
+from libc.stdlib cimport rand, RAND_MAX
 from libc.stdio cimport printf
 
-from bamboo.go.board cimport BOARD_MAX, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END, OB_SIZE
-from bamboo.go.board cimport FLIP_COLOR
+from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_MAX, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END, OB_SIZE
+from bamboo.go.board cimport FLIP_COLOR, POS, Y
 from bamboo.go.board cimport game_state_t, rollout_feature_t, pure_board_max, onboard_index, onboard_pos
 from bamboo.go.board cimport is_legal, get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
 
@@ -73,20 +75,20 @@ cdef void initialize_planes(game_state_t *game) nogil:
 
 
 cdef void initialize_probs(game_state_t *game) nogil:
-    cdef int i, j
+    cdef int i, j, k
 
     for i in range(OB_SIZE):
         game.rollout_logits_sum[i] = .0
         for j in range(PURE_BOARD_MAX):
             game.rollout_probs[i][j] = .0
             game.rollout_logits[i][j] = .0
+        for k in range(PURE_BOARD_SIZE):
+            game.rollout_row_probs[i][k] = .0
 
 
-cdef int update_rollout(game_state_t *game) nogil:
-    cdef int pos
+cdef void update_rollout(game_state_t *game) nogil:
     update_planes(game)
-    pos = update_probs(game)
-    return pos
+    update_probs(game)
 
 
 cdef void update_planes_all(game_state_t *game) nogil:
@@ -353,20 +355,20 @@ cpdef void set_rollout_parameter(object weights_hdf5):
         rollout_weights[i] = W[i]
 
 
-cdef int update_probs_all(game_state_t *game) nogil:
+cdef void update_probs_all(game_state_t *game) nogil:
     cdef int color
     cdef rollout_feature_t *feature
     cdef double *probs
+    cdef double *row_probs
     cdef double *logits
     cdef double logits_sum
-    cdef double max_prob = .0
-    cdef int max_pos = -1
     cdef int pos
     cdef int i, j
 
     color = <int>game.current_color
     feature = &game.rollout_feature_planes[color]
     probs = game.rollout_probs[color]
+    row_probs = game.rollout_row_probs[color]
     logits = game.rollout_logits[color]
     logits_sum = game.rollout_logits_sum[color]
 
@@ -382,31 +384,29 @@ cdef int update_probs_all(game_state_t *game) nogil:
 
     if logits_sum > .0:
         for i in range(PURE_BOARD_MAX):
+            pure_row = Y(i, PURE_BOARD_SIZE)
+            row_probs[pure_row] -= probs[i]
             probs[i] = logits[i]/logits_sum
-            if max_prob < probs[i]:
-                max_prob = probs[i]
-                max_pos = i
-
-    return onboard_pos[max_pos]
+            row_probs[pure_row] += probs[i]
 
 
-cdef int update_probs(game_state_t *game) nogil:
+cdef void update_probs(game_state_t *game) nogil:
     cdef int color
     cdef rollout_feature_t *feature
     cdef double *probs
+    cdef double *row_probs
     cdef double *logits
     cdef double logits_sum
     cdef int pos, tmp_pos
-    cdef int pure_pos
+    cdef int pure_pos, pure_row
     cdef double updated_sum = .0
     cdef double updated_old_sum = .0
-    cdef double max_prob = .0
-    cdef int max_pos = -1
     cdef int i, j
 
     color = <int>game.current_color
     feature = &game.rollout_feature_planes[color]
     probs = game.rollout_probs[color]
+    row_probs = game.rollout_row_probs[color]
     logits = game.rollout_logits[color]
     logits_sum = game.rollout_logits_sum[color]
 
@@ -430,18 +430,17 @@ cdef int update_probs(game_state_t *game) nogil:
 
     if logits_sum > .0:
         for i in range(PURE_BOARD_MAX):
+            pure_row = Y(i, PURE_BOARD_SIZE)
+            row_probs[pure_row] -= probs[i]
             probs[i] = logits[i]/logits_sum
-            if max_prob < probs[i]:
-                max_prob = probs[i]
-                max_pos = i
-
-    return onboard_pos[max_pos]
+            row_probs[pure_row] += probs[i]
 
 
-cdef int set_prob(game_state_t *game, int pos, double prob) nogil:
+cdef void set_illegal(game_state_t *game, int pos) nogil:
     cdef int color
     cdef rollout_feature_t *feature
     cdef double *probs
+    cdef double *row_probs
     cdef double *logits
     cdef double logits_sum
     cdef int pure_pos
@@ -451,19 +450,44 @@ cdef int set_prob(game_state_t *game, int pos, double prob) nogil:
 
     color = <int>game.current_color
     probs = game.rollout_probs[color]
+    row_probs = game.rollout_row_probs[color]
     logits = game.rollout_logits[color]
     logits_sum = game.rollout_logits_sum[color]
 
     pure_pos = onboard_index[pos]
 
-    logits_sum = logits_sum - logits[pure_pos] + prob
+    logits_sum -= logits[pure_pos]
     logits[pure_pos] = .0
 
     for i in range(PURE_BOARD_MAX):
+        pure_row = Y(i, PURE_BOARD_SIZE)
+        row_probs[pure_row] -= probs[i]
         probs[i] = logits[i]/logits_sum
-        if max_prob < probs[i]:
-            max_prob = probs[i]
-            max_pos = i
+        row_probs[pure_row] += probs[i]
 
-    return onboard_pos[max_pos]
 
+cdef int choice_rollout_move(game_state_t *game) nogil:
+    cdef int color
+    cdef double *probs
+    cdef double *row_probs
+    cdef double random_number
+    cdef int row, pos
+
+    color = <int>game.current_color
+    probs = game.rollout_probs[color]
+    row_probs = game.rollout_row_probs[color]
+
+    random_number = <double>rand() / RAND_MAX
+    row = 0
+    while random_number > row_probs[row]:
+        random_number -= row_probs[row]
+        row += 1
+
+    pos = row * PURE_BOARD_SIZE
+    while True:
+        random_number -= probs[pos]
+        if random_number <= 0:
+            break
+        pos += 1
+
+    return pos
