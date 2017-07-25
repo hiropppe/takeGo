@@ -22,7 +22,11 @@ class TestMCTS(unittest.TestCase):
         # setup rollout policy
         rollout_weights = os.path.join(d, '../params/rollout/sample.hdf5')
         ctest.setup_rollout_policy(rollout_weights)
-
+        # setup pattern hash for rollout
+        rands_file = os.path.join(d, '../params/rollout/mt_rands.txt')
+        d12_file = os.path.join(d, '../params/rollout/d12.csv')
+        x33_file = os.path.join(d, '../params/rollout/x33.csv')
+        ctest.setup_pattern(rands_file, d12_file, x33_file)
 
     @classmethod
     def tearDownClass(clazz):

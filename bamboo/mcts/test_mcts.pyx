@@ -21,8 +21,15 @@ from bamboo.go.zobrist_hash cimport set_hash_size, initialize_hash, initialize_u
 from bamboo.mcts.tree_search cimport tree_node_t, MCTS
 
 from bamboo.rollout.preprocess cimport update_rollout, set_rollout_parameter
+from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
 
 sl_policy = None
+
+def setup_pattern(rands_file, d12_csv, x33_csv):
+    read_rands(rands_file)
+    init_d12_hash(d12_csv)
+    init_x33_hash(x33_csv)
+
 
 def setup_supervised_policy(model, weights):
     global sl_policy
