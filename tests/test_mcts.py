@@ -49,3 +49,9 @@ class TestMCTS(unittest.TestCase):
 
     def test_eval_leafs_by_policy_network(self):
         ctest.test_eval_leafs_by_policy_network()
+
+    def test_rollout(self):
+        ctest.test_rollout()
+
+    def test_start_search_thread(self):
+        ctest.test_start_search_thread()

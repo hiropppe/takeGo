@@ -12,7 +12,7 @@ from nose.tools import ok_, eq_
 from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, PASS
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport game_state_t, onboard_pos
-from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game
+from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
 
@@ -233,6 +233,34 @@ def test_select():
     eq_(node.color, S_WHITE)
     eq_(node.is_edge, True)
     eq_(node.Ns, 3)
+
+
+def test_rollout():
+    cdef game_state_t *game = initialize_game()
+    cdef MCTS mcts = MCTS(None)
+
+    game.current_color = S_BLACK
+
+    put_stone(game, 132, game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color) 
+    update_rollout(game)
+
+    mcts.rollout(game)
+
+    print_board(game)
+
+
+def test_start_search_thread():
+    cdef game_state_t *game = initialize_game()
+    cdef MCTS mcts = MCTS(None)
+
+    game.current_color = S_BLACK
+
+    put_stone(game, 132, game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color) 
+    update_rollout(game)
+
+    mcts.start_search_thread(game, <int>S_BLACK) 
 
 
 def test_eval_leafs_by_policy_network():

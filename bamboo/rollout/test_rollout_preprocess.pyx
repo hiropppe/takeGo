@@ -7,16 +7,17 @@ from libc.stdlib cimport malloc, free
 
 from nose.tools import ok_, eq_
 
-from bamboo.go.board cimport BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, PASS
-from bamboo.go.board cimport FLIP_COLOR
+from bamboo.go.board cimport BOARD_MAX, PURE_BOARD_SIZE, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, PASS
+from bamboo.go.board cimport FLIP_COLOR, Y
 from bamboo.go.board cimport game_state_t, rollout_feature_t, board_size, pure_board_size, pure_board_max
-from bamboo.go.board cimport allocate_game, free_game, put_stone
+from bamboo.go.board cimport onboard_pos 
+from bamboo.go.board cimport set_board_size, allocate_game, free_game, put_stone, copy_game
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
 
 from bamboo.rollout.preprocess cimport F_RESPONSE, F_SAVE_ATARI, F_NEIGHBOR, F_NAKADE, F_RESPONSE_PAT, F_NON_RESPONSE_PAT
 from bamboo.rollout.preprocess cimport response_start, save_atari_start, neighbor_start, nakade_start, d12_start, x33_start
-from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_planes_all, memorize_updated, choice_rollout_move 
+from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_planes_all, memorize_updated, choice_rollout_move, set_illegal, norm_probs 
 from bamboo.rollout.pattern cimport initialize_rands, put_x33_hash, put_d12_hash
 from bamboo.rollout.pattern import print_x33
 
@@ -1235,22 +1236,161 @@ def test_choice_rollout_move():
     cdef int pos, color 
     cdef int i
 
+    set_board_size(19)
+
     initialize_probs(game)
 
     game.current_color = S_BLACK
     color = <int>S_BLACK
 
-    game.rollout_probs[color][60] = 0.3
-    game.rollout_probs[color][70] = 0.4
-    game.rollout_probs[color][288] = 0.1
-    game.rollout_probs[color][300] = 0.2
+    game.rollout_logits[color][60] = 40
+    game.rollout_logits[color][72] = 80
+    game.rollout_logits[color][288] = 20
+    game.rollout_logits[color][300] = 30
+    game.rollout_logits_sum[color] = 170
 
-    game.rollout_row_probs[color][3] = 0.7
-    game.rollout_row_probs[color][15] = 0.3
+    norm_probs(game.rollout_probs[color],
+               game.rollout_row_probs[color],
+               game.rollout_logits[color],
+               game.rollout_logits_sum[color])
 
     for i in range(100):
         pos = choice_rollout_move(game)
-        ok_(pos in (60, 70, 288, 300))
+        ok_(pos in (120, 132, 396, 408))
+
+    set_illegal(game, 120)
+    set_illegal(game, 132)
+    set_illegal(game, 396)
+    set_illegal(game, 408)
+
+    eq_(choice_rollout_move(game), PASS)
+
+
+def test_set_illegal():
+    cdef game_state_t *game = allocate_game()
+    cdef int pos, color 
+    cdef int i
+
+    set_board_size(19)
+
+    initialize_probs(game)
+
+    game.current_color = S_BLACK
+    color = <int>S_BLACK
+
+    game.rollout_logits[color][60] = 40
+    game.rollout_logits[color][72] = 50
+    game.rollout_logits[color][288] = 20
+    game.rollout_logits[color][300] = 30
+    game.rollout_logits_sum[color] = 140
+
+    norm_probs(game.rollout_probs[color],
+               game.rollout_row_probs[color],
+               game.rollout_logits[color],
+               game.rollout_logits_sum[color])
+
+    set_illegal(game, 120)
+    eq_(game.rollout_logits_sum[color], 100)
+    eq_(round(game.rollout_probs[color][72] + game.rollout_probs[color][288] + game.rollout_probs[color][300]), 1)
+
+    set_illegal(game, 132)
+    eq_(game.rollout_logits_sum[color], 50)
+    eq_(round(game.rollout_probs[color][288] + game.rollout_probs[color][300]), 1)
+
+    set_illegal(game, 396)
+    eq_(game.rollout_logits_sum[color], 30)
+    eq_(round(game.rollout_probs[color][288] + game.rollout_probs[color][300]), 1)
+
+    set_illegal(game, 408)
+    eq_(game.rollout_logits_sum[color], 0)
+
+
+def test_copy_game():
+    cdef game_state_t *game = allocate_game()
+    cdef game_state_t *copy = allocate_game()
+    cdef int black, white 
+    cdef int i
+
+    set_board_size(19)
+
+    initialize_probs(game)
+
+    black = <int>S_BLACK
+    white = <int>S_WHITE
+
+    game.rollout_feature_planes[black].color = black
+    game.rollout_feature_planes[black].tensor[0][0] = 1
+    game.rollout_feature_planes[black].tensor[5][360] = 1
+    game.rollout_feature_planes[black].prev_neighbor8[0] = 96
+    game.rollout_feature_planes[black].prev_neighbor8[7] = 144
+    game.rollout_feature_planes[black].prev_neighbor8_num = 8
+    game.rollout_feature_planes[black].prev_d12[0] = 74
+    game.rollout_feature_planes[black].prev_d12[11] = 143
+    game.rollout_feature_planes[black].prev_d12_num = 12
+    game.rollout_feature_planes[black].updated[0] = 120
+    game.rollout_feature_planes[black].updated[528] = 132
+    game.rollout_feature_planes[black].updated_num = 2
+
+    game.rollout_feature_planes[white].color = white
+    game.rollout_feature_planes[white].tensor[0][0] = 1
+    game.rollout_feature_planes[white].tensor[5][360] = 1
+    game.rollout_feature_planes[white].prev_neighbor8[0] = 108
+    game.rollout_feature_planes[white].prev_neighbor8[7] = 156
+    game.rollout_feature_planes[white].prev_neighbor8_num = 8
+    game.rollout_feature_planes[white].prev_d12[0] = 88
+    game.rollout_feature_planes[white].prev_d12[11] = 178
+    game.rollout_feature_planes[white].prev_d12_num = 12
+    game.rollout_feature_planes[white].updated[0] = 120
+    game.rollout_feature_planes[white].updated[528] = 132
+    game.rollout_feature_planes[white].updated_num = 2
+
+    game.rollout_logits[black][0] = 1
+    game.rollout_logits[white][360] = 2
+    game.rollout_logits_sum[black] = 1
+    game.rollout_logits_sum[white] = 2
+
+    game.rollout_probs[black][0] = 1
+    game.rollout_probs[white][360] = 2
+    game.rollout_row_probs[black][0] = 1
+    game.rollout_row_probs[white][18] = 2
+
+    copy_game(copy, game)
+
+    eq_(copy.rollout_feature_planes[black].color, black)
+    eq_(copy.rollout_feature_planes[black].tensor[0][0], 1)
+    eq_(copy.rollout_feature_planes[black].tensor[5][360], 1)
+    eq_(copy.rollout_feature_planes[black].prev_neighbor8[0], 96)
+    eq_(copy.rollout_feature_planes[black].prev_neighbor8[7], 144)
+    eq_(copy.rollout_feature_planes[black].prev_neighbor8_num, 8)
+    eq_(copy.rollout_feature_planes[black].prev_d12[0], 74)
+    eq_(copy.rollout_feature_planes[black].prev_d12[11], 143)
+    eq_(copy.rollout_feature_planes[black].prev_d12_num, 12)
+    eq_(copy.rollout_feature_planes[black].updated[0], 120)
+    eq_(copy.rollout_feature_planes[black].updated[528], 132)
+    eq_(copy.rollout_feature_planes[black].updated_num, 2)
+
+    eq_(copy.rollout_feature_planes[white].color, white)
+    eq_(copy.rollout_feature_planes[white].tensor[0][0], 1)
+    eq_(copy.rollout_feature_planes[white].tensor[5][360], 1)
+    eq_(copy.rollout_feature_planes[white].prev_neighbor8[0], 108)
+    eq_(copy.rollout_feature_planes[white].prev_neighbor8[7], 156)
+    eq_(copy.rollout_feature_planes[white].prev_neighbor8_num, 8)
+    eq_(copy.rollout_feature_planes[white].prev_d12[0], 88)
+    eq_(copy.rollout_feature_planes[white].prev_d12[11], 178)
+    eq_(copy.rollout_feature_planes[white].prev_d12_num, 12)
+    eq_(copy.rollout_feature_planes[white].updated[0], 120)
+    eq_(copy.rollout_feature_planes[white].updated[528], 132)
+    eq_(copy.rollout_feature_planes[white].updated_num, 2)
+
+    eq_(copy.rollout_logits[black][0], 1)
+    eq_(copy.rollout_logits[white][360], 2)
+    eq_(copy.rollout_logits_sum[black], 1)
+    eq_(copy.rollout_logits_sum[white], 2)
+
+    eq_(copy.rollout_probs[black][0], 1)
+    eq_(copy.rollout_probs[white][360], 2)
+    eq_(copy.rollout_row_probs[black][0], 1)
+    eq_(copy.rollout_row_probs[white][18], 2)
 
 
 cdef int number_of_active_positions(rollout_feature_t *feature, int feature_id):

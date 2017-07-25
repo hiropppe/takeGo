@@ -53,3 +53,9 @@ class TestRolloutPreprocess(unittest.TestCase):
 
     def test_choice_rollout_move(self):
         ctest.test_choice_rollout_move()
+
+    def test_set_illegal(self):
+        ctest.test_set_illegal()
+
+    def test_copy_game(self):
+        ctest.test_copy_game()

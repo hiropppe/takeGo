@@ -95,6 +95,15 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
     memcpy(dst.string_id, src.string_id, sizeof(int) * STRING_POS_MAX)
     memcpy(dst.string_next, src.string_next, sizeof(int) * STRING_POS_MAX)
     memcpy(dst.capture_num, src.capture_num, sizeof(int) * S_OB)
+    
+    memcpy(dst.updated_string_num, src.updated_string_num, sizeof(int) * S_OB)
+    memcpy(dst.updated_string_id, src.updated_string_id, sizeof(int) * S_OB * MAX_RECORDS)
+
+    memcpy(dst.rollout_feature_planes, src.rollout_feature_planes, sizeof(rollout_feature_t) * S_OB)
+    memcpy(dst.rollout_probs, src.rollout_probs, sizeof(double) * S_OB * PURE_BOARD_MAX)
+    memcpy(dst.rollout_row_probs, src.rollout_row_probs, sizeof(double) * S_OB * PURE_BOARD_SIZE)
+    memcpy(dst.rollout_logits, src.rollout_logits, sizeof(double) * S_OB * PURE_BOARD_MAX)
+    memcpy(dst.rollout_logits_sum, src.rollout_logits_sum, sizeof(double) * S_OB)
 
     for i in range(MAX_STRING):
         if src.string[i].flag:

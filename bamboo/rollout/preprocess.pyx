@@ -9,6 +9,7 @@ import numpy as np
 cimport numpy as np
 
 from libc.math cimport exp as cexp
+from libc.math cimport round as cround
 from libc.stdlib cimport rand, RAND_MAX
 from libc.stdio cimport printf
 
@@ -361,7 +362,6 @@ cdef void update_probs_all(game_state_t *game) nogil:
     cdef double *probs
     cdef double *row_probs
     cdef double *logits
-    cdef double logits_sum
     cdef int pos
     cdef int i, j
 
@@ -370,7 +370,6 @@ cdef void update_probs_all(game_state_t *game) nogil:
     probs = game.rollout_probs[color]
     row_probs = game.rollout_row_probs[color]
     logits = game.rollout_logits[color]
-    logits_sum = game.rollout_logits_sum[color]
 
     for i in range(PURE_BOARD_MAX):
         if is_legal(game, onboard_pos[i], color):
@@ -378,16 +377,12 @@ cdef void update_probs_all(game_state_t *game) nogil:
                 if feature.tensor[j][i] != -1:
                     logits[i] += rollout_weights[feature.tensor[j][i]]
             logits[i] = cexp(logits[i])
-            logits_sum += logits[i]
+            game.rollout_logits_sum[color] += logits[i]
         else:
             logits[i] = .0
 
-    if logits_sum > .0:
-        for i in range(PURE_BOARD_MAX):
-            pure_row = Y(i, PURE_BOARD_SIZE)
-            row_probs[pure_row] -= probs[i]
-            probs[i] = logits[i]/logits_sum
-            row_probs[pure_row] += probs[i]
+    if game.rollout_logits_sum[color] > .0:
+        norm_probs(probs, row_probs, logits, game.rollout_logits_sum[color])
 
 
 cdef void update_probs(game_state_t *game) nogil:
@@ -396,7 +391,6 @@ cdef void update_probs(game_state_t *game) nogil:
     cdef double *probs
     cdef double *row_probs
     cdef double *logits
-    cdef double logits_sum
     cdef int pos, tmp_pos
     cdef int pure_pos, pure_row
     cdef double updated_sum = .0
@@ -408,7 +402,6 @@ cdef void update_probs(game_state_t *game) nogil:
     probs = game.rollout_probs[color]
     row_probs = game.rollout_row_probs[color]
     logits = game.rollout_logits[color]
-    logits_sum = game.rollout_logits_sum[color]
 
     pos = feature.updated[0]
     while pos != BOARD_MAX:
@@ -426,14 +419,21 @@ cdef void update_probs(game_state_t *game) nogil:
         feature.updated[pos] = 0
         pos = tmp_pos
 
-    logits_sum = logits_sum - updated_old_sum + updated_sum
+    game.rollout_logits_sum[color] = game.rollout_logits_sum[color] - updated_old_sum + updated_sum
 
-    if logits_sum > .0:
-        for i in range(PURE_BOARD_MAX):
-            pure_row = Y(i, PURE_BOARD_SIZE)
-            row_probs[pure_row] -= probs[i]
-            probs[i] = logits[i]/logits_sum
-            row_probs[pure_row] += probs[i]
+    if game.rollout_logits_sum[color] > .0:
+        norm_probs(probs, row_probs, logits, game.rollout_logits_sum[color])
+
+
+cdef void norm_probs(double *probs, double *row_probs, double *logits, double logits_sum) nogil:
+    cdef int pure_row
+    cdef int i
+
+    for i in range(PURE_BOARD_MAX):
+        pure_row = Y(i, PURE_BOARD_SIZE)
+        row_probs[pure_row] -= probs[i]
+        probs[i] = logits[i]/logits_sum
+        row_probs[pure_row] += probs[i]
 
 
 cdef void set_illegal(game_state_t *game, int pos) nogil:
@@ -442,28 +442,19 @@ cdef void set_illegal(game_state_t *game, int pos) nogil:
     cdef double *probs
     cdef double *row_probs
     cdef double *logits
-    cdef double logits_sum
     cdef int pure_pos
-    cdef double max_prob = .0
-    cdef int max_pos = -1
     cdef int i, j
 
     color = <int>game.current_color
     probs = game.rollout_probs[color]
     row_probs = game.rollout_row_probs[color]
     logits = game.rollout_logits[color]
-    logits_sum = game.rollout_logits_sum[color]
 
     pure_pos = onboard_index[pos]
-
-    logits_sum -= logits[pure_pos]
+    game.rollout_logits_sum[color] -= logits[pure_pos]
     logits[pure_pos] = .0
 
-    for i in range(PURE_BOARD_MAX):
-        pure_row = Y(i, PURE_BOARD_SIZE)
-        row_probs[pure_row] -= probs[i]
-        probs[i] = logits[i]/logits_sum
-        row_probs[pure_row] += probs[i]
+    norm_probs(probs, row_probs, logits, game.rollout_logits_sum[color])
 
 
 cdef int choice_rollout_move(game_state_t *game) nogil:
@@ -476,6 +467,9 @@ cdef int choice_rollout_move(game_state_t *game) nogil:
     color = <int>game.current_color
     probs = game.rollout_probs[color]
     row_probs = game.rollout_row_probs[color]
+
+    if game.rollout_logits_sum[color] <= .001:
+        return PASS
 
     random_number = <double>rand() / RAND_MAX
     row = 0
@@ -490,4 +484,4 @@ cdef int choice_rollout_move(game_state_t *game) nogil:
             break
         pos += 1
 
-    return pos
+    return onboard_pos[pos]
