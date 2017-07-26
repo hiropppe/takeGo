@@ -159,9 +159,7 @@ cdef int liberty_end
 cdef int max_records
 cdef int max_moves
 
-cdef double *komi
-cdef double *dynamic_komi
-cdef double default_komi
+cdef double komi
 
 cdef int *board_pos_id
 
@@ -192,6 +190,7 @@ cdef void fill_n_int (int *arr, int size, int v) nogil
 cdef void initialize_const() 
 cdef void clear_const()
 cdef void set_board_size(int size)
+cdef void set_komi(double new_komi)
 
 cdef game_state_t *allocate_game() nogil
 cdef void free_game(game_state_t *game) nogil

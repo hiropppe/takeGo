@@ -245,7 +245,7 @@ enum hash {
   HASH_KO,
 };
 
-const unsigned int UCT_HASH_SIZE = 16384;
+const unsigned int UCT_HASH_SIZE = 65536;
 
 typedef struct {
   unsigned long long hash;

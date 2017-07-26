@@ -24,15 +24,14 @@ ctypedef struct tree_node_t:
     int time_step
     int pos
     int color
-    float P     # prior probability
+    double P     # prior probability
     int Nv      # evaluation count
     int Nr      # rollout count(visit count)
-    float Wv    # evaluation value
+    double Wv    # evaluation value
     int Wr      # rollout value
-    float Q     # action-value for edge
-    float u     # PUCT algorithm
-    float Qu    # Q + u
-    int Ns      # select count
+    double Q     # action-value for edge
+    double u     # PUCT algorithm
+    double Qu    # Q + u
     bint is_root
     bint is_edge
 
@@ -41,9 +40,6 @@ ctypedef struct tree_node_t:
 
     int children_pos[361]   # PURE_BOARD_MAX
     int num_child
-
-    tree_node_t *max_child
-    float max_child_Qu
 
     game_state_t *game
     bint has_game
@@ -62,25 +58,27 @@ cdef class MCTS:
     cdef int playout_limit
     cdef int n_threads
     cdef openmp.omp_lock_t tree_lock
-    
-    cdef void start_search_thread(self, game_state_t *game, int player_color)
+
+    cdef int genmove(self, game_state_t *game)
+
+    cdef void start_search_thread(self, game_state_t *game)
 
     cdef void stop_search_thread(self)
 
-    cdef void run_search(self, game_state_t *game, int player_color) nogil
+    cdef void run_search(self, game_state_t *game) nogil
 
     cdef bint seek_root(self, game_state_t *game) nogil
 
-    cdef void search(self, tree_node_t *node, game_state_t *game, int player_color) nogil
+    cdef void search(self, tree_node_t *node, game_state_t *game) nogil
     
     cdef tree_node_t *select(self, tree_node_t *node, game_state_t *game) nogil
 
-    cdef int expand(self, tree_node_t *node, game_state_t *game) nogil
+    cdef void expand(self, tree_node_t *node, game_state_t *game) nogil
 
-    cdef void evaluate_and_backup(self, tree_node_t *node, game_state_t *game, int player_color) nogil
+    cdef void evaluate_and_backup(self, tree_node_t *node, game_state_t *game) nogil
 
     cdef void rollout(self, game_state_t *game) nogil
 
-    cdef void backup(self, tree_node_t *node, int Nr, int Wr) nogil
+    cdef void backup(self, tree_node_t *node, int winner) nogil
 
     cdef void eval_leafs_by_policy_network(self, tree_node_t *node)

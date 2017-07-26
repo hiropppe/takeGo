@@ -12,7 +12,7 @@ from nose.tools import ok_, eq_
 from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, PASS
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport game_state_t, onboard_pos
-from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score
+from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
 
@@ -183,14 +183,13 @@ def test_select():
 
     mcts.expand(node, search_game)
     # set max_child
-    node.max_child = node.children[72]
+    node.children[72].Qu = 0.5
 
     # select down the tree
     node = mcts.select(node, search_game)
     eq_(node.pos, 132) # B[Q16]
     eq_(node.color, S_BLACK)
     eq_(node.is_edge, True)
-    eq_(node.Ns, 1)
 
     mcts.expand(node, search_game)
 
@@ -204,7 +203,6 @@ def test_select():
     eq_(node.pos, onboard_pos[max_child_pos])
     eq_(node.color, S_WHITE)
     eq_(node.is_edge, True)
-    eq_(node.Ns, 1)
 
     # one more from the beginning
     node = root_node
@@ -213,12 +211,10 @@ def test_select():
     eq_(node.pos, 132) # B[Q16]
     eq_(node.color, S_BLACK)
     eq_(node.is_edge, False)
-    eq_(node.Ns, 2)
     node = mcts.select(node, search_game)
     eq_(node.pos, onboard_pos[max_child_pos])
     eq_(node.color, S_WHITE)
     eq_(node.is_edge, True)
-    eq_(node.Ns, 2)
 
     # put B[Q16]
     put_stone(game, 132, game.current_color)
@@ -232,7 +228,6 @@ def test_select():
     eq_(node.pos, onboard_pos[max_child_pos])
     eq_(node.color, S_WHITE)
     eq_(node.is_edge, True)
-    eq_(node.Ns, 3)
 
 
 def test_rollout():
@@ -248,19 +243,6 @@ def test_rollout():
     mcts.rollout(game)
 
     print_board(game)
-
-
-def test_start_search_thread():
-    cdef game_state_t *game = initialize_game()
-    cdef MCTS mcts = MCTS(None)
-
-    game.current_color = S_BLACK
-
-    put_stone(game, 132, game.current_color)
-    game.current_color = FLIP_COLOR(game.current_color) 
-    update_rollout(game)
-
-    mcts.start_search_thread(game, <int>S_BLACK) 
 
 
 def test_eval_leafs_by_policy_network():
@@ -346,6 +328,42 @@ def test_eval_leafs_by_policy_network():
     eq_(round(prob_sum), 1.0)
 
     ok_(mcts.policy_network_queue.empty())
+
+
+def test_running():
+    cdef game_state_t *game = initialize_game()
+    cdef MCTS mcts = MCTS(sl_policy)
+    cdef tree_node_t *node
+    cdef int pos
+    cdef int i
+
+    game.current_color = S_BLACK
+
+    # put B[Q16]
+    put_stone(game, 132, game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color) 
+    update_rollout(game)
+
+    print_board(game)
+
+    for i in range(10):
+        mcts.start_search_thread(game)
+
+        while True:
+            if mcts.policy_network_queue.empty():
+                break
+            node = mcts.policy_network_queue.front()
+            mcts.eval_leafs_by_policy_network(node)
+            free_game(node.game)
+            mcts.policy_network_queue.pop()
+
+        pos = mcts.genmove(game)
+
+        put_stone(game, pos, game.current_color)
+        game.current_color = FLIP_COLOR(game.current_color) 
+        update_rollout(game)
+
+        print_board(game)
 
 
 cdef game_state_t* initialize_game(int board_size=19):

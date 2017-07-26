@@ -45,7 +45,7 @@ liberty_end = LIBERTY_END
 max_records = MAX_RECORDS
 max_moves = MAX_MOVES
 
-default_komi = KOMI
+komi = KOMI
 
 
 cdef void fill_n_char (char *arr, int size, char v) nogil:
@@ -928,13 +928,6 @@ cdef void initialize_territory():
 
 
 cdef void initialize_const():
-    #global komi
-
-    #komi = <double *>malloc(S_OB * sizeof(double))
-    #komi[0] = default_komi
-    #komi[<int>S_BLACK] = default_komi + 1.0
-    #komi[<int>S_WHITE] = default_komi - 1.0
-
     init_board_position()
 
     init_line_number()
@@ -947,11 +940,7 @@ cdef void initialize_const():
 
 
 cdef void clear_const():
-    global komi
     global onboard_pos, board_x, board_y
-
-    if komi:
-        free(komi)
 
     if onboard_pos:
         free(onboard_pos)
@@ -1007,6 +996,12 @@ cdef void set_board_size(int size):
     pat.EE = pat.E + pat.E
 
     initialize_const()
+
+
+cdef void set_komi(double new_komi):
+    global komi
+
+    komi = new_komi
 
 
 cdef int get_neighbor4_empty(game_state_t *game, int pos) nogil:
@@ -1141,7 +1136,7 @@ cdef int calculate_score(game_state_t *game) nogil:
         color = game.board[pos]
         if color == S_EMPTY:
             color = territory[pat.pat3(game.pat, pos)]
-        scores[color]+=1
+        scores[color] += 1
 
     return scores[<int>S_BLACK] - scores[<int>S_WHITE]
 

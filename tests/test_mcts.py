@@ -53,5 +53,5 @@ class TestMCTS(unittest.TestCase):
     def test_rollout(self):
         ctest.test_rollout()
 
-    def test_start_search_thread(self):
-        ctest.test_start_search_thread()
+    def test_running(self):
+        ctest.test_running()
