@@ -20,15 +20,15 @@ cdef extern from "ray.h":
 
 
 ctypedef struct tree_node_t:
-    int node_i       # node index
+    unsigned int node_i       # node index
     int time_step
     int pos
     int color
     double P     # prior probability
-    int Nv      # evaluation count
-    int Nr      # rollout count(visit count)
+    double Nv      # evaluation count
+    double Nr      # rollout count(visit count)
     double Wv    # evaluation value
-    int Wr      # rollout value
+    double Wr      # rollout value
     double Q     # action-value for edge
     double u     # PUCT algorithm
     double Qu    # Q + u
@@ -56,8 +56,10 @@ cdef class MCTS:
     cdef cppqueue[tree_node_t *] value_network_queue
     cdef bint pondering
     cdef int playout_limit
+    cdef int n_playout
     cdef int n_threads
     cdef openmp.omp_lock_t tree_lock
+    cdef bint debug
 
     cdef int genmove(self, game_state_t *game)
 

@@ -22,26 +22,28 @@ from bamboo.go.board cimport game_state_t
 from bamboo.go.board cimport set_board_size, initialize_board
 from bamboo.go.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
 from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit
-from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, search_empty_index
+from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
 
 from bamboo.go.policy_feature cimport policy_feature_t
 from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
 
-from bamboo.rollout.preprocess cimport initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move
+from bamboo.rollout.preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move
 
 cimport openmp
 
 
 cdef class MCTS(object):
 
-    def __cinit__(self, object policy, int playout_limit=1000, int n_threads=1):
+    def __cinit__(self, object policy, int playout_limit=100, int n_threads=1):
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         self.current_root = uct_hash_size
         self.policy = policy
         self.policy_feature = allocate_feature()
         self.pondering = False
+        self.n_playout = 0
         self.playout_limit = playout_limit
         self.n_threads = n_threads
+        self.debug = False
 
         initialize_feature(self.policy_feature) 
 
@@ -64,23 +66,13 @@ cdef class MCTS(object):
         max_Nr = 0
         max_pos = PASS
 
-        if node.is_edge:
-            self.expand(node, game)
-            self.eval_leafs_by_policy_network(node)
-            for i in range(node.num_child):
-                child = node.children[node.children_pos[i]]
-                if child.P > max_P:
-                    max_pos = child.pos
-                    max_P = child.P
-        elif node.num_child > 0:
-            for i in range(node.num_child):
-                child = node.children[node.children_pos[i]]
-                if child.Nr > max_Nr:
-                    max_pos = child.pos
-                    max_nr = child.Nr
+        for i in range(node.num_child):
+            child = node.children[node.children_pos[i]]
+            if child.Nr > max_Nr:
+                max_pos = child.pos
+                max_nr = child.Nr
 
         return max_pos
-
 
     cdef void start_search_thread(self, game_state_t *game):
         cdef int i
@@ -111,12 +103,16 @@ cdef class MCTS(object):
         cdef tree_node_t *node
         cdef int pos
         cdef unsigned long long previous_hash = 0
-        cdef int n_playout = 0
+
+        self.n_playout = 0
 
         search_game = allocate_game()
 
-        while self.pondering:
-            if previous_hash != game.current_hash:
+        while (self.pondering and
+               check_remaining_hash_size() and
+               self.n_playout < self.playout_limit):
+
+            if game.moves == 0 or previous_hash != game.current_hash:
                 previous_hash = game.current_hash
                 self.seek_root(game)
                 node = &self.nodes[self.current_root]
@@ -125,10 +121,11 @@ cdef class MCTS(object):
 
             self.search(node, search_game)
 
-            n_playout += 1
-            if n_playout > self.playout_limit:
-                self.pondering = False
-                break
+            self.n_playout += 1
+
+        printf('%d Playout\n', self.n_playout)
+
+        self.pondering = False
 
         free_game(search_game)
 
@@ -165,7 +162,6 @@ cdef class MCTS(object):
 
         if self.current_root == uct_hash_size:
             self.current_root = search_empty_index(game.current_hash, color, game.moves)
-
             node = &self.nodes[self.current_root]
             node.node_i = self.current_root
             node.time_step = game.moves
@@ -203,11 +199,13 @@ cdef class MCTS(object):
             return True
 
     cdef tree_node_t *select(self, tree_node_t *node, game_state_t *game) nogil:
-        cdef char color = game.current_color
+        cdef char color
         cdef tree_node_t *child
         cdef tree_node_t *max_child
         cdef double max_Qu = -1.0 
         cdef int i
+
+        color = game.current_color
 
         for i in range(node.num_child):
             child = node.children[node.children_pos[i]]
@@ -231,7 +229,7 @@ cdef class MCTS(object):
         cdef double *move_probs
         cdef int i
 
-        # tree policy not implemented yet. substitutes by rollout policy
+        # tree policy not implemented yet. use rollout policy instead.
         move_probs = game.rollout_probs[color]
 
         for i in range(PURE_BOARD_MAX):
@@ -275,7 +273,6 @@ cdef class MCTS(object):
                                   game_state_t *game) nogil:
         cdef double score
         cdef int winner
-        cdef int Wr
 
         self.rollout(game)
 
@@ -329,7 +326,7 @@ cdef class MCTS(object):
             else:
                 node.Q = node.Wr/node.Nr
                 #node.Q = (1 - MIXING_PARAMETER) * node.Wv/node.Nv + MIXING_PARAMETER * node.Wr/node.Nr
-                node.u = EXPLORATION_CONSTANT * node.P * csqrt(node.parent.Nr + 1) / (1 + node.Nr) 
+                node.u = EXPLORATION_CONSTANT * node.P * (csqrt(node.parent.Nr + 1) / (1 + node.Nr))
                 node.Qu = node.Q + node.u
 
                 node = node.parent

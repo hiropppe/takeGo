@@ -9,8 +9,8 @@ from libc.stdio cimport printf
 
 from nose.tools import ok_, eq_
 
-from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, PASS
-from bamboo.go.board cimport FLIP_COLOR
+from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS
+from bamboo.go.board cimport FLIP_COLOR, CORRECT_X, CORRECT_Y
 from bamboo.go.board cimport game_state_t, onboard_pos
 from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi
 from bamboo.go.printer cimport print_board
@@ -20,21 +20,27 @@ from bamboo.go.zobrist_hash cimport uct_hash_size
 from bamboo.go.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
 from bamboo.mcts.tree_search cimport tree_node_t, MCTS
 
-from bamboo.rollout.preprocess cimport update_rollout, set_rollout_parameter
+from bamboo.rollout.preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter
 from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
+
+from bamboo.gtp import gtp
 
 sl_policy = None
 
 def setup_pattern(rands_file, d12_csv, x33_csv):
-    read_rands(rands_file)
-    init_d12_hash(d12_csv)
-    init_x33_hash(x33_csv)
+    cdef int x33_size, d12_size   
 
+    set_hash_size(2**20)
+    initialize_hash()
+
+    read_rands(rands_file)
+    x33_size = init_x33_hash(x33_csv)
+    d12_size = init_d12_hash(d12_csv)
+
+    initialize_const(0, x33_size, d12_size)
 
 def setup_supervised_policy(model, weights):
     global sl_policy
-
-    initialize_hash()
 
     sl_policy = policy.CNNPolicy.load_model(model)
     sl_policy.model.load_weights(weights)
@@ -334,19 +340,15 @@ def test_running():
     cdef game_state_t *game = initialize_game()
     cdef MCTS mcts = MCTS(sl_policy)
     cdef tree_node_t *node
+    cdef int pass_count = 0
     cdef int pos
     cdef int i
 
+    initialize_rollout(game)
+
     game.current_color = S_BLACK
 
-    # put B[Q16]
-    put_stone(game, 132, game.current_color)
-    game.current_color = FLIP_COLOR(game.current_color) 
-    update_rollout(game)
-
-    print_board(game)
-
-    for i in range(10):
+    while True:
         mcts.start_search_thread(game)
 
         while True:
@@ -364,6 +366,19 @@ def test_running():
         update_rollout(game)
 
         print_board(game)
+
+        x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
+        y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
+        print(gtp.gtp_vertex((x, y)))
+
+        if pos == PASS:
+            pass_count += 1
+            if pass_count == 2:
+                break
+        else:
+            pass_count = 0
+
+    print('Score: {:s}'.format(str(calculate_score(game) - komi)))
 
 
 cdef game_state_t* initialize_game(int board_size=19):
