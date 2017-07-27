@@ -165,11 +165,12 @@ cdef void update_planes(game_state_t *game) nogil:
     updated_string_id = game.updated_string_id[current_color]
     for i in range(updated_string_num):
         updated_string = &game.string[updated_string_id[i]]
-        update_save_atari(current_feature, game, updated_string)
-        update_pos = updated_string.empty[0]
-        while update_pos != STRING_EMPTY_END:
-            update_3x3(current_feature, game, update_pos, current_color)
-            update_pos = updated_string.empty[update_pos]
+        if updated_string.flag:
+            update_save_atari(current_feature, game, updated_string)
+            update_pos = updated_string.empty[0]
+            while update_pos != STRING_EMPTY_END:
+                update_3x3(current_feature, game, update_pos, current_color)
+                update_pos = updated_string.empty[update_pos]
 
     # clear updated string memo for next feature calculation
     clear_updated_string_cache(game)
@@ -485,3 +486,8 @@ cdef int choice_rollout_move(game_state_t *game) nogil:
         pos += 1
 
     return onboard_pos[pos]
+
+
+cdef void set_debug(bint dbg) nogil:
+    global debug
+    debug = dbg

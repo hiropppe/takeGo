@@ -10,6 +10,8 @@ cdef extern from "ray.h":
         F_NON_RESPONSE_PAT
         F_MAX
 
+cdef bint debug
+
 cdef int feature_size
 cdef int response_size
 cdef int save_atari_size
@@ -51,3 +53,5 @@ cdef void update_probs(game_state_t *game) nogil
 cdef void norm_probs(double *probs, double *row_probs, double *logits, double logits_sum) nogil
 cdef void set_illegal(game_state_t *game, int pos) nogil
 cdef int choice_rollout_move(game_state_t *game) nogil
+
+cdef void set_debug(bint debug) nogil
