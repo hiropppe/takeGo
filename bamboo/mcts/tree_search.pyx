@@ -77,6 +77,7 @@ cdef class MCTS(object):
     cdef void start_search_thread(self, game_state_t *game):
         cdef int i
         cdef tree_node_t *node
+        cdef bint expanded
 
         self.pondering = True
 
@@ -86,8 +87,9 @@ cdef class MCTS(object):
 
         node = &self.nodes[self.current_root]
         if node.is_edge:
-            self.expand(node, game)
-            self.eval_leafs_by_policy_network(node)
+            expanded = self.expand(node, game)
+            if expanded:
+                self.eval_leafs_by_policy_network(node)
 
         if self.n_threads <= 1:
             self.run_search(game) 
@@ -133,10 +135,13 @@ cdef class MCTS(object):
                      tree_node_t *node,
                      game_state_t *search_game) nogil:
         cdef tree_node_t *current_node
+        cdef bint expanded
 
         current_node = node
 
         # selection
+        #if self.debug and self.n_playout == 80:
+        #    printf('debug0 %d\n', self.n_playout)
         while True:
             if current_node.is_edge:
                 break
@@ -144,9 +149,12 @@ cdef class MCTS(object):
                 current_node = self.select(current_node, search_game)
 
         # expansion
+        #if self.debug and self.n_playout == 80:
+        #    printf('debug1 %d\n', self.n_playout)
         if current_node.Nr >= EXPANSION_THRESHOLD:
-            self.expand(current_node, search_game)
-            current_node = self.select(current_node, search_game)
+            expanded = self.expand(current_node, search_game)
+            if expanded:
+                current_node = self.select(current_node, search_game)
 
         # evaluation then backup
         self.evaluate_and_backup(current_node, search_game)
@@ -207,19 +215,27 @@ cdef class MCTS(object):
 
         color = game.current_color
 
+        #if self.debug and self.n_playout == 80:
+        #    printf('num_child a %d\n', node.num_child)
         for i in range(node.num_child):
             child = node.children[node.children_pos[i]]
             if child.Qu > max_Qu:
                 max_Qu = child.Qu
                 max_child = child
 
+        #if self.debug and self.n_playout == 80:
+        #    printf('num_child b %d\n', node.num_child)
         put_stone(game, max_child.pos, color)
         game.current_color = FLIP_COLOR(color)
+        #if self.debug and self.n_playout == 80:
+        #    printf('num_child c %d\n', node.num_child)
         update_rollout(game)
+        #if self.debug and self.n_playout == 80:
+        #    printf('num_child d %d\n', node.num_child)
 
         return max_child
 
-    cdef void expand(self, tree_node_t *node, game_state_t *game) nogil:
+    cdef bint expand(self, tree_node_t *node, game_state_t *game) nogil:
         cdef tree_node_t *child
         cdef int child_pos, child_i
         cdef int child_moves = game.moves + 1
@@ -261,12 +277,14 @@ cdef class MCTS(object):
                 node.children_pos[node.num_child] = i
                 node.num_child += 1
 
-        node.is_edge = False
-
-        node.game = allocate_game()
-        copy_game(node.game, game)
-
-        self.policy_network_queue.push(node)
+        if node.num_child > 0:
+            node.is_edge = False
+            node.game = allocate_game()
+            copy_game(node.game, game)
+            self.policy_network_queue.push(node)
+            return True
+        else:
+            return False
 
     cdef void evaluate_and_backup(self,
                                   tree_node_t *node,

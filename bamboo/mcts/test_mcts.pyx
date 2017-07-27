@@ -9,7 +9,7 @@ from libc.stdio cimport printf
 
 from nose.tools import ok_, eq_
 
-from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS
+from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS, RESIGN
 from bamboo.go.board cimport FLIP_COLOR, CORRECT_X, CORRECT_Y
 from bamboo.go.board cimport game_state_t, onboard_pos
 from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi
@@ -38,6 +38,7 @@ def setup_pattern(rands_file, d12_csv, x33_csv):
     d12_size = init_d12_hash(d12_csv)
 
     initialize_const(0, x33_size, d12_size)
+
 
 def setup_supervised_policy(model, weights):
     global sl_policy
@@ -367,9 +368,12 @@ def test_running():
 
         print_board(game)
 
-        x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
-        y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
-        print(gtp.gtp_vertex((x, y)))
+        if pos == PASS or pos == RESIGN:
+            print(gtp.gtp_vertex(pos))
+        else:
+            x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
+            y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
+            print(gtp.gtp_vertex((x, y)))
 
         if pos == PASS:
             pass_count += 1

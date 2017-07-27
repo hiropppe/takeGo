@@ -75,7 +75,7 @@ cdef class MCTS:
     
     cdef tree_node_t *select(self, tree_node_t *node, game_state_t *game) nogil
 
-    cdef void expand(self, tree_node_t *node, game_state_t *game) nogil
+    cdef bint expand(self, tree_node_t *node, game_state_t *game) nogil
 
     cdef void evaluate_and_backup(self, tree_node_t *node, game_state_t *game) nogil
 
