@@ -71,6 +71,7 @@ target/
 *.hdf5
 *.sgf
 !params/policy/*.hdf5
+!params/rollout/*.hdf5
 
 #others
 *.swp
