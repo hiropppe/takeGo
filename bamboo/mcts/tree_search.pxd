@@ -25,10 +25,10 @@ ctypedef struct tree_node_t:
     int pos
     int color
     double P     # prior probability
-    double Nv      # evaluation count
-    double Nr      # rollout count(visit count)
+    double Nv    # evaluation count
+    double Nr    # rollout count(visit count)
     double Wv    # evaluation value
-    double Wr      # rollout value
+    double Wr    # rollout value
     double Q     # action-value for edge
     double u     # PUCT algorithm
     double Qu    # Q + u

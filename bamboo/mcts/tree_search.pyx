@@ -29,12 +29,14 @@ from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free
 
 from bamboo.rollout.preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move
 
+from bamboo.go.printer cimport print_board, print_prior_probability, print_rollout_count, print_winning_ratio, print_action_value, print_bonus, print_selection_value
+
 cimport openmp
 
 
 cdef class MCTS(object):
 
-    def __cinit__(self, object policy, int playout_limit=100, int n_threads=1):
+    def __cinit__(self, object policy, int playout_limit=1000, int n_threads=1):
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         self.current_root = uct_hash_size
         self.policy = policy
@@ -65,6 +67,13 @@ cdef class MCTS(object):
         node = &self.nodes[self.current_root]
         max_Nr = 0
         max_pos = PASS
+
+        # print_prior_probability(node)
+        print_rollout_count(node)
+        print_winning_ratio(node)
+        print_action_value(node)
+        print_bonus(node)
+        print_selection_value(node)
 
         for i in range(node.num_child):
             child = node.children[node.children_pos[i]]
@@ -378,7 +387,7 @@ cdef class MCTS(object):
         for i in range(node.num_child):
             pos = node.children_pos[i]
             child = node.children[pos]
-            child.P = probs[pos]
+            child.P = probs[pos]/100.0
             if child.parent.Nr > 0:
                 child.u = EXPLORATION_CONSTANT * child.P * csqrt(child.parent.Nr) / (1 + child.Nr) 
             else:
