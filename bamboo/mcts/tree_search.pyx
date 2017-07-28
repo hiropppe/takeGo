@@ -36,13 +36,14 @@ cimport openmp
 
 cdef class MCTS(object):
 
-    def __cinit__(self, object policy, int playout_limit=1000, int n_threads=1):
+    def __cinit__(self, object policy, double temperature=0.67, int playout_limit=1000, int n_threads=1):
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         self.current_root = uct_hash_size
         self.policy = policy
         self.policy_feature = allocate_feature()
         self.pondering = False
         self.n_playout = 0
+        self.beta = 1.0/temperature
         self.playout_limit = playout_limit
         self.n_threads = n_threads
         self.debug = False
@@ -68,12 +69,12 @@ cdef class MCTS(object):
         max_Nr = 0
         max_pos = PASS
 
-        # print_prior_probability(node)
-        print_rollout_count(node)
-        print_winning_ratio(node)
+        print_prior_probability(node)
+        # print_winning_ratio(node)
         print_action_value(node)
         print_bonus(node)
         print_selection_value(node)
+        print_rollout_count(node)
 
         for i in range(node.num_child):
             child = node.children[node.children_pos[i]]
@@ -149,8 +150,6 @@ cdef class MCTS(object):
         current_node = node
 
         # selection
-        #if self.debug and self.n_playout == 80:
-        #    printf('debug0 %d\n', self.n_playout)
         while True:
             if current_node.is_edge:
                 break
@@ -158,8 +157,6 @@ cdef class MCTS(object):
                 current_node = self.select(current_node, search_game)
 
         # expansion
-        #if self.debug and self.n_playout == 80:
-        #    printf('debug1 %d\n', self.n_playout)
         if current_node.Nr >= EXPANSION_THRESHOLD:
             expanded = self.expand(current_node, search_game)
             if expanded:
@@ -224,23 +221,15 @@ cdef class MCTS(object):
 
         color = game.current_color
 
-        #if self.debug and self.n_playout == 80:
-        #    printf('num_child a %d\n', node.num_child)
         for i in range(node.num_child):
             child = node.children[node.children_pos[i]]
             if child.Qu > max_Qu:
                 max_Qu = child.Qu
                 max_child = child
 
-        #if self.debug and self.n_playout == 80:
-        #    printf('num_child b %d\n', node.num_child)
         put_stone(game, max_child.pos, color)
         game.current_color = FLIP_COLOR(color)
-        #if self.debug and self.n_playout == 80:
-        #    printf('num_child c %d\n', node.num_child)
         update_rollout(game)
-        #if self.debug and self.n_playout == 80:
-        #    printf('num_child d %d\n', node.num_child)
 
         return max_child
 
@@ -384,6 +373,7 @@ cdef class MCTS(object):
         tensor = tensor.reshape((1, 48, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
 
         probs = self.policy.eval_state(tensor)
+        probs = self.apply_temperature(probs)
         for i in range(node.num_child):
             pos = node.children_pos[i]
             child = node.children[pos]
@@ -393,3 +383,10 @@ cdef class MCTS(object):
             else:
                 child.u = child.P 
             child.Qu = child.Q + child.u
+
+    def apply_temperature(self, distribution):
+        log_probabilities = np.log(distribution)
+        log_probabilities = log_probabilities * self.beta
+        log_probabilities = log_probabilities - log_probabilities.max()
+        probabilities = np.exp(log_probabilities)
+        return probabilities / probabilities.sum()

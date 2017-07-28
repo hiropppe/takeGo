@@ -58,6 +58,7 @@ cdef class MCTS:
     cdef int playout_limit
     cdef int n_playout
     cdef int n_threads
+    cdef double beta
     cdef openmp.omp_lock_t tree_lock
     cdef bint debug
 
