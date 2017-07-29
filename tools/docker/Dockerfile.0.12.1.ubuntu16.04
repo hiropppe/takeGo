@@ -1,0 +1,60 @@
+# Dockerfile to make it easy running TensorFlow via Nvidia docker on EC2 g2 instance.
+
+FROM ubuntu:16.04
+
+MAINTAINER sergei <sergei.0910@gmail.com>
+
+WORKDIR /root
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        software-properties-common \
+        build-essential \
+        curl \
+        vim \
+        git \
+        net-tools \
+        iputils-ping \
+        netcat \
+        libfreetype6-dev \
+        libpng12-dev \
+        libzmq3-dev \
+        pkg-config \
+        python \
+        python-dev \
+        python-numpy \
+        python-wheel \
+        python-mock \
+        rsync \
+        zip \
+        unzip \
+        g++ \
+        zlib1g-dev \
+        rsyslog \
+        && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/*
+
+RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
+    python get-pip.py && \
+    rm get-pip.py
+
+RUN pip --no-cache-dir install \
+        ipykernel \
+        jupyter \
+        Cython==0.25.2 \
+        scipy==0.18.1 \
+        h5py==2.6.0 \
+        keras==1.2.0 \
+        sgf==0.5 \
+        Flask==0.12 \
+        && \
+    python -m ipykernel.kernelspec
+
+# Install Tensorflow 
+RUN pip --no-cache-dir install \
+    http://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.12.1-cp27-none-linux_x86_64.whl
+
+git config --global user.name "hiropppe"
+git config --global user.email "sergei.0910@gmail.com"
+
