@@ -9,9 +9,9 @@ class TestMCTS(unittest.TestCase):
     def setUpClass(clazz):
         import tensorflow as tf
         from keras.backend.tensorflow_backend import set_session
-        config = tf.ConfigProto(device_count={"GPU": 0})
-        #config = tf.ConfigProto()
-        #config.gpu_options.per_process_gpu_memory_fraction = 0.2
+        # config = tf.ConfigProto(device_count={"GPU": 0})
+        config = tf.ConfigProto()
+        config.gpu_options.per_process_gpu_memory_fraction = 0.2
         set_session(tf.Session(config=config))
 
         d = os.path.dirname(os.path.abspath(__file__))

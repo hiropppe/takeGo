@@ -55,10 +55,10 @@ cdef class MCTS(object):
         if self.nodes:
             free(self.nodes)
 
-    cdef int genmove(self, game_state_t *game):
+    cdef int genmove(self, game_state_t *game) nogil:
         cdef tree_node_t *node
         cdef tree_node_t *child
-        cdef int max_Nr = 0
+        cdef double max_Nr = .0
         cdef double max_P = .0
         cdef int max_pos
         cdef int i
@@ -69,18 +69,18 @@ cdef class MCTS(object):
         max_Nr = 0
         max_pos = PASS
 
-        print_prior_probability(node)
-        # print_winning_ratio(node)
-        print_action_value(node)
-        print_bonus(node)
         print_selection_value(node)
+        print_prior_probability(node)
+        print_bonus(node)
+        print_winning_ratio(node)
+        # print_action_value(node)
         print_rollout_count(node)
 
         for i in range(node.num_child):
             child = node.children[node.children_pos[i]]
             if child.Nr > max_Nr:
                 max_pos = child.pos
-                max_nr = child.Nr
+                max_Nr = child.Nr
 
         return max_pos
 
@@ -168,9 +168,10 @@ cdef class MCTS(object):
     cdef bint seek_root(self, game_state_t *game) nogil:
         cdef tree_node_t *node
         cdef int pos
-        cdef int color
+        cdef char color, other_color
 
-        color = <int>game.current_color
+        color = game.current_color
+        other_color = FLIP_COLOR(color)
 
         self.current_root = find_same_hash_index(game.current_hash, color, game.moves) 
 
@@ -179,18 +180,18 @@ cdef class MCTS(object):
             node = &self.nodes[self.current_root]
             node.node_i = self.current_root
             node.time_step = game.moves
-            if game.moves > 0:
+            if game.moves == 0:
+                node.color = other_color
+            else:
                 node.pos = game.record[game.moves - 1].pos
                 node.color = <int>game.record[game.moves - 1].color
-
+            node.player_color = color
             node.P = 0
             node.Nv = 0
             node.Wv = 0
             node.Nr = 0
             node.Wr = 0
             node.Q = 0
-            node.u = 0
-            node.Qu = 0
             node.num_child = 0
             node.is_root = True
             node.is_edge = True
@@ -216,6 +217,7 @@ cdef class MCTS(object):
         cdef char color
         cdef tree_node_t *child
         cdef tree_node_t *max_child
+        cdef double child_u, child_Qu
         cdef double max_Qu = -1.0 
         cdef int i
 
@@ -223,8 +225,13 @@ cdef class MCTS(object):
 
         for i in range(node.num_child):
             child = node.children[node.children_pos[i]]
-            if child.Qu > max_Qu:
-                max_Qu = child.Qu
+            if node.Nr > .0:
+                child_u = EXPLORATION_CONSTANT * child.P * (csqrt(node.Nr) / (1 + child.Nr))
+            else:
+                child_u = EXPLORATION_CONSTANT * child.P
+            child_Qu = child.Q + child_u
+            if child_Qu > max_Qu:
+                max_Qu = child_Qu
                 max_child = child
 
         put_stone(game, max_child.pos, color)
@@ -257,14 +264,13 @@ cdef class MCTS(object):
                 child.time_step = child_moves
                 child.pos = child_pos
                 child.color = color
+                child.player_color = other_color
                 child.P = move_probs[i]
                 child.Nv = 0
                 child.Wv = 0
                 child.Nr = 0
                 child.Wr = 0
                 child.Q = 0
-                child.u = child.P
-                child.Qu = child.Q + child.u
                 child.num_child = 0
                 child.is_root = False
                 child.is_edge = True
@@ -341,10 +347,6 @@ cdef class MCTS(object):
                 break
             else:
                 node.Q = node.Wr/node.Nr
-                #node.Q = (1 - MIXING_PARAMETER) * node.Wv/node.Nv + MIXING_PARAMETER * node.Wr/node.Nr
-                node.u = EXPLORATION_CONSTANT * node.P * (csqrt(node.parent.Nr + 1) / (1 + node.Nr))
-                node.Qu = node.Q + node.u
-
                 node = node.parent
 
     def run_policy_network(self):
@@ -377,12 +379,7 @@ cdef class MCTS(object):
         for i in range(node.num_child):
             pos = node.children_pos[i]
             child = node.children[pos]
-            child.P = probs[pos]/100.0
-            if child.parent.Nr > 0:
-                child.u = EXPLORATION_CONSTANT * child.P * csqrt(child.parent.Nr) / (1 + child.Nr) 
-            else:
-                child.u = child.P 
-            child.Qu = child.Q + child.u
+            child.P = probs[pos]
 
     def apply_temperature(self, distribution):
         log_probabilities = np.log(distribution)

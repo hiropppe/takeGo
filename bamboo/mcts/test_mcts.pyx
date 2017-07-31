@@ -125,7 +125,6 @@ def test_expand():
     eq_(child.Wv, 0)
     eq_(child.Wr, 0)
     eq_(child.Q, 0)
-    eq_(child.u, 0)
     eq_(child.num_child, 0)
     eq_(child.is_root, False)
     eq_(child.is_edge, True)
@@ -190,7 +189,7 @@ def test_select():
 
     mcts.expand(node, search_game)
     # set max_child
-    node.children[72].Qu = 0.5
+    node.children[72].P = 0.99
 
     # select down the tree
     node = mcts.select(node, search_game)
@@ -199,12 +198,12 @@ def test_select():
     eq_(node.is_edge, True)
 
     mcts.expand(node, search_game)
-
-    # get max child
-    for i in range(node.num_child):
-        if node.children[node.children_pos[i]].Qu > max_child_Qu:
-            max_child_Qu = node.children[node.children_pos[i]].Qu
-            max_child_pos = node.children_pos[i]
+    # set max_child
+    max_child_pos = 300
+    node.Nr = 1000
+    node.children[max_child_pos].Nr = 1000
+    node.children[max_child_pos].Q = 0.5
+    node.P = 0.99
 
     node = mcts.select(node, search_game)
     eq_(node.pos, onboard_pos[max_child_pos])
@@ -339,7 +338,7 @@ def test_eval_leafs_by_policy_network():
 
 def test_running():
     cdef game_state_t *game = initialize_game()
-    cdef MCTS mcts = MCTS(sl_policy)
+    cdef MCTS mcts = MCTS(sl_policy, playout_limit=5000)
     cdef tree_node_t *node
     cdef int pass_count = 0
     cdef int pos

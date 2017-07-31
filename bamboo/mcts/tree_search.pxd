@@ -24,14 +24,13 @@ ctypedef struct tree_node_t:
     int time_step
     int pos
     int color
+    int player_color
     double P     # prior probability
     double Nv    # evaluation count
     double Nr    # rollout count(visit count)
     double Wv    # evaluation value
     double Wr    # rollout value
     double Q     # action-value for edge
-    double u     # PUCT algorithm
-    double Qu    # Q + u
     bint is_root
     bint is_edge
 
@@ -62,7 +61,7 @@ cdef class MCTS:
     cdef openmp.omp_lock_t tree_lock
     cdef bint debug
 
-    cdef int genmove(self, game_state_t *game)
+    cdef int genmove(self, game_state_t *game) nogil
 
     cdef void start_search_thread(self, game_state_t *game)
 
