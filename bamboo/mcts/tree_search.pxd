@@ -54,6 +54,7 @@ cdef class MCTS:
     cdef cppqueue[tree_node_t *] policy_network_queue
     cdef cppqueue[tree_node_t *] value_network_queue
     cdef bint pondering
+    cdef bint policy_queue_running
     cdef int playout_limit
     cdef int n_playout
     cdef int n_threads

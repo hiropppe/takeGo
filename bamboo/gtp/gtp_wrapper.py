@@ -94,8 +94,7 @@ class ExtendedGtpEngine(gtp.Engine):
     #     return self.cmd_genmove(arguments)
 
 
-def run_gtp(player_obj, inpt_fn=None, name="Gtp Player", version="0.0"):
-    gtp_game = GTPGameConnector(player_obj)
+def run_gtp(gtp_game, inpt_fn=None, name="Gtp Player", version="0.0"):
     gtp_engine = ExtendedGtpEngine(gtp_game, name, version)
     if inpt_fn is None:
         inpt_fn = raw_input

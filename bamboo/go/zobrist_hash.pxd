@@ -26,13 +26,13 @@ cdef unsigned int uct_hash_limit
 
 cdef unsigned long long mt() nogil
 
-cdef void set_hash_size(unsigned int hash_size)
+cpdef void set_hash_size(unsigned int hash_size)
 
-cdef void initialize_hash()
+cpdef void initialize_hash()
 
-cdef void initialize_uct_hash()
+cpdef void initialize_uct_hash()
 
-cdef void clear_uct_hash()
+cpdef void clear_uct_hash()
 
 cdef void delete_old_hash(game_state_t *game) nogil
 

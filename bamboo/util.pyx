@@ -9,9 +9,12 @@ import warnings
 
 from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
-from bamboo.go.board cimport S_BLACK, S_WHITE, PASS, OB_SIZE, BOARD_MAX
-from bamboo.go.board cimport POS, FLIP_COLOR
-from bamboo.go.board cimport game_state_t, board_size
+from libcpp.string cimport string as cppstring
+
+from bamboo.go.board cimport S_BLACK, S_WHITE, PASS, OB_SIZE, BOARD_MAX, BOARD_SIZE, PURE_BOARD_SIZE
+from bamboo.go.board cimport POS, FLIP_COLOR, CORRECT_X, CORRECT_Y
+from bamboo.go.board cimport board_size, pure_board_size, komi
+from bamboo.go.board cimport game_state_t, move_t, board_size
 from bamboo.go.board cimport allocate_game, set_board_size, initialize_const, clear_const, initialize_board, free_game, put_stone
 from bamboo.go.printer cimport print_board
 
@@ -147,19 +150,27 @@ cdef class SGFMoveIterator:
         self.game.current_color = S_BLACK if s_player == 'B' else S_WHITE
 
 
-def save_gamestate_to_sgf(gamestate, path, filename, black_player_name='Unknown',
-                          white_player_name='Unknown', size=19, komi=7.5):
+cdef void save_gamestate_to_sgf(game_state_t *game,
+                                path,
+                                filename,
+                                black_player_name,
+                                white_player_name):
     """Creates a simplified sgf for viewing playouts or positions
     """
-    str_list = []
+    cdef char *stone = ['+', 'B', 'W']
+    cdef int i
+    cdef move_t move
+    cdef int pos, x, y, color
+    cdef list str_list = []
     # Game info
     str_list.append('(;GM[1]FF[4]CA[UTF-8]')
-    str_list.append('SZ[{}]'.format(size))
+    str_list.append('SZ[{}]'.format(pure_board_size))
     str_list.append('KM[{}]'.format(komi))
     str_list.append('PB[{}]'.format(black_player_name))
     str_list.append('PW[{}]'.format(white_player_name))
     cycle_string = 'BW'
     # Handle handicaps
+    """
     if len(gamestate.handicaps) > 0:
         cycle_string = 'WB'
         str_list.append('HA[{}]'.format(len(gamestate.handicaps)))
@@ -167,16 +178,21 @@ def save_gamestate_to_sgf(gamestate, path, filename, black_player_name='Unknown'
         for handicap in gamestate.handicaps:
             str_list.append('[{}{}]'.format(LETTERS[handicap[0]].lower(),
                                             LETTERS[handicap[1]].lower()))
+    """
     # Move list
-    for move, color in zip(gamestate.history, itertools.cycle(cycle_string)):
+    for i in range(game.moves):
+        move = game.record[i]
         # Move color prefix
-        str_list.append(';{}'.format(color))
+        str_list.append(';{:s}'.format(cppstring(1, stone[move.color]).c_str()))
         # Move coordinates
-        if move is None:
+        if move.pos == PASS:
             str_list.append('[tt]')
         else:
-            str_list.append('[{}{}]'.format(LETTERS[move[0]].lower(), LETTERS[move[1]].lower()))
+            x = CORRECT_X(move.pos, board_size, OB_SIZE)
+            y = CORRECT_Y(move.pos, board_size, OB_SIZE)
+            str_list.append('[{:s}{:s}]'.format(LETTERS[x].lower(), LETTERS[y].lower()))
     str_list.append(')')
+
     with open(os.path.join(path, filename), "w") as f:
         f.write(''.join(str_list))
 

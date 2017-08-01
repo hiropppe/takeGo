@@ -1,7 +1,9 @@
+import msgpackrpc
+
 from bamboo.gtp import gtp
 
 from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, PASS, S_BLACK, S_WHITE
-from bamboo.go.board cimport POS, X, Y
+from bamboo.go.board cimport POS, X, Y, CORRECT_X, CORRECT_Y
 from bamboo.go.board cimport game_state_t
 from bamboo.go.board cimport allocate_game, free_game, initialize_board, set_board_size
 from bamboo.go.board cimport do_move
@@ -11,7 +13,70 @@ from bamboo.ai.rollout cimport RolloutPolicyPlayer
 
 from bamboo.go.printer cimport print_board
 
-from bamboo.util import save_gamestate_to_sgf
+
+class MCTSConnector(object):
+
+    def __init__(self, host='localhost', port=5000):
+        self.client = msgpackrpc.Client(
+                        msgpackrpc.Address(host, port),
+                        timeout=60*10)
+
+    def clear(self):
+        self.client.call('clear')
+
+    def get_move(self, color):
+        cdef int x, y, pos
+
+        self.client.call('start_pondering')
+        pos = self.client.call('genmove', color)
+
+        if pos == PASS:
+            return gtp.PASS
+        else:
+            x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
+            y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
+            return (x, y)
+
+    def make_move(self, color, vertex):
+        # vertex in GTP language is 1-indexed, whereas GameState's are zero-indexed
+        cdef int pos, x, y
+        cdef bint is_legal
+
+        if vertex == gtp.PASS:
+            self.client.call('play', PASS, color)
+            return True
+
+        pos = POS(OB_SIZE+vertex[0]-1, OB_SIZE+PURE_BOARD_SIZE-vertex[1], BOARD_SIZE)
+
+        if self.client.call('play', pos, color):
+            return True
+        else:
+            return False
+
+    def set_size(self, bsize):
+        self.client.call('set_size', bsize)
+
+    def set_komi(self, komi):
+        self.client.call('set_komi', komi)
+
+    def set_time(self, m, b, stone):
+        self.client.call('set_time', m, b, stone)
+
+    def set_time_left(self, color, time, stone):
+        self.client.call('set_time_left', color, time, stone)
+
+    def get_current_state_as_sgf(self):
+        return self.client.call('save_sgf', 'Unknown', 'Unknown')
+
+    def place_handicaps(self, vertices):
+        # TODO
+        pass
+
+    def showboard(self):
+        self.client.call('print_board')
+
+    def quit(self):
+        self.client.call('quit')
 
 
 cdef class GTPGameConnector(object):
@@ -103,3 +168,6 @@ cdef class GTPGameConnector(object):
 
     def showboard(self):
         print_board(self.game)
+
+    def quit(self):
+        pass

@@ -42,6 +42,7 @@ cdef class MCTS(object):
         self.policy = policy
         self.policy_feature = allocate_feature()
         self.pondering = False
+        self.policy_queue_running = False
         self.n_playout = 0
         self.beta = 1.0/temperature
         self.playout_limit = playout_limit
@@ -349,11 +350,11 @@ cdef class MCTS(object):
                 node.Q = node.Wr/node.Nr
                 node = node.parent
 
-    def run_policy_network(self):
+    def start_policy_network_queue(self):
         cdef tree_node_t *node
         cdef int i, pos
 
-        while True:
+        while self.policy_queue_running:
             if self.policy_network_queue.empty():
                 continue
 
@@ -364,6 +365,9 @@ cdef class MCTS(object):
             free_game(node.game)
 
             self.policy_network_queue.pop()
+
+    def stop_policy_network_queue(self):
+        self.policy_queue_running = False
 
     cdef void eval_leafs_by_policy_network(self, tree_node_t *node):
         cdef int i, pos

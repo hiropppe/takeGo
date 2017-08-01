@@ -16,3 +16,10 @@ cdef class SGFMoveIterator:
     cdef bint verbose
 
     cdef int sgf_init_game(self, object sgf_root) except? -1
+
+
+cdef void save_gamestate_to_sgf(game_state_t *game,
+                                path,
+                                filename,
+                                black_player_name,
+                                white_player_name)

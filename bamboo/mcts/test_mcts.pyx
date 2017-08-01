@@ -338,7 +338,7 @@ def test_eval_leafs_by_policy_network():
 
 def test_running():
     cdef game_state_t *game = initialize_game()
-    cdef MCTS mcts = MCTS(sl_policy, playout_limit=5000)
+    cdef MCTS mcts = MCTS(sl_policy, playout_limit=10000)
     cdef tree_node_t *node
     cdef int pass_count = 0
     cdef int pos

@@ -26,11 +26,14 @@ cdef int nakade_start
 cdef int x33_start
 cdef int d12_start
 
-cdef void initialize_rollout(game_state_t *game) nogil
+cdef double rollout_weights[100000]
 
+cpdef void initialize_const(int nakade_size, int x33_size, int d12_size)
+cpdef void set_rollout_parameter(object weights_hdf5) 
+
+cdef void initialize_rollout(game_state_t *game) nogil
 cdef void update_rollout(game_state_t *game) nogil
 
-cdef void initialize_const(int nakade_size, int x33_size, int d12_size) nogil
 cdef void initialize_planes(game_state_t *game) nogil
 cdef void update_planes_all(game_state_t *game) nogil
 cdef void update_planes(game_state_t *game) nogil
@@ -44,9 +47,6 @@ cdef void clear_onehot_index(rollout_feature_t *feature, int pos) nogil
 cdef void clear_updated_string_cache(game_state_t *game) nogil
 cdef bint memorize_updated(rollout_feature_t *feature, int pos) nogil
 
-cdef double rollout_weights[100000]
-
-cpdef void set_rollout_parameter(object weights_hdf5) 
 cdef void initialize_probs(game_state_t *game) nogil
 cdef void update_probs_all(game_state_t *game) nogil
 cdef void update_probs(game_state_t *game) nogil

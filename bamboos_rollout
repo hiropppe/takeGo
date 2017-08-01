@@ -57,4 +57,4 @@ if __name__ == "__main__":
         app.run(host="0.0.0.0", port=5001, debug=False, threaded=True)
     else:
         from bamboo.gtp.gtp_wrapper import run_gtp
-        run_gtp(player)
+        run_gtp(gtp_game)
