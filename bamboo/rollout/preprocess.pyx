@@ -22,11 +22,12 @@ from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout.pattern cimport d12_hash, d12_hashmap, d12_pos_mt
 
 
-cdef void initialize_const(int nakade_feature_size,
-                           int x33_feature_size,
-                           int d12_feature_size) nogil:
+cpdef void initialize_const(int nakade_feature_size,
+                            int x33_feature_size,
+                            int d12_feature_size):
     global response_size, save_atari_size, neighbor_size, nakade_size, x33_size, d12_size
     global response_start, save_atari_start, neighbor_start, nakade_start, x33_start, d12_start
+    global feature_size
 
     response_size = 1
     save_atari_size = 1
