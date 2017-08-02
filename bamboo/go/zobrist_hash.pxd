@@ -23,6 +23,7 @@ cdef unsigned long long shape_bit[529]      # BOARD_MAX
 cdef unsigned int uct_hash_size
 cdef unsigned int uct_hash_limit
 
+cdef unsigned int used
 
 cdef unsigned long long mt() nogil
 

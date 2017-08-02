@@ -17,13 +17,13 @@ cdef int seed = rand_gen[0]()
 cdef mt19937_64 *engine = new mt19937_64(seed)
 
 cdef node_hash_t *node_hash
-cdef unsigned int used = 0
 cdef int oldest_move = 1
 
 cdef bint enough_size = True
 
-cdef unsigned int uct_hash_size = UCT_HASH_SIZE
-cdef unsigned int uct_hash_limit = UCT_HASH_SIZE * 9 / 10
+uct_hash_size = UCT_HASH_SIZE
+uct_hash_limit = UCT_HASH_SIZE * 9 / 10
+used = 0
 
 
 cdef unsigned long long mt() nogil:
