@@ -75,6 +75,9 @@ cdef class MCTSServer(object):
     def set_time_left(self, color, time, stone):
         pass
 
+    def set_playout_limit(self, limit):
+        self.mcts.playout_limit = limit
+
     def showboard(self):
         print_board(self.game)
 

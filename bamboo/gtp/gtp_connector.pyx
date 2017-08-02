@@ -1,3 +1,7 @@
+# cython: boundscheck = False
+# cython: wraparound = False
+# cython: cdivision = True
+
 import msgpackrpc
 
 from bamboo.gtp import gtp
@@ -16,7 +20,7 @@ from bamboo.go.printer cimport print_board
 
 class MCTSConnector(object):
 
-    def __init__(self, host='localhost', port=5000):
+    def __init__(self, host='localhost', port=6000):
         self.client = msgpackrpc.Client(
                         msgpackrpc.Address(host, port),
                         timeout=60*10)
@@ -64,6 +68,9 @@ class MCTSConnector(object):
 
     def set_time_left(self, color, time, stone):
         self.client.call('set_time_left', color, time, stone)
+
+    def set_playout_limit(self, limit):
+        self.client.call('set_playout_limit', limit)
 
     def get_current_state_as_sgf(self):
         return self.client.call('save_sgf', 'Unknown', 'Unknown')
