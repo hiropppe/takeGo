@@ -23,7 +23,7 @@ from bamboo.go.board cimport onboard_pos, komi
 from bamboo.go.board cimport game_state_t
 from bamboo.go.board cimport set_board_size, initialize_board
 from bamboo.go.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
-from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit
+from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
 from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
 
 from bamboo.go.policy_feature cimport policy_feature_t
@@ -38,7 +38,11 @@ cimport openmp
 
 cdef class MCTS(object):
 
-    def __cinit__(self, object policy, double temperature=0.67, int playout_limit=1000, int n_threads=1):
+    def __cinit__(self,
+                  object policy,
+                  double temperature=0.67,
+                  int playout_limit=5000,
+                  int n_threads=1):
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         self.current_root = uct_hash_size
         self.policy = policy
@@ -110,7 +114,7 @@ cdef class MCTS(object):
         printf(">> Playout (%s)\n", cppstring(1, stone[node.player_color]).c_str())
         if simulated:
             printf('Pre Playouts       : %d\n', <int>node.Nr)
-            printf('Pre Winning ratio  : %lf %\n', node.Wr * 100.0)
+            printf('Pre Winning ratio  : %3.2lf %\n', node.Wr*100.0/node.Nr)
         else:
             printf('No playout information found for current state.\n')
 
@@ -128,16 +132,17 @@ cdef class MCTS(object):
                 self.run_search(game) 
 
         gettimeofday(&end_time, NULL)
-
         elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
 
-        printf("Winning Ratio      : %3.2lf %\n", 100.0-(node.Wr*100.0/node.Nr))
         printf('Playouts           : %d\n', self.n_playout)
         printf('Elapsed            : %2.3lf sec\n', elapsed)
         if elapsed != 0.0:
             printf('Playout Speed      : %d PO/sec\n', <int>(self.n_playout/elapsed))
+        printf('Total Playouts     : %d\n', <int>node.Nr)
+        printf("Winning Ratio      : %3.2lf %\n", 100.0-(node.Wr*100.0/node.Nr))
         printf('Queue size (P)     : %d\n', self.policy_network_queue.size())
         printf('Queue size max (P) : %d\n', self.max_queue_size_P)
+        printf('Hash status of use : %3.2lf % (%u/%u)\n', used*100.0/uct_hash_size, used, uct_hash_size)
 
         self.pondering = False
 
@@ -288,7 +293,7 @@ cdef class MCTS(object):
             child_pos = onboard_pos[i]
             if is_legal_not_eye(game, child_pos, color):
                 child_hash = game.current_hash ^ hash_bit[child_pos][<int>color]
-                child_i = search_empty_index(child_hash, color, child_moves)
+                child_i = search_empty_index(child_hash, other_color, child_moves)
                 # initialize new edge
                 child = &self.nodes[child_i]
                 child.node_i = child_i
