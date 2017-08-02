@@ -114,7 +114,8 @@ cdef class MCTS(object):
         printf(">> Playout (%s)\n", cppstring(1, stone[node.player_color]).c_str())
         if simulated:
             printf('Pre Playouts       : %d\n', <int>node.Nr)
-            printf('Pre Winning ratio  : %3.2lf %\n', node.Wr*100.0/node.Nr)
+            if node.Nr != 0.0:
+                printf('Pre Winning ratio  : %3.2lf %\n', node.Wr*100.0/node.Nr)
         else:
             printf('No playout information found for current state.\n')
 
@@ -391,6 +392,8 @@ cdef class MCTS(object):
     def start_policy_network_queue(self):
         cdef tree_node_t *node
         cdef int i, pos
+
+        self.policy_queue_running = True 
 
         while self.policy_queue_running:
             if self.policy_network_queue.empty():
