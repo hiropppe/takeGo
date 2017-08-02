@@ -181,8 +181,8 @@ class Engine(object):
         return gtp_list(self.known_commands)
 
     def cmd_quit(self, arguments):
-        self._game.quit()
         sgf_file_name = self._game.get_current_state_as_sgf()
+        self._game.quit()
         self.disconnect = True
         return sgf_file_name
 
