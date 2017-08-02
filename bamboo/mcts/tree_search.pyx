@@ -9,8 +9,10 @@ cimport numpy as np
 from libc.stdio cimport printf
 from libc.stdlib cimport abort, malloc, free, rand
 from libc.math cimport sqrt as csqrt
-
+from libc.time cimport clock as cclock
 from libcpp.queue cimport queue as cppqueue
+from libcpp.string cimport string as cppstring
+from posix.time cimport gettimeofday, timeval, timezone
 
 from cython import cdivision
 from cython.parallel import prange
@@ -47,6 +49,7 @@ cdef class MCTS(object):
         self.beta = 1.0/temperature
         self.playout_limit = playout_limit
         self.n_threads = n_threads
+        self.max_queue_size_P = 0
         self.debug = False
 
         initialize_feature(self.policy_feature) 
@@ -86,27 +89,57 @@ cdef class MCTS(object):
         return max_pos
 
     cdef void start_search_thread(self, game_state_t *game):
+        cdef char *stone = ['#', 'B', 'W']
         cdef int i
         cdef tree_node_t *node
         cdef bint expanded
+        cdef bint simulated
+        cdef timeval start_time, end_time
+        cdef double elapsed
 
         self.pondering = True
 
+        gettimeofday(&start_time, NULL)
+
         delete_old_hash(game)
 
-        self.seek_root(game)
+        simulated = self.seek_root(game)
 
         node = &self.nodes[self.current_root]
+
+        printf(">> Playout (%s)\n", cppstring(1, stone[node.player_color]).c_str())
+        if simulated:
+            printf('Pre Playouts       : %d\n', <int>node.Nr)
+            printf('Pre Winning ratio  : %lf %\n', node.Wr * 100.0)
+        else:
+            printf('No playout information found for current state.\n')
+
         if node.is_edge:
             expanded = self.expand(node, game)
             if expanded:
                 self.eval_leafs_by_policy_network(node)
+        else:
+            print_rollout_count(node)
 
         if self.n_threads <= 1:
             self.run_search(game) 
         else:
             for i in prange(self.n_threads, nogil=True):
                 self.run_search(game) 
+
+        gettimeofday(&end_time, NULL)
+
+        elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
+
+        printf("Winning Ratio      : %3.2lf %\n", 100.0-(node.Wr*100.0/node.Nr))
+        printf('Playouts           : %d\n', self.n_playout)
+        printf('Elapsed            : %2.3lf sec\n', elapsed)
+        if elapsed != 0.0:
+            printf('Playout Speed      : %d PO/sec\n', <int>(self.n_playout/elapsed))
+        printf('Queue size (P)     : %d\n', self.policy_network_queue.size())
+        printf('Queue size max (P) : %d\n', self.max_queue_size_P)
+
+        self.pondering = False
 
     cdef void stop_search_thread(self):
         self.pondering = False
@@ -135,10 +168,6 @@ cdef class MCTS(object):
             self.search(node, search_game)
 
             self.n_playout += 1
-
-        printf('%d Playout\n', self.n_playout)
-
-        self.pondering = False
 
         free_game(search_game)
 
@@ -249,6 +278,7 @@ cdef class MCTS(object):
         cdef char other_color = FLIP_COLOR(color)
         cdef unsigned long long child_hash
         cdef double *move_probs
+        cdef int queue_size
         cdef int i
 
         # tree policy not implemented yet. use rollout policy instead.
@@ -287,6 +317,9 @@ cdef class MCTS(object):
             node.game = allocate_game()
             copy_game(node.game, game)
             self.policy_network_queue.push(node)
+            queue_size = self.policy_network_queue.size()
+            if queue_size > self.max_queue_size_P:
+                self.max_queue_size_P = queue_size
             return True
         else:
             return False

@@ -60,6 +60,7 @@ cdef class MCTS:
     cdef int n_threads
     cdef double beta
     cdef openmp.omp_lock_t tree_lock
+    cdef int max_queue_size_P
     cdef bint debug
 
     cdef int genmove(self, game_state_t *game) nogil
