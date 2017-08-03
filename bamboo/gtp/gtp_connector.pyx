@@ -2,7 +2,7 @@
 # cython: wraparound = False
 # cython: cdivision = True
 
-import msgpackrpc
+import pyjsonrpc 
 
 from bamboo.gtp import gtp
 
@@ -21,20 +21,20 @@ from bamboo.go.printer cimport print_board
 class MCTSConnector(object):
 
     def __init__(self, host='localhost', port=6000):
-        self.client = msgpackrpc.Client(
-                        msgpackrpc.Address(host, port),
-                        timeout=60*10)
+        self.client = pyjsonrpc.HttpClient(
+            url='http://{:s}:{:d}/'.format(host, port),
+            timeout=24*60*60)
 
     def clear(self):
-        self.client.call('clear')
+        self.client.clear()
 
     def get_move(self, color):
         cdef int x, y, pos
 
-        self.client.call('start_pondering')
-        self.client.call('eval_all_leafs_by_policy_network')
+        self.client.start_pondering()
+        self.client.eval_all_leafs_by_policy_network()
 
-        pos = self.client.call('genmove', color)
+        pos = self.client.genmove(color)
 
         if pos == PASS:
             return gtp.PASS
@@ -49,43 +49,43 @@ class MCTSConnector(object):
         cdef bint is_legal
 
         if vertex == gtp.PASS:
-            self.client.call('play', PASS, color)
+            self.client.play(PASS, color)
             return True
 
         pos = POS(OB_SIZE+vertex[0]-1, OB_SIZE+PURE_BOARD_SIZE-vertex[1], BOARD_SIZE)
 
-        if self.client.call('play', pos, color):
+        if self.client.play(pos, color):
             return True
         else:
             return False
 
     def set_size(self, bsize):
-        self.client.call('set_size', bsize)
+        self.client.set_size(bsize)
 
     def set_komi(self, komi):
-        self.client.call('set_komi', komi)
+        self.client.set_komi(komi)
 
     def set_time(self, m, b, stone):
-        self.client.call('set_time', m, b, stone)
+        self.client.set_time(m, b, stone)
 
     def set_time_left(self, color, time, stone):
-        self.client.call('set_time_left', color, time, stone)
+        self.client.set_time_left(color, time, stone)
 
     def set_playout_limit(self, limit):
-        self.client.call('set_playout_limit', limit)
+        self.client.set_playout_limit(limit)
 
     def get_current_state_as_sgf(self):
-        return self.client.call('save_sgf', 'Unknown', 'Unknown')
+        return self.client.save_sgf('Unknown', 'Unknown')
 
     def place_handicaps(self, vertices):
         # TODO
         pass
 
     def showboard(self):
-        self.client.call('print_board')
+        self.client.print_board()
 
     def quit(self):
-        self.client.call('quit')
+        self.client.quit()
 
 
 cdef class GTPGameConnector(object):

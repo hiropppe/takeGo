@@ -86,3 +86,9 @@ cdef class MCTS:
     cdef void backup(self, tree_node_t *node, int winner) nogil
 
     cdef void eval_leafs_by_policy_network(self, tree_node_t *node)
+
+
+cdef class PyMCTS:
+    cdef:
+        MCTS mcts
+        game_state_t *game

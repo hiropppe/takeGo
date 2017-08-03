@@ -1,4 +1,4 @@
-import msgpackrpc
+import pyjsonrpc
 import os
 import sys
 
@@ -6,10 +6,13 @@ from bamboo.go.zobrist_hash import set_hash_size, initialize_hash, initialize_uc
 from bamboo.models import policy
 from bamboo.rollout.pattern import read_rands, init_d12_hash, init_x33_hash
 from bamboo.rollout.preprocess import initialize_const, set_rollout_parameter
-from bamboo.mcts.mcts_server import MCTSServer
+from bamboo.mcts.tree_search import PyMCTS
+from bamboo.mcts.mcts_server import set_mcts, MCTSRequestHandler
 
 
 if __name__ == "__main__":
+    global mcts
+
     import argparse
     parser = argparse.ArgumentParser(description='Run GTP')
     parser.add_argument("--policy-model", "-M", type=str, required=True,
@@ -60,13 +63,18 @@ if __name__ == "__main__":
     initialize_const(0, x33_size, d12_size)
     set_rollout_parameter(args.rollout_weights)
 
-    server = msgpackrpc.Server(MCTSServer(sl_policy, args.policy_temp))
-    server.listen(msgpackrpc.Address(args.host, args.port))
+    set_mcts(PyMCTS(sl_policy, args.policy_temp))
 
-    print('MCTS server starting')
+    server = pyjsonrpc.ThreadingHttpServer(
+        server_address = (args.host, args.port),
+        RequestHandlerClass = MCTSRequestHandler
+    )
+
+    print('Starting MCTS server ...')
+    print('URL: http://{:s}:{:d}'.format(args.host, args.port))
     try:
-        server.start()
+        server.serve_forever()
     except KeyboardInterrupt:
-        server.stop()
-        print('Server stopped')
+        server.shutdown()
+        print('Server shut down')
 

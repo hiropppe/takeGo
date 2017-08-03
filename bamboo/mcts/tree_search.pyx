@@ -2,6 +2,7 @@
 # cython: wraparound = False
 # cython: cdivision = True
 
+import time
 import numpy as np
 
 cimport numpy as np
@@ -21,17 +22,16 @@ from bamboo.go.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, MAX_M
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport onboard_pos, komi
 from bamboo.go.board cimport game_state_t
-from bamboo.go.board cimport set_board_size, initialize_board
+from bamboo.go.board cimport set_board_size, set_komi, initialize_board
 from bamboo.go.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
 from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
 from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
-
 from bamboo.go.policy_feature cimport policy_feature_t
 from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
-
 from bamboo.rollout.preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move
 
 from bamboo.go.printer cimport print_board, print_prior_probability, print_rollout_count, print_winning_ratio, print_action_value, print_bonus, print_selection_value
+from bamboo.util cimport save_gamestate_to_sgf 
 
 cimport openmp
 
@@ -390,11 +390,22 @@ cdef class MCTS(object):
     def start_policy_network_queue(self):
         cdef tree_node_t *node
         cdef int i, pos
+        cdef int n_eval = 0
 
-        self.policy_queue_running = True 
+        if self.policy_queue_running:
+            printf('>> Policy network queue already running.\n')
+            return
+
+        self.policy_queue_running = True
+
+        printf('>> Starting policy network queue...\n')
 
         while self.policy_queue_running:
             if self.policy_network_queue.empty():
+                if n_eval > 0:
+                    printf('>> Policy Network Queue evaluated: %d node\n', n_eval)
+                n_eval = 0
+                time.sleep(.5)
                 continue
 
             node = self.policy_network_queue.front()
@@ -405,12 +416,18 @@ cdef class MCTS(object):
 
             self.policy_network_queue.pop()
 
+            n_eval += 1
+
+        printf('>> Policy network queue shut down.\n')
+
     def stop_policy_network_queue(self):
+        print('>> Shutting down policy network queue...')
         self.policy_queue_running = False
 
     def eval_all_leafs_by_policy_network(self):
         cdef tree_node_t *node
         cdef int i, pos
+        cdef int n_eval = 0
 
         while not self.policy_network_queue.empty():
 
@@ -421,6 +438,10 @@ cdef class MCTS(object):
             free_game(node.game)
 
             self.policy_network_queue.pop()
+
+            n_eval += 1
+
+        printf('>> Policy Network Queue evaluated: %d node\n', n_eval)
 
     cdef void eval_leafs_by_policy_network(self, tree_node_t *node):
         cdef int i, pos
@@ -444,3 +465,86 @@ cdef class MCTS(object):
         log_probabilities = log_probabilities - log_probabilities.max()
         probabilities = np.exp(log_probabilities)
         return probabilities / probabilities.sum()
+
+
+cdef class PyMCTS(object):
+
+    def __cinit__(self,
+                  object policy,
+                  double temperature=0.67,
+                  int playout_limit=8000,
+                  int n_threads=1):
+        self.mcts = MCTS(policy, temperature, playout_limit, n_threads)
+
+        self.game = allocate_game()
+        initialize_board(self.game)
+        initialize_rollout(self.game)
+
+    def clear(self):
+        self.mcts.stop_search_thread()
+        self.mcts.stop_policy_network_queue()
+        initialize_board(self.game)
+        initialize_rollout(self.game)
+
+    def start_pondering(self):
+        self.mcts.start_search_thread(self.game)
+
+    def stop_pondering(self):
+        self.mcts.stop_search_thread()
+
+    def genmove(self, color):
+        self.game.current_color = color
+        pos = self.mcts.genmove(self.game)
+        return pos
+
+    def play(self, pos, color):
+        cdef bint legal
+        legal = put_stone(self.game, pos, color)
+        if legal:
+            self.game.current_color = FLIP_COLOR(self.game.current_color)
+            update_rollout(self.game)
+            print_board(self.game)
+            return True
+        else:
+            return False
+
+    def start_policy_network_queue(self):
+        self.mcts.start_policy_network_queue()
+
+    def stop_policy_network_queue(self):
+        self.mcts.stop_policy_network_queue()
+
+    def eval_all_leafs_by_policy_network(self):
+        self.mcts.eval_all_leafs_by_policy_network()
+
+    def set_size(self, bsize):
+        set_board_size(bsize)
+
+    def set_komi(self, new_komi):
+        set_komi(new_komi)
+
+    def set_time(self, m, b, stone):
+        pass
+
+    def set_time_left(self, color, time, stone):
+        pass
+
+    def set_playout_limit(self, limit):
+        self.mcts.playout_limit = limit
+
+    def showboard(self):
+        print_board(self.game)
+
+    def save_sgf(self, black_name, white_name):
+        from tempfile import NamedTemporaryFile
+        temp_file = NamedTemporaryFile(delete=False)
+        temp_file_name = temp_file.name + '.sgf'
+        save_gamestate_to_sgf(self.game, '/tmp/', temp_file_name, black_name, white_name)
+        return temp_file_name
+
+    def quit(self):
+        self.mcts.stop_search_thread()
+        self.mcts.stop_policy_network_queue()
+        initialize_board(self.game)
+        initialize_rollout(self.game)
+
