@@ -32,6 +32,8 @@ class MCTSConnector(object):
         cdef int x, y, pos
 
         self.client.call('start_pondering')
+        self.client.call('eval_all_leafs_by_policy_network')
+
         pos = self.client.call('genmove', color)
 
         if pos == PASS:

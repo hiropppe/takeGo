@@ -63,6 +63,9 @@ cdef class MCTSServer(object):
     def stop_policy_network_queue(self):
         self.mcts.stop_policy_network_queue()
 
+    def eval_all_leafs_by_policy_network(self):
+        self.mcts.eval_all_leafs_by_policy_network()
+
     def set_size(self, bsize):
         set_board_size(bsize)
 

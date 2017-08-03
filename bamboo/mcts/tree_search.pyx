@@ -97,7 +97,6 @@ cdef class MCTS(object):
         cdef int i
         cdef tree_node_t *node
         cdef bint expanded
-        cdef bint simulated
         cdef timeval start_time, end_time
         cdef double elapsed
 
@@ -107,15 +106,14 @@ cdef class MCTS(object):
 
         delete_old_hash(game)
 
-        simulated = self.seek_root(game)
+        self.seek_root(game)
 
         node = &self.nodes[self.current_root]
 
         printf(">> Playout (%s)\n", cppstring(1, stone[node.player_color]).c_str())
-        if simulated:
+        if node.Nr != 0.0:
             printf('Pre Playouts       : %d\n', <int>node.Nr)
-            if node.Nr != 0.0:
-                printf('Pre Winning ratio  : %3.2lf %\n', node.Wr*100.0/node.Nr)
+            printf('Pre Winning ratio  : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
         else:
             printf('No playout information found for current state.\n')
 
@@ -409,6 +407,20 @@ cdef class MCTS(object):
 
     def stop_policy_network_queue(self):
         self.policy_queue_running = False
+
+    def eval_all_leafs_by_policy_network(self):
+        cdef tree_node_t *node
+        cdef int i, pos
+
+        while not self.policy_network_queue.empty():
+
+            node = self.policy_network_queue.front()
+
+            self.eval_leafs_by_policy_network(node)
+
+            free_game(node.game)
+
+            self.policy_network_queue.pop()
 
     cdef void eval_leafs_by_policy_network(self, tree_node_t *node):
         cdef int i, pos
