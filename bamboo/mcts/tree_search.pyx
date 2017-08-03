@@ -173,6 +173,11 @@ cdef class MCTS(object):
 
             self.n_playout += 1
 
+            # workaround. CPU cannot be assigned.
+            if self.policy_network_queue.size() > 10:
+                with gil:
+                    time.sleep(.05)
+
         free_game(search_game)
 
     cdef void search(self,
@@ -482,7 +487,6 @@ cdef class PyMCTS(object):
 
     def clear(self):
         self.mcts.stop_search_thread()
-        self.mcts.stop_policy_network_queue()
         initialize_board(self.game)
         initialize_rollout(self.game)
 
@@ -544,7 +548,6 @@ cdef class PyMCTS(object):
 
     def quit(self):
         self.mcts.stop_search_thread()
-        self.mcts.stop_policy_network_queue()
         initialize_board(self.game)
         initialize_rollout(self.game)
 

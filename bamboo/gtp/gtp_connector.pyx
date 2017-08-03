@@ -32,7 +32,7 @@ class MCTSConnector(object):
         cdef int x, y, pos
 
         self.client.start_pondering()
-        self.client.eval_all_leafs_by_policy_network()
+        # self.client.eval_all_leafs_by_policy_network()
 
         pos = self.client.genmove(color)
 
