@@ -1,4 +1,9 @@
+# cython: boundscheck = False
+# cython: wraparound = False
+# cython: cdivision = True
+
 import numpy as np
+import os
 cimport numpy as np
 
 from bamboo.models import policy
@@ -24,21 +29,9 @@ from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
 from bamboo.gtp import gtp
 
 
-cdef game_state_t* initialize_game(int board_size=19):
+def self_play(playout_limit=1000):
     cdef game_state_t *game
-
-    set_board_size(board_size)
-
-    game = allocate_game()
-    initialize_board(game)
-    initialize_rollout(game)
-
-    return game
-
-
-def test_running(playout_limit):
-    cdef game_state_t *game = initialize_game()
-    cdef MCTS mcts = MCTS(sl_policy, playout_limit=10000)
+    cdef MCTS mcts
     cdef tree_node_t *node
     cdef int pass_count = 0
     cdef int pos
@@ -52,12 +45,12 @@ def test_running(playout_limit):
     set_session(tf.Session(config=config))
 
     d = os.path.dirname(os.path.abspath(__file__))
-    # setup supervised policy
+    # supervised policy
     model = os.path.join(d, '../../params/policy/policy.json')
     weights = os.path.join(d, '../../params/policy/weights.00088.hdf5')
-    # setup rollout policy
+    # rollout policy
     rollout_weights = os.path.join(d, '../../params/rollout/sample.hdf5')
-    # setup pattern hash for rollout
+    # pattern hash for rollout
     rands_txt = os.path.join(d, '../../params/rollout/mt_rands.txt')
     d12_csv = os.path.join(d, '../../params/rollout/d12.csv')
     x33_csv = os.path.join(d, '../../params/rollout/x33.csv')
@@ -78,20 +71,17 @@ def test_running(playout_limit):
 
     initialize_uct_hash()
 
-    game = initialize_game()
+    set_board_size(19)
+    game = allocate_game()
+    initialize_board(game)
+    initialize_rollout(game)
+
     game.current_color = S_BLACK
 
     mcts = MCTS(sl_policy, playout_limit=playout_limit)
     while True:
         mcts.start_search_thread(game)
-
-        while True:
-            if mcts.policy_network_queue.empty():
-                break
-            node = mcts.policy_network_queue.front()
-            mcts.eval_leafs_by_policy_network(node)
-            free_game(node.game)
-            mcts.policy_network_queue.pop()
+        mcts.eval_all_leafs_by_policy_network()
 
         pos = mcts.genmove(game)
 

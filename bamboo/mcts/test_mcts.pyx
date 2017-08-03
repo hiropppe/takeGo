@@ -336,54 +336,6 @@ def test_eval_leafs_by_policy_network():
     ok_(mcts.policy_network_queue.empty())
 
 
-def test_running():
-    cdef game_state_t *game = initialize_game()
-    cdef MCTS mcts = MCTS(sl_policy, playout_limit=10000)
-    cdef tree_node_t *node
-    cdef int pass_count = 0
-    cdef int pos
-    cdef int i
-
-    initialize_rollout(game)
-
-    game.current_color = S_BLACK
-
-    while True:
-        mcts.start_search_thread(game)
-
-        while True:
-            if mcts.policy_network_queue.empty():
-                break
-            node = mcts.policy_network_queue.front()
-            mcts.eval_leafs_by_policy_network(node)
-            free_game(node.game)
-            mcts.policy_network_queue.pop()
-
-        pos = mcts.genmove(game)
-
-        put_stone(game, pos, game.current_color)
-        game.current_color = FLIP_COLOR(game.current_color) 
-        update_rollout(game)
-
-        print_board(game)
-
-        if pos == PASS or pos == RESIGN:
-            print(gtp.gtp_vertex(pos))
-        else:
-            x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
-            y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
-            print(gtp.gtp_vertex((x, y)))
-
-        if pos == PASS:
-            pass_count += 1
-            if pass_count == 2:
-                break
-        else:
-            pass_count = 0
-
-    print('Score: {:s}'.format(str(calculate_score(game) - komi)))
-
-
 cdef game_state_t* initialize_game(int board_size=19):
     cdef game_state_t *game
 

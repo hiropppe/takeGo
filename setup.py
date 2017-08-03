@@ -35,6 +35,7 @@ extensions = [Extension('bamboo.go.board', sources=['bamboo/go/board.pyx'], lang
               Extension('bamboo.rollout.test_x33_pattern', sources=["bamboo/rollout/test_x33_pattern.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout.test_d12_pattern', sources=["bamboo/rollout/test_d12_pattern.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout.test_rollout_preprocess', sources=["bamboo/rollout/test_rollout_preprocess.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.mcts.self_play', sources=["bamboo/mcts/self_play.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.mcts.test_mcts', sources=["bamboo/mcts/test_mcts.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.test_util', sources=["bamboo/test_util.pyx"], language="c++", extra_compile_args=["-std=c++11"])]
 

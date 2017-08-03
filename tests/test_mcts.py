@@ -52,6 +52,3 @@ class TestMCTS(unittest.TestCase):
 
     def test_rollout(self):
         ctest.test_rollout()
-
-    def test_running(self):
-        ctest.test_running()
