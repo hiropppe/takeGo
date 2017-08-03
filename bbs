@@ -31,6 +31,7 @@ if __name__ == "__main__":
     # m, ms, b, bs = [(int)(t) for t in args.time.split()]
 
     gtp_game = MCTSConnector(args.rpc_host, args.rpc_port)
+    gtp_game.set_playout_limit(args.n_playout)
     gtp_engine = ExtendedGtpEngine(gtp_game, name='bambooStone', version='0.0')
 
     if args.server:
