@@ -25,7 +25,7 @@ from bamboo.go.board cimport game_state_t
 from bamboo.go.board cimport set_board_size, set_komi, initialize_board
 from bamboo.go.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
 from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
-from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
+from bamboo.go.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
 from bamboo.go.policy_feature cimport policy_feature_t
 from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
 from bamboo.rollout.preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move
@@ -485,11 +485,13 @@ cdef class PyMCTS(object):
         self.mcts = MCTS(policy, temperature, playout_limit, n_threads)
 
         self.game = allocate_game()
+        initialize_uct_hash()
         initialize_board(self.game)
         initialize_rollout(self.game)
 
     def clear(self):
         self.mcts.stop_search_thread()
+        initialize_uct_hash()
         initialize_board(self.game)
         initialize_rollout(self.game)
 
@@ -551,6 +553,7 @@ cdef class PyMCTS(object):
 
     def quit(self):
         self.mcts.stop_search_thread()
+        initialize_uct_hash()
         initialize_board(self.game)
         initialize_rollout(self.game)
 
