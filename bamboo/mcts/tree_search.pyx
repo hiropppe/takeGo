@@ -18,7 +18,7 @@ from posix.time cimport gettimeofday, timeval, timezone
 from cython import cdivision
 from cython.parallel import prange
 
-from bamboo.go.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS
+from bamboo.go.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS, RESIGN
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport onboard_pos, komi
 from bamboo.go.board cimport game_state_t
@@ -83,6 +83,9 @@ cdef class MCTS(object):
         print_winning_ratio(node)
         # print_action_value(node)
         print_rollout_count(node)
+
+        if node.Nr != 0.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
+            return RESIGN
 
         for i in range(node.num_child):
             child = node.children[node.children_pos[i]]

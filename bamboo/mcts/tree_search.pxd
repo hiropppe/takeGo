@@ -13,6 +13,7 @@ cdef extern from "ray.h":
     int NOT_EXPANDED
     int PASS_INDEX
 
+    int RESIGN_THRESHOLD
     int EXPANSION_THRESHOLD
     int EXPLORATION_CONSTANT
     int VIRTUAL_LOSS
