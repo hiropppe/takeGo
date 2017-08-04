@@ -81,7 +81,7 @@ class MCTSRequestHandler(pyjsonrpc.HttpRequestHandler):
 
     @pyjsonrpc.rpcmethod
     def save_sgf(self, black_name, white_name):
-        mcts.save_sgf(black_name, white_name)
+        return mcts.save_sgf(black_name, white_name)
 
     @pyjsonrpc.rpcmethod
     def quit(self):
