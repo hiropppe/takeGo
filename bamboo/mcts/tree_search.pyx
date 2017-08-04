@@ -59,9 +59,30 @@ cdef class MCTS(object):
         initialize_feature(self.policy_feature) 
 
     def __dealloc__(self):
-        free_feature(self.policy_feature)
         if self.nodes:
             free(self.nodes)
+
+        free_feature(self.policy_feature)
+
+    def clear(self):
+        if self.nodes:
+            free(self.nodes)
+
+        self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
+        self.current_root = uct_hash_size
+        self.pondering = False
+        self.n_playout = 0
+        self.max_queue_size_P = 0
+
+        free_feature(self.policy_feature)
+        self.policy_feature = allocate_feature()
+        initialize_feature(self.policy_feature) 
+
+    def quit(self):
+        if self.nodes:
+            free(self.nodes)
+
+        free_feature(self.policy_feature)
 
     cdef int genmove(self, game_state_t *game) nogil:
         cdef tree_node_t *node
@@ -483,17 +504,21 @@ cdef class PyMCTS(object):
                   int playout_limit=8000,
                   int n_threads=1):
         self.mcts = MCTS(policy, temperature, playout_limit, n_threads)
-
         self.game = allocate_game()
-        initialize_uct_hash()
         initialize_board(self.game)
         initialize_rollout(self.game)
+        initialize_uct_hash()
+
+    def __dealloc__(self):
+        free_game(self.game)
 
     def clear(self):
-        self.mcts.stop_search_thread()
-        initialize_uct_hash()
+        self.mcts.clear()
+        free_game(self.game)
+        self.game = allocate_game()
         initialize_board(self.game)
         initialize_rollout(self.game)
+        initialize_uct_hash()
 
     def start_pondering(self):
         self.mcts.start_search_thread(self.game)
@@ -552,8 +577,5 @@ cdef class PyMCTS(object):
         return temp_file_name
 
     def quit(self):
-        self.mcts.stop_search_thread()
-        initialize_uct_hash()
-        initialize_board(self.game)
-        initialize_rollout(self.game)
-
+        self.mcts.quit()
+        free_game(self.game)
