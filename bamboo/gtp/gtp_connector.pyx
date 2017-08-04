@@ -71,6 +71,9 @@ class MCTSConnector(object):
     def set_time_left(self, color, time, stone):
         self.client.set_time_left(color, time, stone)
 
+    def set_time_limit(self, limit):
+        self.client.set_time_limit(limit)
+
     def set_playout_limit(self, limit):
         self.client.set_playout_limit(limit)
 

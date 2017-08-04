@@ -29,7 +29,7 @@ from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
 from bamboo.gtp import gtp
 
 
-def self_play(playout_limit=1000):
+def self_play(time_limit=5.0, playout_limit=10000):
     cdef game_state_t *game
     cdef MCTS mcts
     cdef tree_node_t *node
@@ -78,7 +78,7 @@ def self_play(playout_limit=1000):
 
     game.current_color = S_BLACK
 
-    mcts = MCTS(sl_policy, playout_limit=playout_limit)
+    mcts = MCTS(sl_policy, time_limit=time_limit, playout_limit=playout_limit)
     while True:
         mcts.start_search_thread(game)
         mcts.eval_all_leafs_by_policy_network()

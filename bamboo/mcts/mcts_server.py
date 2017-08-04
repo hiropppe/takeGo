@@ -72,6 +72,10 @@ class MCTSRequestHandler(pyjsonrpc.HttpRequestHandler):
         pass
 
     @pyjsonrpc.rpcmethod
+    def set_time_limit(self, limit):
+        mcts.set_time_limit(limit)
+
+    @pyjsonrpc.rpcmethod
     def set_playout_limit(self, limit):
         mcts.set_playout_limit(limit)
 

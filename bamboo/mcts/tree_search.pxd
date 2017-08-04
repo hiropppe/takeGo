@@ -1,4 +1,5 @@
 from libcpp.queue cimport queue as cppqueue
+from posix.time cimport timeval
 
 from bamboo.go.board cimport game_state_t
 from bamboo.go.policy_feature cimport policy_feature_t
@@ -56,12 +57,14 @@ cdef class MCTS:
     cdef cppqueue[tree_node_t *] value_network_queue
     cdef bint pondering
     cdef bint policy_queue_running
+    cdef double time_limit
     cdef int playout_limit
     cdef int n_playout
     cdef int n_threads
     cdef double beta
     cdef openmp.omp_lock_t tree_lock
     cdef int max_queue_size_P
+    cdef timeval search_start_time
     cdef bint debug
 
     cdef int genmove(self, game_state_t *game) nogil

@@ -41,7 +41,8 @@ cdef class MCTS(object):
     def __cinit__(self,
                   object policy,
                   double temperature=0.67,
-                  int playout_limit=5000,
+                  double time_limit=5.0,
+                  int playout_limit=10000,
                   int n_threads=1):
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         self.current_root = uct_hash_size
@@ -51,6 +52,7 @@ cdef class MCTS(object):
         self.policy_queue_running = False
         self.n_playout = 0
         self.beta = 1.0/temperature
+        self.time_limit = time_limit
         self.playout_limit = playout_limit
         self.n_threads = n_threads
         self.max_queue_size_P = 0
@@ -102,7 +104,6 @@ cdef class MCTS(object):
         print_prior_probability(node)
         print_bonus(node)
         print_winning_ratio(node)
-        # print_action_value(node)
         print_rollout_count(node)
 
         if node.Nr != 0.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
@@ -121,12 +122,12 @@ cdef class MCTS(object):
         cdef int i
         cdef tree_node_t *node
         cdef bint expanded
-        cdef timeval start_time, end_time
+        cdef timeval end_time
         cdef double elapsed
 
         self.pondering = True
 
-        gettimeofday(&start_time, NULL)
+        gettimeofday(&self.search_start_time, NULL)
 
         delete_old_hash(game)
 
@@ -136,8 +137,8 @@ cdef class MCTS(object):
 
         printf(">> Playout (%s)\n", cppstring(1, stone[node.player_color]).c_str())
         if node.Nr != 0.0:
-            printf('Pre Playouts       : %d\n', <int>node.Nr)
-            printf('Pre Winning ratio  : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
+            printf('Past Playouts       : %d\n', <int>node.Nr)
+            printf('Past Winning ratio  : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
         else:
             printf('No playout information found for current state.\n')
 
@@ -155,7 +156,9 @@ cdef class MCTS(object):
                 self.run_search(game) 
 
         gettimeofday(&end_time, NULL)
-        elapsed = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
+
+        elapsed = ((end_time.tv_sec - self.search_start_time.tv_sec) +
+                   (end_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
 
         printf('Playouts           : %d\n', self.n_playout)
         printf('Elapsed            : %2.3lf sec\n', elapsed)
@@ -177,6 +180,8 @@ cdef class MCTS(object):
         cdef tree_node_t *node
         cdef int pos
         cdef unsigned long long previous_hash = 0
+        cdef timeval current_time
+        cdef double elapsed = .0
 
         self.n_playout = 0
 
@@ -184,7 +189,8 @@ cdef class MCTS(object):
 
         while (self.pondering and
                check_remaining_hash_size() and
-               self.n_playout < self.playout_limit):
+               self.n_playout < self.playout_limit and
+               elapsed < self.time_limit):
 
             if game.moves == 0 or previous_hash != game.current_hash:
                 previous_hash = game.current_hash
@@ -201,6 +207,11 @@ cdef class MCTS(object):
             if self.policy_network_queue.size() > 10:
                 with gil:
                     time.sleep(.05)
+
+            gettimeofday(&current_time, NULL)
+
+            elapsed = ((current_time.tv_sec - self.search_start_time.tv_sec) + 
+                       (current_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
 
         free_game(search_game)
 
@@ -562,6 +573,9 @@ cdef class PyMCTS(object):
 
     def set_time_left(self, color, time, stone):
         pass
+
+    def set_time_limit(self, limit):
+        self.mcts.time_limit = limit
 
     def set_playout_limit(self, limit):
         self.mcts.playout_limit = limit
