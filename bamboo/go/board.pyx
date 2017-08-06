@@ -95,6 +95,7 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
     memcpy(dst.string_id, src.string_id, sizeof(int) * STRING_POS_MAX)
     memcpy(dst.string_next, src.string_next, sizeof(int) * STRING_POS_MAX)
     memcpy(dst.capture_num, src.capture_num, sizeof(int) * S_OB)
+    memcpy(dst.capture_pos, src.capture_pos, sizeof(int) * S_OB * PURE_BOARD_MAX)
     
     memcpy(dst.updated_string_num, src.updated_string_num, sizeof(int) * S_OB)
     memcpy(dst.updated_string_id, src.updated_string_id, sizeof(int) * S_OB * MAX_RECORDS)
@@ -136,6 +137,7 @@ cdef void initialize_board(game_state_t *game):
     fill_n_char(game.board, BOARD_MAX, 0)
     fill_n_int(game.birth_move, BOARD_MAX, 0)
     fill_n_int(game.capture_num, S_OB, 0)
+    fill_n_int(game.updated_string_num, S_OB, 0)
 
     for y in range(board_size):
         for x in range(OB_SIZE):
@@ -443,8 +445,8 @@ cdef int remove_string(game_state_t *game, string_t *string) nogil:
         if not game.rollout:
             game.birth_move[pos] = 0
 
-        capture_num[0] += 1
         capture_pos[capture_num[0]] = pos 
+        capture_num[0] += 1
 
         pat.update_md2_empty(game.pat, pos)
 
