@@ -78,6 +78,9 @@ cdef class MCTS(object):
         self.n_playout = 0
         self.max_queue_size_P = 0
 
+        while not self.policy_network_queue.empty():
+            self.policy_network_queue.pop()
+
         initialize_feature(self.policy_feature) 
 
     def initialize_nodes(self):
@@ -100,10 +103,10 @@ cdef class MCTS(object):
             node.is_root = False
             node.is_edge = False
             node.parent = NULL
+            node.num_child = 0
             if node.has_game:
                 free_game(node.game)
             node.game = NULL
-            node.num_child = 0
             node.has_game = False
 
     cdef int genmove(self, game_state_t *game) nogil:
@@ -470,10 +473,11 @@ cdef class MCTS(object):
 
             node = self.policy_network_queue.front()
 
-            self.eval_leafs_by_policy_network(node)
+            if node.has_game:
+                self.eval_leafs_by_policy_network(node)
 
-            free_game(node.game)
-            node.has_game = False
+                free_game(node.game)
+                node.has_game = False
 
             self.policy_network_queue.pop()
 
@@ -494,10 +498,11 @@ cdef class MCTS(object):
 
             node = self.policy_network_queue.front()
 
-            self.eval_leafs_by_policy_network(node)
+            if node.has_game:
+                self.eval_leafs_by_policy_network(node)
 
-            free_game(node.game)
-            node.has_game = False
+                free_game(node.game)
+                node.has_game = False
 
             self.policy_network_queue.pop()
 
