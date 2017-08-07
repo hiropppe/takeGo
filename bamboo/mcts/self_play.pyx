@@ -15,7 +15,7 @@ from nose.tools import ok_, eq_
 from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS, RESIGN
 from bamboo.go.board cimport FLIP_COLOR, CORRECT_X, CORRECT_Y
 from bamboo.go.board cimport game_state_t, onboard_pos
-from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi
+from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi, is_legal_not_eye
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
 
@@ -29,7 +29,7 @@ from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
 from bamboo.gtp import gtp
 
 
-def self_play(time_limit=5.0, playout_limit=10000):
+def self_play(time_limit=60.0, playout_limit=10000):
     cdef game_state_t *game
     cdef MCTS mcts
     cdef tree_node_t *node
@@ -84,6 +84,15 @@ def self_play(time_limit=5.0, playout_limit=10000):
         mcts.eval_all_leafs_by_policy_network()
 
         pos = mcts.genmove(game)
+
+        if pos == RESIGN:
+            break
+
+        if not is_legal_not_eye(game, pos, game.current_color):
+            x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
+            y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
+            print('illegal move {:s}'.format(str(gtp.gtp_vertex((x, y)))))
+            break
 
         put_stone(game, pos, game.current_color)
         game.current_color = FLIP_COLOR(game.current_color) 
