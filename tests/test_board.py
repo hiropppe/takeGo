@@ -54,3 +54,6 @@ class TestCBoard(unittest.TestCase):
 
     def test_string_merge_empty(self):
         test_board.test_string_merge_empty()
+
+    def test_ko(self):
+        test_board.test_ko()

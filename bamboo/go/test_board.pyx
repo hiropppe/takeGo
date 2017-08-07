@@ -577,6 +577,59 @@ def test_string_merge_empty():
     board.free_game(game)
 
 
+def test_ko():
+    cdef board.game_state_t *game
+
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                                 ". B W . . . .|"
+                                 "B b a W . . .|"
+                                 ". B W . . . .|"
+                                 ". . . c d . .|"
+                                 ". . . . . . .|"
+                                 ". . . . . . .|"
+                                 ". . . . . . .|")
+
+    game.current_color = board.S_BLACK
+
+    board.put_stone(game, moves['a'], game.current_color)
+    game.current_color = board.FLIP_COLOR(game.current_color)
+    board.put_stone(game, moves['b'], game.current_color)
+    game.current_color = board.FLIP_COLOR(game.current_color)
+
+    eq_(board.is_legal(game, moves['a'], game.current_color), False)
+
+    board.put_stone(game, moves['c'], game.current_color)
+    game.current_color = board.FLIP_COLOR(game.current_color)
+    board.put_stone(game, moves['d'], game.current_color)
+    game.current_color = board.FLIP_COLOR(game.current_color)
+
+    eq_(board.is_legal(game, moves['a'], game.current_color), True)
+
+    board.free_game(game)
+
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+                                 "W B B B B W B B B|"
+                                 "B . B W W W W B a|"
+                                 "B B B B B . W W b|"
+                                 "W B W B B B B W W|"
+                                 "W W W B W W B B B|"
+                                 "W B W W W W B B .|"
+                                 "B B W B . W W B W|"
+                                 "W W W W W W W B .|"
+                                 "B W W . W B B B B|")
+
+    game.current_color = board.S_WHITE
+
+    board.put_stone(game, moves['a'], game.current_color)
+    game.current_color = board.FLIP_COLOR(game.current_color)
+    board.put_stone(game, moves['b'], game.current_color)
+    game.current_color = board.FLIP_COLOR(game.current_color)
+
+    eq_(board.is_legal(game, moves['a'], game.current_color), False)
+
+
 cdef board.game_state_t* __initialize_game(int board_size=9):
     cdef board.game_state_t *game
 
