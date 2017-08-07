@@ -383,6 +383,7 @@ cdef class MCTS(object):
             node.is_edge = False
             node.game = allocate_game()
             copy_game(node.game, game)
+            node.has_game = True
             self.policy_network_queue.push(node)
             queue_size = self.policy_network_queue.size()
             if queue_size > self.max_queue_size_P:
