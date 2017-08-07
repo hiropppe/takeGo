@@ -221,7 +221,8 @@ class Engine(object):
         c = parse_color(arguments)
         if c:
             move = self._game.get_move(c)
-            self._game.make_move(c, move)
+            if move != RESIGN:
+                self._game.make_move(c, move)
             return gtp_vertex(move)
         else:
             raise ValueError("unknown player: {}".format(arguments))
