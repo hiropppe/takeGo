@@ -6,7 +6,7 @@ import pyjsonrpc
 
 from bamboo.gtp import gtp
 
-from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, PASS, S_BLACK, S_WHITE
+from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, PASS, RESIGN, S_BLACK, S_WHITE
 from bamboo.go.board cimport POS, X, Y, CORRECT_X, CORRECT_Y
 from bamboo.go.board cimport game_state_t
 from bamboo.go.board cimport allocate_game, free_game, initialize_board, set_board_size
@@ -38,6 +38,8 @@ class MCTSConnector(object):
 
         if pos == PASS:
             return gtp.PASS
+        elif pos == RESIGN:
+            return gtp.RESIGN
         else:
             x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
             y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
@@ -85,10 +87,10 @@ class MCTSConnector(object):
         pass
 
     def showboard(self):
-        self.client.print_board()
+        self.client.showboard()
 
     def quit(self):
-        self.client.quit()
+        self.client.clear()
 
 
 cdef class GTPGameConnector(object):

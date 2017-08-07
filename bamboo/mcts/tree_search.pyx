@@ -44,7 +44,11 @@ cdef class MCTS(object):
                   double time_limit=5.0,
                   int playout_limit=10000,
                   int n_threads=1):
+        cdef int i
+
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
+        self.initialize_nodes()
+
         self.current_root = uct_hash_size
         self.policy = policy
         self.policy_feature = allocate_feature()
@@ -67,24 +71,40 @@ cdef class MCTS(object):
         free_feature(self.policy_feature)
 
     def clear(self):
-        if self.nodes:
-            free(self.nodes)
+        self.initialize_nodes()
 
-        self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         self.current_root = uct_hash_size
         self.pondering = False
         self.n_playout = 0
         self.max_queue_size_P = 0
 
-        free_feature(self.policy_feature)
-        self.policy_feature = allocate_feature()
         initialize_feature(self.policy_feature) 
 
-    def quit(self):
-        if self.nodes:
-            free(self.nodes)
+    def initialize_nodes(self):
+        cdef int i
+        cdef tree_node_t *node
 
-        free_feature(self.policy_feature)
+        for i in range(uct_hash_size):
+            node = &self.nodes[i]
+            node.node_i = 0
+            node.time_step = 0 
+            node.pos = 0
+            node.color = 0
+            node.player_color = 0
+            node.P = .0
+            node.Nv = .0
+            node.Wv = .0
+            node.Nr = .0
+            node.Wr = .0
+            node.Q = .0
+            node.is_root = False
+            node.is_edge = False
+            node.parent = NULL
+            if node.has_game:
+                free_game(node.game)
+            node.game = NULL
+            node.num_child = 0
+            node.has_game = False
 
     cdef int genmove(self, game_state_t *game) nogil:
         cdef tree_node_t *node
@@ -453,6 +473,7 @@ cdef class MCTS(object):
             self.eval_leafs_by_policy_network(node)
 
             free_game(node.game)
+            node.has_game = False
 
             self.policy_network_queue.pop()
 
@@ -476,6 +497,7 @@ cdef class MCTS(object):
             self.eval_leafs_by_policy_network(node)
 
             free_game(node.game)
+            node.has_game = False
 
             self.policy_network_queue.pop()
 
@@ -589,7 +611,3 @@ cdef class PyMCTS(object):
         temp_file_name = temp_file.name + '.sgf'
         save_gamestate_to_sgf(self.game, '/tmp/', temp_file_name, black_name, white_name)
         return temp_file_name
-
-    def quit(self):
-        self.mcts.quit()
-        free_game(self.game)
