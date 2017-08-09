@@ -55,6 +55,6 @@ RUN pip --no-cache-dir install \
 RUN pip --no-cache-dir install \
     http://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.12.1-cp27-none-linux_x86_64.whl
 
-git config --global user.name "hiropppe"
-git config --global user.email "sergei.0910@gmail.com"
+RUN git config --global user.name "hiropppe"
+RUN git config --global user.email "sergei.0910@gmail.com"
 
