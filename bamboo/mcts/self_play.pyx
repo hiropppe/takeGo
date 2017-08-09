@@ -21,7 +21,7 @@ from bamboo.go.parseboard cimport parse
 
 from bamboo.go.zobrist_hash cimport uct_hash_size
 from bamboo.go.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
-from bamboo.mcts.tree_search cimport tree_node_t, MCTS
+from bamboo.mcts.tree_search cimport tree_node_t, PyMCTS
 
 from bamboo.rollout.preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter
 from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
@@ -29,9 +29,9 @@ from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
 from bamboo.gtp import gtp
 
 
-def self_play(time_limit=60.0, playout_limit=10000):
+def self_play(time_limit=60.0, playout_limit=10000, n_games=1):
     cdef game_state_t *game
-    cdef MCTS mcts
+    cdef PyMCTS mcts
     cdef tree_node_t *node
     cdef int pass_count = 0
     cdef int pos
@@ -69,49 +69,42 @@ def self_play(time_limit=60.0, playout_limit=10000):
 
     set_rollout_parameter(rollout_weights)
 
-    initialize_uct_hash()
-
     set_board_size(19)
-    game = allocate_game()
-    initialize_board(game)
-    initialize_rollout(game)
 
-    game.current_color = S_BLACK
+    mcts = PyMCTS(sl_policy, time_limit=time_limit, playout_limit=playout_limit)
+    game = mcts.game
+    for i in range(n_games):
+        while True:
+            mcts.start_pondering()
+            mcts.eval_all_leafs_by_policy_network()
 
-    mcts = MCTS(sl_policy, time_limit=time_limit, playout_limit=playout_limit)
-    while True:
-        mcts.start_search_thread(game)
-        mcts.eval_all_leafs_by_policy_network()
+            pos = mcts.genmove(game.current_color)
 
-        pos = mcts.genmove(game)
-
-        if pos == RESIGN:
-            break
-
-        if not is_legal_not_eye(game, pos, game.current_color):
-            x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
-            y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
-            print('illegal move {:s}'.format(str(gtp.gtp_vertex((x, y)))))
-            break
-
-        put_stone(game, pos, game.current_color)
-        game.current_color = FLIP_COLOR(game.current_color) 
-        update_rollout(game)
-
-        print_board(game)
-
-        if pos == PASS or pos == RESIGN:
-            print(gtp.gtp_vertex(pos))
-        else:
-            x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
-            y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
-            print(gtp.gtp_vertex((x, y)))
-
-        if pos == PASS:
-            pass_count += 1
-            if pass_count == 2:
+            if pos == RESIGN:
                 break
-        else:
-            pass_count = 0
 
-    print('Score: {:s}'.format(str(calculate_score(game) - komi)))
+            if not is_legal_not_eye(game, pos, game.current_color):
+                x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
+                y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
+                print('illegal move {:s}'.format(str(gtp.gtp_vertex((x, y)))))
+                break
+
+            mcts.play(pos, game.current_color)
+
+            if pos == PASS or pos == RESIGN:
+                print(gtp.gtp_vertex(pos))
+            else:
+                x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
+                y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
+                print(gtp.gtp_vertex((x, y)))
+
+            if pos == PASS:
+                pass_count += 1
+                if pass_count == 2:
+                    break
+            else:
+                pass_count = 0
+
+        print('Score({:s}): {:s}'.format(str(i), str(calculate_score(game) - komi)))
+
+        mcts.clear()
