@@ -45,9 +45,28 @@ cdef class MCTS(object):
                   int playout_limit=10000,
                   int n_threads=1):
         cdef int i
+        cdef tree_node_t *node
 
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
-        self.initialize_nodes()
+        for i in range(uct_hash_size):
+            node = &self.nodes[i]
+            node.node_i = 0
+            node.time_step = 0 
+            node.pos = 0
+            node.color = 0
+            node.player_color = 0
+            node.P = .0
+            node.Nv = .0
+            node.Wv = .0
+            node.Nr = .0
+            node.Wr = .0
+            node.Q = .0
+            node.is_root = False
+            node.is_edge = False
+            node.parent = NULL
+            node.num_child = 0
+            node.game = NULL
+            node.has_game = False
 
         self.current_root = uct_hash_size
         self.policy = policy
@@ -64,6 +83,8 @@ cdef class MCTS(object):
 
         initialize_feature(self.policy_feature) 
 
+        openmp.omp_init_lock(&self.policy_queue_lock)
+
     def __dealloc__(self):
         if self.nodes:
             free(self.nodes)
@@ -71,15 +92,19 @@ cdef class MCTS(object):
         free_feature(self.policy_feature)
 
     def clear(self):
+        time.sleep(3.)
+
+        openmp.omp_set_lock(&self.policy_queue_lock)
+        while not self.policy_network_queue.empty():
+            self.policy_network_queue.pop()
+        openmp.omp_unset_lock(&self.policy_queue_lock)
+
         self.initialize_nodes()
 
         self.current_root = uct_hash_size
         self.pondering = False
         self.n_playout = 0
         self.max_queue_size_P = 0
-
-        while not self.policy_network_queue.empty():
-            self.policy_network_queue.pop()
 
         initialize_feature(self.policy_feature) 
 
@@ -104,7 +129,7 @@ cdef class MCTS(object):
             node.is_edge = False
             node.parent = NULL
             node.num_child = 0
-            if node.has_game:
+            if node.game != NULL:
                 free_game(node.game)
             node.game = NULL
             node.has_game = False
@@ -112,16 +137,14 @@ cdef class MCTS(object):
     cdef int genmove(self, game_state_t *game) nogil:
         cdef tree_node_t *node
         cdef tree_node_t *child
-        cdef double max_Nr = .0
-        cdef double max_P = .0
+        cdef tree_node_t *max_child
+        cdef double max_Nr
         cdef int max_pos
-        cdef int i
+        cdef int i, j
 
         self.seek_root(game)
 
         node = &self.nodes[self.current_root]
-        max_Nr = 0
-        max_pos = PASS
 
         print_selection_value(node)
         print_prior_probability(node)
@@ -133,14 +156,24 @@ cdef class MCTS(object):
             return RESIGN
 
         for i in range(node.num_child):
-            child = node.children[node.children_pos[i]]
-            if child.Nr > max_Nr:
-                max_pos = child.pos
-                max_Nr = child.Nr
+            max_Nr = .0
+            max_pos = PASS
+            for j in range(node.num_child):
+                child = node.children[node.children_pos[j]]
+                if child.Nr > max_Nr:
+                    max_child = child
+                    max_Nr = child.Nr
+                    max_pos = child.pos
 
-        return max_pos
+            if is_legal_not_eye(game, max_pos, game.current_color):
+                return max_pos
+            else:
+                printf('Candidated pos is not legal. p=%d c=%d\n', max_pos, game.current_color)
+                max_child.Nr = .0
 
-    cdef void start_search_thread(self, game_state_t *game):
+        return PASS
+
+    cdef void start_search_thread(self, game_state_t *game) nogil:
         cdef char *stone = ['#', 'B', 'W']
         cdef int i
         cdef tree_node_t *node
@@ -168,7 +201,8 @@ cdef class MCTS(object):
         if node.is_edge:
             expanded = self.expand(node, game)
             if expanded:
-                self.eval_leafs_by_policy_network(node)
+                with gil:
+                    self.eval_leafs_by_policy_network(node)
         else:
             print_rollout_count(node)
 
@@ -451,7 +485,7 @@ cdef class MCTS(object):
                 node.Q = node.Wr/node.Nr
                 node = node.parent
 
-    def start_policy_network_queue(self):
+    cdef void start_policy_network_queue(self) nogil:
         cdef tree_node_t *node
         cdef int i, pos
         cdef int n_eval = 0
@@ -465,49 +499,77 @@ cdef class MCTS(object):
         printf('>> Starting policy network queue...\n')
 
         while self.policy_queue_running:
+            openmp.omp_set_lock(&self.policy_queue_lock)
+
             if self.policy_network_queue.empty():
+                openmp.omp_unset_lock(&self.policy_queue_lock)
                 if n_eval > 0:
                     printf('>> Policy Network Queue evaluated: %d node\n', n_eval)
                 n_eval = 0
-                time.sleep(.5)
+                with gil:
+                    time.sleep(.5)
                 continue
 
             node = self.policy_network_queue.front()
 
-            if node.has_game:
-                self.eval_leafs_by_policy_network(node)
+            if node.game != NULL:
+                with gil:
+                    self.eval_leafs_by_policy_network(node)
 
                 free_game(node.game)
+                node.game = NULL
                 node.has_game = False
 
             self.policy_network_queue.pop()
 
             n_eval += 1
 
+            openmp.omp_unset_lock(&self.policy_queue_lock)
+
         printf('>> Policy network queue shut down.\n')
 
-    def stop_policy_network_queue(self):
-        print('>> Shutting down policy network queue...')
+    cdef void stop_policy_network_queue(self) nogil:
+        printf('>> Shutting down policy network queue...\n')
         self.policy_queue_running = False
 
-    def eval_all_leafs_by_policy_network(self):
+    cdef void clear_policy_network_queue(self) nogil:
+        cdef tree_node_t *node
+
+        openmp.omp_set_lock(&self.policy_queue_lock)
+        while not self.policy_network_queue.empty():
+            node = self.policy_network_queue.front()
+            if node.game != NULL:
+                free_game(node.game)
+                node.game = NULL
+                node.has_game = False
+            self.policy_network_queue.pop()
+        printf('>> Policy Network Queue cleared: %d\n', self.policy_network_queue.size())
+        openmp.omp_unset_lock(&self.policy_queue_lock)
+
+
+    cdef void eval_all_leafs_by_policy_network(self) nogil:
         cdef tree_node_t *node
         cdef int i, pos
         cdef int n_eval = 0
 
-        while not self.policy_network_queue.empty():
+        openmp.omp_set_lock(&self.policy_queue_lock)
 
+        while not self.policy_network_queue.empty():
             node = self.policy_network_queue.front()
 
-            if node.has_game:
-                self.eval_leafs_by_policy_network(node)
+            if node.game != NULL:
+                with gil:
+                    self.eval_leafs_by_policy_network(node)
 
                 free_game(node.game)
+                node.game = NULL
                 node.has_game = False
 
             self.policy_network_queue.pop()
 
             n_eval += 1
+
+        openmp.omp_unset_lock(&self.policy_queue_lock)
 
         printf('>> Policy Network Queue evaluated: %d node\n', n_eval)
 
@@ -552,12 +614,14 @@ cdef class PyMCTS(object):
         free_game(self.game)
 
     def clear(self):
+        printf('>> Initializing Tree and Board ...\n')
         self.mcts.clear()
         free_game(self.game)
         self.game = allocate_game()
         initialize_board(self.game)
         initialize_rollout(self.game)
         initialize_uct_hash()
+        printf('>> O.K.\n')
 
     def start_pondering(self):
         self.mcts.start_search_thread(self.game)

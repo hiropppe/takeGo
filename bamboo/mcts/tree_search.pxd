@@ -65,11 +65,12 @@ cdef class MCTS:
     cdef openmp.omp_lock_t tree_lock
     cdef int max_queue_size_P
     cdef timeval search_start_time
+    cdef openmp.omp_lock_t policy_queue_lock
     cdef bint debug
 
     cdef int genmove(self, game_state_t *game) nogil
 
-    cdef void start_search_thread(self, game_state_t *game)
+    cdef void start_search_thread(self, game_state_t *game) nogil
 
     cdef void stop_search_thread(self)
 
@@ -88,6 +89,14 @@ cdef class MCTS:
     cdef void rollout(self, game_state_t *game) nogil
 
     cdef void backup(self, tree_node_t *node, int winner) nogil
+
+    cdef void start_policy_network_queue(self) nogil
+
+    cdef void stop_policy_network_queue(self) nogil
+
+    cdef void clear_policy_network_queue(self) nogil
+
+    cdef void eval_all_leafs_by_policy_network(self) nogil
 
     cdef void eval_leafs_by_policy_network(self, tree_node_t *node)
 
