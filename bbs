@@ -19,7 +19,7 @@ if __name__ == "__main__":
                         help="Size of the game board. SGFs not matching this are discarded with a warning")
     parser.add_argument("--server", default=False, action="store_true",
                         help="Run as server mode")
-    parser.add_argument("--port", "-p", type=int, default=5001,
+    parser.add_argument("--port", "-p", type=int, default=5000,
                         help="GTP rest server port")
     parser.add_argument("--rpc-host", type=str, default='localhost',
                         help="MCTS RPC server host")
