@@ -45,7 +45,7 @@ ctypedef struct tree_node_t:
     game_state_t *game
     bint has_game
 
-    openmp.omp_lock_t node_lock
+    openmp.omp_lock_t lock
 
 
 cdef class MCTS:
@@ -62,10 +62,12 @@ cdef class MCTS:
     cdef int n_playout
     cdef int n_threads
     cdef double beta
-    cdef openmp.omp_lock_t tree_lock
     cdef int max_queue_size_P
     cdef timeval search_start_time
+    cdef openmp.omp_lock_t tree_lock
+    cdef openmp.omp_lock_t expand_lock
     cdef openmp.omp_lock_t policy_queue_lock
+    cdef int n_threads_playout[100]
     cdef bint debug
 
     cdef int genmove(self, game_state_t *game) nogil
@@ -74,7 +76,7 @@ cdef class MCTS:
 
     cdef void stop_search_thread(self)
 
-    cdef void run_search(self, game_state_t *game) nogil
+    cdef void run_search(self, int thread_id, game_state_t *game) nogil
 
     cdef bint seek_root(self, game_state_t *game) nogil
 

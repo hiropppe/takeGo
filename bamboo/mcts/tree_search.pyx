@@ -83,6 +83,12 @@ cdef class MCTS(object):
 
         initialize_feature(self.policy_feature) 
 
+        if n_threads > 1:
+            for i in range(n_threads):
+                self.n_threads_playout[i] = 0
+
+        openmp.omp_init_lock(&self.tree_lock)
+        openmp.omp_init_lock(&self.expand_lock)
         openmp.omp_init_lock(&self.policy_queue_lock)
 
     def __dealloc__(self):
@@ -107,6 +113,9 @@ cdef class MCTS(object):
         self.max_queue_size_P = 0
 
         initialize_feature(self.policy_feature) 
+
+        openmp.omp_init_lock(&self.tree_lock)
+        openmp.omp_init_lock(&self.expand_lock)
 
     def initialize_nodes(self):
         cdef int i
@@ -133,6 +142,8 @@ cdef class MCTS(object):
                 free_game(node.game)
             node.game = NULL
             node.has_game = False
+
+            openmp.omp_init_lock(&node.lock)
 
     cdef int genmove(self, game_state_t *game) nogil:
         cdef tree_node_t *node
@@ -181,6 +192,10 @@ cdef class MCTS(object):
         cdef timeval end_time
         cdef double elapsed
 
+        self.n_playout = 0
+        for i in range(self.n_threads):
+            self.n_threads_playout[i] = 0
+
         self.pondering = True
 
         gettimeofday(&self.search_start_time, NULL)
@@ -207,10 +222,10 @@ cdef class MCTS(object):
             print_rollout_count(node)
 
         if self.n_threads <= 1:
-            self.run_search(game) 
+            self.run_search(0, game) 
         else:
             for i in prange(self.n_threads, nogil=True):
-                self.run_search(game) 
+                self.run_search(i, game) 
 
         gettimeofday(&end_time, NULL)
 
@@ -218,6 +233,8 @@ cdef class MCTS(object):
                    (end_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
 
         printf('Playouts           : %d\n', self.n_playout)
+        for i in range(self.n_threads):
+            printf('  T%d              : %d\n', i, self.n_threads_playout[i])
         printf('Elapsed            : %2.3lf sec\n', elapsed)
         if elapsed != 0.0:
             printf('Playout Speed      : %d PO/sec\n', <int>(self.n_playout/elapsed))
@@ -232,15 +249,13 @@ cdef class MCTS(object):
     cdef void stop_search_thread(self):
         self.pondering = False
 
-    cdef void run_search(self, game_state_t *game) nogil:
+    cdef void run_search(self, int thread_id, game_state_t *game) nogil:
         cdef game_state_t *search_game
         cdef tree_node_t *node
         cdef int pos
         cdef unsigned long long previous_hash = 0
         cdef timeval current_time
         cdef double elapsed = .0
-
-        self.n_playout = 0
 
         search_game = allocate_game()
 
@@ -258,6 +273,7 @@ cdef class MCTS(object):
 
             self.search(node, search_game)
 
+            self.n_threads_playout[thread_id] += 1
             self.n_playout += 1
 
             # workaround. CPU cannot be assigned.
@@ -280,6 +296,8 @@ cdef class MCTS(object):
 
         current_node = node
 
+        openmp.omp_set_lock(&node.lock)
+        
         # selection
         while True:
             if current_node.is_edge:
@@ -289,9 +307,13 @@ cdef class MCTS(object):
 
         # expansion
         if current_node.Nr >= EXPANSION_THRESHOLD:
+            #openmp.omp_set_lock(&self.expand_lock)
             expanded = self.expand(current_node, search_game)
+            #openmp.omp_set_unlock(&self.expand_lock)
             if expanded:
                 current_node = self.select(current_node, search_game)
+
+        openmp.omp_unset_lock(&node.lock)
 
         # evaluation then backup
         self.evaluate_and_backup(current_node, search_game)
@@ -475,14 +497,17 @@ cdef class MCTS(object):
 
         node = edge_node
         while True:
+            openmp.omp_set_lock(&node.lock)
             node.Nr += 1
             if node.color == winner:
                 node.Wr += 1
 
             if node.is_root:
+                openmp.omp_unset_lock(&node.lock)
                 break
             else:
                 node.Q = node.Wr/node.Nr
+                openmp.omp_unset_lock(&node.lock)
                 node = node.parent
 
     cdef void start_policy_network_queue(self) nogil:
