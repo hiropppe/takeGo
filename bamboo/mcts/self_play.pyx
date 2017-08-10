@@ -29,7 +29,7 @@ from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
 from bamboo.gtp import gtp
 
 
-def self_play(time_limit=60.0, playout_limit=10000, n_games=1):
+def self_play(time_limit=60.0, playout_limit=10000, n_games=1, n_threads=1):
     cdef game_state_t *game
     cdef PyMCTS mcts
     cdef tree_node_t *node
@@ -71,7 +71,7 @@ def self_play(time_limit=60.0, playout_limit=10000, n_games=1):
 
     set_board_size(19)
 
-    mcts = PyMCTS(sl_policy, time_limit=time_limit, playout_limit=playout_limit)
+    mcts = PyMCTS(sl_policy, time_limit=time_limit, playout_limit=playout_limit, n_threads=n_threads)
     game = mcts.game
     for i in range(n_games):
         while True:

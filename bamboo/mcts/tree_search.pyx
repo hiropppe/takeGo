@@ -116,6 +116,7 @@ cdef class MCTS(object):
 
         openmp.omp_init_lock(&self.tree_lock)
         openmp.omp_init_lock(&self.expand_lock)
+        openmp.omp_init_lock(&self.policy_queue_lock)
 
     def initialize_nodes(self):
         cdef int i
@@ -234,7 +235,7 @@ cdef class MCTS(object):
 
         printf('Playouts           : %d\n', self.n_playout)
         for i in range(self.n_threads):
-            printf('  T%d              : %d\n', i, self.n_threads_playout[i])
+            printf('  T%d               : %d\n', i, self.n_threads_playout[i])
         printf('Elapsed            : %2.3lf sec\n', elapsed)
         if elapsed != 0.0:
             printf('Playout Speed      : %d PO/sec\n', <int>(self.n_playout/elapsed))
@@ -277,9 +278,9 @@ cdef class MCTS(object):
             self.n_playout += 1
 
             # workaround. CPU cannot be assigned.
-            if self.policy_network_queue.size() > 10:
-                with gil:
-                    time.sleep(.05)
+            #if self.policy_network_queue.size() > 10:
+            #    with gil:
+            #        time.sleep(.05)
 
             gettimeofday(&current_time, NULL)
 
@@ -300,6 +301,8 @@ cdef class MCTS(object):
         
         # selection
         while True:
+            current_node.Nr += VIRTUAL_LOSS
+            current_node.Wr -= VIRTUAL_LOSS
             if current_node.is_edge:
                 break
             else:
@@ -307,10 +310,12 @@ cdef class MCTS(object):
 
         # expansion
         if current_node.Nr >= EXPANSION_THRESHOLD:
-            #openmp.omp_set_lock(&self.expand_lock)
+            openmp.omp_set_lock(&self.expand_lock)
             expanded = self.expand(current_node, search_game)
-            #openmp.omp_set_unlock(&self.expand_lock)
+            openmp.omp_unset_lock(&self.expand_lock)
             if expanded:
+                current_node.Nr += VIRTUAL_LOSS
+                current_node.Wr -= VIRTUAL_LOSS
                 current_node = self.select(current_node, search_game)
 
         openmp.omp_unset_lock(&node.lock)
@@ -403,6 +408,10 @@ cdef class MCTS(object):
         cdef double *move_probs
         cdef int queue_size
         cdef int i
+
+        # other thread may expand
+        if node.num_child > 0:
+            return True
 
         # tree policy not implemented yet. use rollout policy instead.
         move_probs = game.rollout_probs[color]
@@ -498,7 +507,10 @@ cdef class MCTS(object):
         node = edge_node
         while True:
             openmp.omp_set_lock(&node.lock)
-            node.Nr += 1
+
+            node.Nr += (1 - VIRTUAL_LOSS)
+            node.Wr += VIRTUAL_LOSS
+
             if node.color == winner:
                 node.Wr += 1
 
@@ -627,9 +639,10 @@ cdef class PyMCTS(object):
     def __cinit__(self,
                   object policy,
                   double temperature=0.67,
+                  double time_limit=5.0,
                   int playout_limit=8000,
                   int n_threads=1):
-        self.mcts = MCTS(policy, temperature, playout_limit, n_threads)
+        self.mcts = MCTS(policy, temperature, time_limit, playout_limit, n_threads)
         self.game = allocate_game()
         initialize_board(self.game)
         initialize_rollout(self.game)
