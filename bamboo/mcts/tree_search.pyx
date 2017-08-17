@@ -83,9 +83,8 @@ cdef class MCTS(object):
 
         initialize_feature(self.policy_feature) 
 
-        if n_threads > 1:
-            for i in range(n_threads):
-                self.n_threads_playout[i] = 0
+        for i in range(n_threads):
+            self.n_threads_playout[i] = 0
 
         openmp.omp_init_lock(&self.tree_lock)
         openmp.omp_init_lock(&self.expand_lock)
@@ -222,10 +221,10 @@ cdef class MCTS(object):
         else:
             print_rollout_count(node)
 
-        if self.n_threads <= 1:
-            self.run_search(0, game) 
-        else:
-            for i in prange(self.n_threads, nogil=True):
+        for i in prange(self.n_threads + 1, nogil=True):
+            if i == self.n_threads:
+                self.start_policy_network_queue()
+            else:
                 self.run_search(i, game) 
 
         gettimeofday(&end_time, NULL)
@@ -277,15 +276,12 @@ cdef class MCTS(object):
             self.n_threads_playout[thread_id] += 1
             self.n_playout += 1
 
-            # workaround. CPU cannot be assigned.
-            #if self.policy_network_queue.size() > 10:
-            #    with gil:
-            #        time.sleep(.05)
-
             gettimeofday(&current_time, NULL)
 
             elapsed = ((current_time.tv_sec - self.search_start_time.tv_sec) + 
                        (current_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
+
+        self.policy_queue_running = False
 
         free_game(search_game)
 
@@ -302,7 +298,6 @@ cdef class MCTS(object):
         # selection
         while True:
             current_node.Nr += VIRTUAL_LOSS
-            current_node.Wr -= VIRTUAL_LOSS
             if current_node.is_edge:
                 break
             else:
@@ -314,9 +309,8 @@ cdef class MCTS(object):
             expanded = self.expand(current_node, search_game)
             openmp.omp_unset_lock(&self.expand_lock)
             if expanded:
-                current_node.Nr += VIRTUAL_LOSS
-                current_node.Wr -= VIRTUAL_LOSS
                 current_node = self.select(current_node, search_game)
+                current_node.Nr += VIRTUAL_LOSS
 
         openmp.omp_unset_lock(&node.lock)
 
@@ -509,7 +503,6 @@ cdef class MCTS(object):
             openmp.omp_set_lock(&node.lock)
 
             node.Nr += (1 - VIRTUAL_LOSS)
-            node.Wr += VIRTUAL_LOSS
 
             if node.color == winner:
                 node.Wr += 1
@@ -525,7 +518,6 @@ cdef class MCTS(object):
     cdef void start_policy_network_queue(self) nogil:
         cdef tree_node_t *node
         cdef int i, pos
-        cdef int n_eval = 0
 
         if self.policy_queue_running:
             printf('>> Policy network queue already running.\n')
@@ -540,11 +532,6 @@ cdef class MCTS(object):
 
             if self.policy_network_queue.empty():
                 openmp.omp_unset_lock(&self.policy_queue_lock)
-                if n_eval > 0:
-                    printf('>> Policy Network Queue evaluated: %d node\n', n_eval)
-                n_eval = 0
-                with gil:
-                    time.sleep(.5)
                 continue
 
             node = self.policy_network_queue.front()
@@ -558,8 +545,6 @@ cdef class MCTS(object):
                 node.has_game = False
 
             self.policy_network_queue.pop()
-
-            n_eval += 1
 
             openmp.omp_unset_lock(&self.policy_queue_lock)
 
