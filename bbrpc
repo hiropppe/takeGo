@@ -29,6 +29,8 @@ if __name__ == "__main__":
                         help="12 point diamond(MD2) pattern file")
     parser.add_argument("--policy-temp", type=float, default=0.67,
                         help="Distribution temperature of players using policies (Default: 0.67)")
+    parser.add_argument("--threads", "-t", type=int, default=1,
+                        help="Number of search threads (Default: 1)")
     parser.add_argument("--node-hash-size", "-n", type=int, default=1048576,
                         help="MCT node hash size (Default: 2**20)")
     parser.add_argument("--host", type=str, default='localhost',
@@ -63,7 +65,7 @@ if __name__ == "__main__":
     initialize_const(0, x33_size, d12_size)
     set_rollout_parameter(args.rollout_weights)
 
-    set_mcts(PyMCTS(sl_policy, args.policy_temp))
+    set_mcts(PyMCTS(sl_policy, args.policy_temp, n_threads=args.threads))
 
     server = pyjsonrpc.ThreadingHttpServer(
         server_address = (args.host, args.port),
