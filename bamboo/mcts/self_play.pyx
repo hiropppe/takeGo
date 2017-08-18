@@ -71,22 +71,17 @@ def self_play(time_limit=60.0, playout_limit=10000, n_games=1, n_threads=1):
 
     set_board_size(19)
 
-    mcts = PyMCTS(sl_policy, time_limit=time_limit, playout_limit=playout_limit, n_threads=n_threads)
+    mcts = PyMCTS(sl_policy,
+                  time_limit=time_limit,
+                  playout_limit=playout_limit,
+                  n_threads=n_threads,
+                  read_ahead=False)
     game = mcts.game
     for i in range(n_games):
         while True:
-            mcts.start_pondering()
-            mcts.eval_all_leafs_by_policy_network()
-
             pos = mcts.genmove(game.current_color)
 
             if pos == RESIGN:
-                break
-
-            if not is_legal_not_eye(game, pos, game.current_color):
-                x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
-                y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
-                print('illegal move {:s}'.format(str(gtp.gtp_vertex((x, y)))))
                 break
 
             mcts.play(pos, game.current_color)

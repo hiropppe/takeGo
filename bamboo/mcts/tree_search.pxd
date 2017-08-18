@@ -49,6 +49,8 @@ ctypedef struct tree_node_t:
 
 
 cdef class MCTS:
+    cdef game_state_t *game
+    cdef char player_color
     cdef tree_node_t *nodes
     cdef unsigned int current_root
     cdef object policy
@@ -56,6 +58,9 @@ cdef class MCTS:
     cdef cppqueue[tree_node_t *] policy_network_queue
     cdef cppqueue[tree_node_t *] value_network_queue
     cdef bint pondering
+    cdef bint pondering_stopped
+    cdef bint pondering_suspending
+    cdef bint pondering_suspended
     cdef bint policy_queue_running
     cdef double time_limit
     cdef int playout_limit
@@ -72,9 +77,15 @@ cdef class MCTS:
 
     cdef int genmove(self, game_state_t *game) nogil
 
-    cdef void start_search_thread(self, game_state_t *game) nogil
+    cdef void start_pondering(self) nogil
 
-    cdef void stop_search_thread(self)
+    cdef void stop_pondering(self) nogil
+
+    cdef void suspend_pondering(self) nogil
+
+    cdef void resume_pondering(self) nogil
+
+    cdef void ponder(self, game_state_t *game) nogil
 
     cdef void run_search(self, int thread_id, game_state_t *game) nogil
 
@@ -107,3 +118,6 @@ cdef class PyMCTS:
     cdef:
         MCTS mcts
         game_state_t *game
+        double time_limit
+        int playout_limit
+        bint read_ahead

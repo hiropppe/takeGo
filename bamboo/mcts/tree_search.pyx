@@ -47,6 +47,8 @@ cdef class MCTS(object):
         cdef int i
         cdef tree_node_t *node
 
+        self.game = NULL
+        self.player_color = -1
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
         for i in range(uct_hash_size):
             node = &self.nodes[i]
@@ -72,6 +74,9 @@ cdef class MCTS(object):
         self.policy = policy
         self.policy_feature = allocate_feature()
         self.pondering = False
+        self.pondering_stopped = True
+        self.pondering_suspending = False
+        self.pondering_suspended = True
         self.policy_queue_running = False
         self.n_playout = 0
         self.beta = 1.0/temperature
@@ -104,10 +109,15 @@ cdef class MCTS(object):
             self.policy_network_queue.pop()
         openmp.omp_unset_lock(&self.policy_queue_lock)
 
+        self.player_color = -1
+
         self.initialize_nodes()
 
         self.current_root = uct_hash_size
-        self.pondering = False
+        self.pondering = True
+        self.pondering_stopped = False
+        self.pondering_suspending = False
+        self.pondering_suspended = True
         self.n_playout = 0
         self.max_queue_size_P = 0
 
@@ -184,7 +194,54 @@ cdef class MCTS(object):
 
         return PASS
 
-    cdef void start_search_thread(self, game_state_t *game) nogil:
+    cdef void start_pondering(self) nogil:
+        cdef char *stone = ['#', 'B', 'W']
+        cdef int i
+        cdef tree_node_t *node
+        cdef bint expanded
+        cdef timeval end_time
+        cdef double elapsed
+
+        printf('Starting pondering main thread ...\n')
+        self.pondering = True
+        while self.pondering:
+            if self.pondering_suspended == True:
+                with gil:
+                    time.sleep(.001)
+                continue
+
+            self.ponder(self.game)
+
+            self.pondering_suspending = False
+            self.pondering_suspended = True
+
+        self.pondering_stopped = True
+
+    cdef void stop_pondering(self) nogil:
+        printf('>> Stopping pondering ...\n')
+        if not self.pondering_stopped:
+            self.pondering = False
+            while not self.pondering_stopped:
+                with gil:
+                    time.sleep(.001)
+                continue
+        printf('>> Pondering stopped.\n')
+
+    cdef void suspend_pondering(self) nogil:
+        printf('>> Suspending pondering ...\n')
+        if not self.pondering_suspended:
+            self.pondering_suspending = True
+            while not self.pondering_suspended:
+                with gil:
+                    time.sleep(.001)
+                continue
+        printf('>> Pondering suspended.\n')
+
+    cdef void resume_pondering(self) nogil:
+        printf('>> Resume pondering.\n')
+        self.pondering_suspended = False
+
+    cdef void ponder(self, game_state_t *game) nogil:
         cdef char *stone = ['#', 'B', 'W']
         cdef int i
         cdef tree_node_t *node
@@ -196,8 +253,6 @@ cdef class MCTS(object):
         for i in range(self.n_threads):
             self.n_threads_playout[i] = 0
 
-        self.pondering = True
-
         gettimeofday(&self.search_start_time, NULL)
 
         delete_old_hash(game)
@@ -206,12 +261,17 @@ cdef class MCTS(object):
 
         node = &self.nodes[self.current_root]
 
-        printf(">> Playout (%s)\n", cppstring(1, stone[node.player_color]).c_str())
+        if node.player_color == self.player_color:
+            printf("\n>> Starting pondering ... ... ... :-)\n")
+        else:
+            printf("\n>> Starting read-ahead pondering ... ... ... :-)\n")
+
+        printf("Current node color  : %s\n", cppstring(1, stone[node.player_color]).c_str())
         if node.Nr != 0.0:
             printf('Past Playouts       : %d\n', <int>node.Nr)
             printf('Past Winning ratio  : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
         else:
-            printf('No playout information found for current state.\n')
+            printf('>> No playout information found for current node.\n')
 
         if node.is_edge:
             expanded = self.expand(node, game)
@@ -232,6 +292,11 @@ cdef class MCTS(object):
         elapsed = ((end_time.tv_sec - self.search_start_time.tv_sec) +
                    (end_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
 
+        if node.player_color == self.player_color:
+            printf(">> Time is over :-)\n")
+        else:
+            printf(">> Stopped read-ahead pondering.\n")
+
         printf('Playouts           : %d\n', self.n_playout)
         for i in range(self.n_threads):
             printf('  T%d               : %d\n', i, self.n_threads_playout[i])
@@ -244,11 +309,6 @@ cdef class MCTS(object):
         printf('Queue size max (P) : %d\n', self.max_queue_size_P)
         printf('Hash status of use : %3.2lf % (%u/%u)\n', used*100.0/uct_hash_size, used, uct_hash_size)
 
-        self.pondering = False
-
-    cdef void stop_search_thread(self):
-        self.pondering = False
-
     cdef void run_search(self, int thread_id, game_state_t *game) nogil:
         cdef game_state_t *search_game
         cdef tree_node_t *node
@@ -257,9 +317,12 @@ cdef class MCTS(object):
         cdef timeval current_time
         cdef double elapsed = .0
 
+        printf('>> Search thread (T%d) started ...\n', thread_id)
+
         search_game = allocate_game()
 
-        while (self.pondering and
+        while (self.pondering == True and
+               self.pondering_suspending == False and
                check_remaining_hash_size() and
                self.n_playout < self.playout_limit and
                elapsed < self.time_limit):
@@ -284,6 +347,8 @@ cdef class MCTS(object):
         self.policy_queue_running = False
 
         free_game(search_game)
+
+        printf('>> T%d shut down.\n', thread_id)
 
     cdef void search(self,
                      tree_node_t *node,
@@ -525,7 +590,7 @@ cdef class MCTS(object):
 
         self.policy_queue_running = True
 
-        printf('>> Starting policy network queue...\n')
+        printf('>> Starting policy network queue ...\n')
 
         while self.policy_queue_running:
             openmp.omp_set_lock(&self.policy_queue_lock)
@@ -551,7 +616,7 @@ cdef class MCTS(object):
         printf('>> Policy network queue shut down.\n')
 
     cdef void stop_policy_network_queue(self) nogil:
-        printf('>> Shutting down policy network queue...\n')
+        printf('>> Shutting down policy network queue ...\n')
         self.policy_queue_running = False
 
     cdef void clear_policy_network_queue(self) nogil:
@@ -626,9 +691,14 @@ cdef class PyMCTS(object):
                   double temperature=0.67,
                   double time_limit=5.0,
                   int playout_limit=8000,
-                  int n_threads=1):
+                  int n_threads=1,
+                  bint read_ahead=False):
         self.mcts = MCTS(policy, temperature, time_limit, playout_limit, n_threads)
         self.game = allocate_game()
+        self.time_limit = time_limit
+        self.playout_limit = playout_limit
+        self.read_ahead = read_ahead
+
         initialize_board(self.game)
         initialize_rollout(self.game)
         initialize_uct_hash()
@@ -638,6 +708,8 @@ cdef class PyMCTS(object):
 
     def clear(self):
         printf('>> Initializing Tree and Board ...\n')
+        if self.read_ahead:
+            self.suspend_pondering()
         self.mcts.clear()
         free_game(self.game)
         self.game = allocate_game()
@@ -647,23 +719,50 @@ cdef class PyMCTS(object):
         printf('>> O.K.\n')
 
     def start_pondering(self):
-        self.mcts.start_search_thread(self.game)
+        self.mcts.start_pondering()
 
     def stop_pondering(self):
-        self.mcts.stop_search_thread()
+        self.mcts.stop_pondering()
+
+    def suspend_pondering(self):
+        self.mcts.suspend_pondering()
+    
+    def resume_pondering(self):
+        self.mcts.game = self.game
+        self.mcts.time_limit = 86400
+        self.mcts.playout_limit = 1000000
+        self.mcts.resume_pondering()
 
     def genmove(self, color):
+        if self.mcts.player_color == -1:
+            self.mcts.player_color = color
+
+        self.mcts.time_limit = self.time_limit
+        self.mcts.playout_limit = self.playout_limit
+        self.mcts.ponder(self.game)
+
         self.game.current_color = color
         pos = self.mcts.genmove(self.game)
         return pos
 
     def play(self, pos, color):
         cdef bint legal
+        if self.mcts.player_color == -1:
+            self.mcts.player_color = FLIP_COLOR(color)
+
+        if self.read_ahead:
+            self.suspend_pondering()
+
         legal = put_stone(self.game, pos, color)
         if legal:
             self.game.current_color = FLIP_COLOR(self.game.current_color)
             update_rollout(self.game)
             print_board(self.game)
+
+            if self.read_ahead:
+                if self.mcts.player_color == color:
+                    self.resume_pondering()
+
             return True
         else:
             return False
@@ -678,6 +777,7 @@ cdef class PyMCTS(object):
         self.mcts.eval_all_leafs_by_policy_network()
 
     def set_size(self, bsize):
+        self.clear()
         set_board_size(bsize)
 
     def set_komi(self, new_komi):
@@ -690,10 +790,10 @@ cdef class PyMCTS(object):
         pass
 
     def set_time_limit(self, limit):
-        self.mcts.time_limit = limit
+        self.time_limit = limit
 
     def set_playout_limit(self, limit):
-        self.mcts.playout_limit = limit
+        self.playout_limit = limit
 
     def showboard(self):
         print_board(self.game)

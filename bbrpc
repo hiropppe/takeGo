@@ -1,6 +1,7 @@
 import pyjsonrpc
 import os
 import sys
+import threading
 
 from bamboo.go.zobrist_hash import set_hash_size, initialize_hash, initialize_uct_hash
 from bamboo.models import policy
@@ -37,6 +38,8 @@ if __name__ == "__main__":
                         help="MCTS RPC server host")
     parser.add_argument("--port", "-p", type=int, default=6000,
                         help="MCTS RPC server port")
+    parser.add_argument("--read-ahead", "-r", default=False, action="store_true",
+                        help="Enable read-ahead pondering")
     parser.add_argument("--verbose", "-v", default=False, action="store_true",
                         help="Turn on verbose mode")
 
@@ -65,7 +68,13 @@ if __name__ == "__main__":
     initialize_const(0, x33_size, d12_size)
     set_rollout_parameter(args.rollout_weights)
 
-    set_mcts(PyMCTS(sl_policy, args.policy_temp, n_threads=args.threads))
+    mcts = PyMCTS(sl_policy, args.policy_temp, n_threads=args.threads, read_ahead=args.read_ahead)
+    set_mcts(mcts)
+
+    if args.read_ahead:
+        start_thread = threading.Thread(target=mcts.start_pondering)
+        start_thread.setDaemon(True)
+        start_thread.start()
 
     server = pyjsonrpc.ThreadingHttpServer(
         server_address = (args.host, args.port),
@@ -77,6 +86,9 @@ if __name__ == "__main__":
     try:
         server.serve_forever()
     except KeyboardInterrupt:
+        if args.read_ahead:
+            mcts.stop_pondering()
+            start_thread.join(10)
         server.shutdown()
         print('Server shut down')
 

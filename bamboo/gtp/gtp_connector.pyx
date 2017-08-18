@@ -31,9 +31,6 @@ class MCTSConnector(object):
     def get_move(self, color):
         cdef int x, y, pos
 
-        self.client.start_pondering()
-        # self.client.eval_all_leafs_by_policy_network()
-
         pos = self.client.genmove(color)
 
         if pos == PASS:
