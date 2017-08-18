@@ -76,6 +76,7 @@ def self_play(time_limit=60.0, playout_limit=10000, n_games=1, n_threads=1):
                   playout_limit=playout_limit,
                   n_threads=n_threads,
                   read_ahead=False)
+    mcts.clear()
     game = mcts.game
     for i in range(n_games):
         while True:
