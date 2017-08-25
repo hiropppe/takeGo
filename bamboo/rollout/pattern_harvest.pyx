@@ -19,9 +19,10 @@ from bamboo.go.board cimport onboard_index, get_md12
 from bamboo.go.printer cimport print_board
 from bamboo.rollout.pattern cimport x33_bits, x33_trans8_min, x33_trans16_min, print_x33
 from bamboo.rollout.pattern cimport d12_bits, d12_trans8_min, d12_trans16_min, print_d12
+from bamboo.rollout.pattern cimport nonres_d12_bits, nonres_d12_trans8_min, nonres_d12_trans16_min, print_nonres_d12
 
 
-cdef unsigned long long pat3[361]
+cdef unsigned long long nonres_pat[361]
 
 freq_dict = defaultdict(int)
 move_dict = defaultdict(int)
@@ -52,8 +53,8 @@ def harvest_3x3_pattern(file_name, verbose=False, quiet=False):
                     center = string.empty[0]
                     while center != STRING_EMPTY_END:
                         pat = x33_bits(game, center, <int>game.current_color)
-                        if pat3[onboard_index[center]] != pat:
-                            pat3[onboard_index[center]] = pat
+                        if nonres_pat[onboard_index[center]] != pat:
+                            nonres_pat[onboard_index[center]] = pat
                             freq_dict[pat] += 1
                             if move and move[0] == center:
                                 move_dict[pat] += 1
@@ -146,13 +147,76 @@ def save_12diamond_pattern(outfile):
     df.to_csv(outfile, index_label='pat')
 
 
+def harvest_nonres_12diamond_pattern(file_name, verbose=False, quiet=False):    
+    cdef game_state_t *game
+    cdef SGFMoveIterator sgf_iter
+    cdef int *updated_string_num
+    cdef int *updated_string_id
+    cdef int i
+    cdef int string_id
+    cdef string_t *string
+    cdef int center
+    cdef unsigned long long pat
+
+    with open(file_name, 'r') as file_object:
+        sgf_iter = SGFMoveIterator(19, file_object.read())
+
+    game = sgf_iter.game
+    try:
+        for i, move in enumerate(sgf_iter):
+            if game.moves > 0 and game.record[game.moves - 1].pos != PASS:
+                updated_string_num = &game.updated_string_num[<int>game.current_color]
+                updated_string_id = game.updated_string_id[<int>game.current_color]
+                for i in range(updated_string_num[0]):
+                    string_id = updated_string_id[i]
+                    string = &game.string[string_id]
+                    center = string.empty[0]
+                    while center != STRING_EMPTY_END:
+                        pat = nonres_d12_bits(game, center, <int>game.current_color)
+                        if nonres_pat[onboard_index[center]] != pat:
+                            nonres_pat[onboard_index[center]] = pat
+                            freq_dict[pat] += 1
+                            if move and move[0] == center:
+                                move_dict[pat] += 1
+                            else:
+                                move_dict[pat] += 0 
+                        center = string.empty[center]
+                updated_string_num[0] = 0
+    except IllegalMove:
+        if not quiet:
+            warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
+        if verbose:
+            err, msg, _ = sys.exc_info()
+            sys.stderr.write("{} {}\n".format(err, msg))
+            sys.stderr.write(traceback.format_exc())
+
+
+def save_nonres_12diamond_pattern(outfile):
+    df = pd.DataFrame({'freq': freq_dict, 'move_freq': move_dict})
+    # add move_ratio
+    df['move_ratio'] = df['move_freq']/df['freq']
+    # add min8, min16 pat
+    min8 = []
+    min16 = []
+    print('Generating minhash ...')
+    for i, row in df.iterrows():
+        min8.append(nonres_d12_trans8_min(row.name))
+        min16.append(nonres_d12_trans16_min(row.name))
+    assert df.shape[0] == len(min8) == len(min16), 'Size mismatch'
+    df['min8'] = min8
+    df['min16'] = min16
+    pd.set_option('display.width', 200)
+    print(df)
+    df.to_csv(outfile, index_label='pat')
+
+
 def main(cmd_line_args=None):
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--outfile", "-o", required=True,
                         help="Destination to write data")
-    parser.add_argument("--pattern", "-p", type=str, default='x33', choices=['x33', 'd12'],
+    parser.add_argument("--pattern", "-p", type=str, default='x33', choices=['x33', 'd12', 'nonres_d12'],
                         help="Choice pattern to harvest (Default: x33)")
     parser.add_argument("--directory", "-d", default=None,
                         help="Directory containing SGF files to process. if not present, expects files from stdin")
@@ -209,9 +273,12 @@ def main(cmd_line_args=None):
     if args.pattern == 'x33':
         harvest_func = harvest_3x3_pattern
         save_func = save_3x3_pattern
-    else:
+    elif args.pattern == 'd12':
         harvest_func = harvest_12diamond_pattern
         save_func = save_12diamond_pattern
+    else:
+        harvest_func = harvest_nonres_12diamond_pattern
+        save_func = save_nonres_12diamond_pattern
 
     pbar = tqdm(total=sgf_total)
     for i, sgf_file in enumerate(sgf_files):

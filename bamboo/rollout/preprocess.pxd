@@ -8,28 +8,44 @@ cdef extern from "ray.h":
         F_NAKADE
         F_RESPONSE_PAT
         F_NON_RESPONSE_PAT
-        F_MAX
+        F_SELF_ATARI
+        F_LAST_MOVE_DISTANCE
+        F_NON_RESPONSE_D12_PAT
+
+cdef enum:
+    MOVE_DISTANCE_MAX = 17
 
 cdef bint debug
 
-cdef int feature_size
+cdef int rollout_feature_size
+cdef int tree_feature_size
+
 cdef int response_size
 cdef int save_atari_size
 cdef int neighbor_size
 cdef int nakade_size
 cdef int x33_size
 cdef int d12_size
+cdef int self_atari_size
+cdef int last_move_distance_size
+cdef int nonres_d12_size
+
 cdef int response_start
 cdef int save_atari_start
 cdef int neighbor_start
 cdef int nakade_start
 cdef int x33_start
 cdef int d12_start
+cdef int self_atari_start
+cdef int last_move_distance_start
+cdef int nonres_d12_start
 
 cdef double rollout_weights[100000]
+cdef double tree_weights[100000]
 
-cpdef void initialize_const(int nakade_size, int x33_size, int d12_size)
+cpdef void initialize_const(int nakade_size, int x33_size, int d12_size, int nonres_d12_size)
 cpdef void set_rollout_parameter(object weights_hdf5) 
+cpdef void set_tree_parameter(object weights_hdf5)
 
 cdef void initialize_rollout(game_state_t *game) nogil
 cdef void update_rollout(game_state_t *game) nogil
@@ -53,5 +69,8 @@ cdef void update_probs(game_state_t *game) nogil
 cdef void norm_probs(double *probs, double *row_probs, double *logits, double logits_sum) nogil
 cdef void set_illegal(game_state_t *game, int pos) nogil
 cdef int choice_rollout_move(game_state_t *game) nogil
+
+cdef void update_tree_planes_all(game_state_t *game) nogil
+cdef void get_tree_probs(game_state_t *game, double *probs) nogil
 
 cdef void set_debug(bint debug) nogil

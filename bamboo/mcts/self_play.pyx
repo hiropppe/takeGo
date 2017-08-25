@@ -23,8 +23,8 @@ from bamboo.go.zobrist_hash cimport uct_hash_size
 from bamboo.go.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
 from bamboo.mcts.tree_search cimport tree_node_t, PyMCTS
 
-from bamboo.rollout.preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter
-from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
+from bamboo.rollout.preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter, set_tree_parameter
+from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash, init_nonres_d12_hash
 
 from bamboo.gtp import gtp
 
@@ -49,11 +49,14 @@ def self_play(time_limit=60.0, playout_limit=10000, n_games=1, n_threads=1):
     model = os.path.join(d, '../../params/policy/policy.json')
     weights = os.path.join(d, '../../params/policy/weights.00088.hdf5')
     # rollout policy
-    rollout_weights = os.path.join(d, '../../params/rollout/sample.hdf5')
+    rollout_weights = os.path.join(d, '../../params/rollout/rollout_weights.hdf5')
+    # tree policy
+    tree_weights = os.path.join(d, '../../params/rollout/tree_weights.hdf5')
     # pattern hash for rollout
     rands_txt = os.path.join(d, '../../params/rollout/mt_rands.txt')
     d12_csv = os.path.join(d, '../../params/rollout/d12.csv')
     x33_csv = os.path.join(d, '../../params/rollout/x33.csv')
+    tree_d12_csv = os.path.join(d, '../../params/rollout/tree_d12.csv')
 
     set_hash_size(2**20)
     initialize_hash()
@@ -61,13 +64,15 @@ def self_play(time_limit=60.0, playout_limit=10000, n_games=1, n_threads=1):
     read_rands(rands_txt)
     x33_size = init_x33_hash(x33_csv)
     d12_size = init_d12_hash(d12_csv)
+    tree_d12_size = init_nonres_d12_hash(tree_d12_csv)
 
-    initialize_const(0, x33_size, d12_size)
+    initialize_const(0, x33_size, d12_size, tree_d12_size)
 
     sl_policy = policy.CNNPolicy.load_model(model)
     sl_policy.model.load_weights(weights)
 
     set_rollout_parameter(rollout_weights)
+    set_tree_parameter(tree_weights)
 
     set_board_size(19)
 

@@ -37,7 +37,7 @@ def setup_pattern(rands_file, d12_csv, x33_csv):
     x33_size = init_x33_hash(x33_csv)
     d12_size = init_d12_hash(d12_csv)
 
-    initialize_const(0, x33_size, d12_size)
+    initialize_const(0, x33_size, d12_size, 0)
 
 
 def setup_supervised_policy(model, weights):

@@ -28,7 +28,7 @@ from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, use
 from bamboo.go.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
 from bamboo.go.policy_feature cimport policy_feature_t
 from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
-from bamboo.rollout.preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move
+from bamboo.rollout.preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move, update_tree_planes_all, get_tree_probs
 
 from bamboo.go.printer cimport print_board, print_prior_probability, print_rollout_count, print_winning_ratio, print_action_value, print_bonus, print_selection_value
 from bamboo.util cimport save_gamestate_to_sgf 
@@ -464,7 +464,7 @@ cdef class MCTS(object):
         cdef char color = game.current_color
         cdef char other_color = FLIP_COLOR(color)
         cdef unsigned long long child_hash
-        cdef double *move_probs
+        cdef double move_probs[361]
         cdef int queue_size
         cdef int i
 
@@ -472,8 +472,8 @@ cdef class MCTS(object):
         if node.num_child > 0:
             return True
 
-        # tree policy not implemented yet. use rollout policy instead.
-        move_probs = game.rollout_probs[color]
+        update_tree_planes_all(game)
+        get_tree_probs(game, move_probs)
 
         for i in range(PURE_BOARD_MAX):
             child_pos = onboard_pos[i]

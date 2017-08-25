@@ -22,6 +22,7 @@ cimport policy_feature
 
 from bamboo.go.zobrist_hash cimport HASH_PASS, HASH_BLACK, HASH_WHITE, HASH_KO
 from bamboo.go.zobrist_hash cimport hash_bit
+from bamboo.rollout.preprocess cimport MOVE_DISTANCE_MAX
 from bamboo.rollout.preprocess cimport initialize_rollout
 
 pure_board_size = PURE_BOARD_SIZE
@@ -687,12 +688,11 @@ cdef void init_move_distance():
 
     global move_dis
 
-    move_dis = np.zeros((pure_board_size, pure_board_size), dtype=np.int32)
     for y in range(pure_board_size):
         for x in range(pure_board_size):
-            move_dis[x, y] = x + y + MAX(x, y)
-            if move_dis[x, y] > MOVE_DISTANCE_MAX:
-                move_dis[x, y] = MOVE_DISTANCE_MAX
+            move_dis[x][y] = x + y + MAX(x, y)
+            if move_dis[x][y] > MOVE_DISTANCE_MAX:
+                move_dis[x][y] = MOVE_DISTANCE_MAX
 
 
 cdef void init_board_position_id():
@@ -934,7 +934,7 @@ cdef void initialize_const():
 
     init_line_number()
 
-    #init_move_distance()
+    init_move_distance()
 
     #init_board_position_id()
 

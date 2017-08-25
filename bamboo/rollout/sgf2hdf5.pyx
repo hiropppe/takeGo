@@ -20,9 +20,9 @@ from bamboo.util cimport SGFMoveIterator
 from bamboo.go.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
 from bamboo.go.board cimport game_state_t, rollout_feature_t, pure_board_size, pure_board_max, onboard_index
 from bamboo.go.printer cimport print_board
-from bamboo.rollout.pattern cimport read_rands, init_nakade_hash, init_x33_hash, init_d12_hash
+from bamboo.rollout.pattern cimport read_rands, init_x33_hash, init_d12_hash
 from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
-from bamboo.rollout.preprocess cimport feature_size
+from bamboo.rollout.preprocess cimport rollout_feature_size
 from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, update_planes 
 
 
@@ -32,20 +32,19 @@ cdef class GameConverter(object):
         int bsize
         list update_speeds
 
-    def __cinit__(self, bsize=19, rands_file=None, nakade_file=None, x33_file=None, d12_file=None):
-        cdef int nakade_size, x33_size, d12_size
+    def __cinit__(self, bsize=19, rands_file=None, x33_file=None, d12_file=None):
+        cdef int x33_size, d12_size
 
         self.bsize = bsize
 
         read_rands(rands_file)
 
-        nakade_size = init_nakade_hash(nakade_file)
         x33_size = init_x33_hash(x33_file)
         d12_size = init_d12_hash(d12_file)
 
         self.update_speeds = list()
 
-        initialize_const(nakade_size, x33_size, d12_size)
+        initialize_const(0, x33_size, d12_size, 0)
 
     def __dealloc__(self):
         pass
@@ -161,7 +160,7 @@ cdef class GameConverter(object):
             os.remove(tmp_file)
             raise e
 
-        h5f['n_features'] = feature_size 
+        h5f['n_features'] = rollout_feature_size 
 
         if verbose:
             print("finished. renaming %s to %s" % (tmp_file, hdf5_file))

@@ -5,8 +5,8 @@ import threading
 
 from bamboo.go.zobrist_hash import set_hash_size, initialize_hash, initialize_uct_hash
 from bamboo.models import policy
-from bamboo.rollout.pattern import read_rands, init_d12_hash, init_x33_hash
-from bamboo.rollout.preprocess import initialize_const, set_rollout_parameter
+from bamboo.rollout.pattern import read_rands, init_d12_hash, init_x33_hash, init_nonres_d12_hash
+from bamboo.rollout.preprocess import initialize_const, set_rollout_parameter, set_tree_parameter
 from bamboo.mcts.tree_search import PyMCTS
 from bamboo.mcts.mcts_server import set_mcts, MCTSRequestHandler
 
@@ -21,13 +21,17 @@ if __name__ == "__main__":
     parser.add_argument("--policy-weights", "-W", type=str, required=True,
                         help="Policy network weights (hdf5)")
     parser.add_argument("--rollout-weights", "-Wr", type=str, required=True,
-                        help="Policy network weights (hdf5)")
+                        help="Rollout policy network weights (hdf5)")
+    parser.add_argument("--tree-weights", "-Wt", type=str, required=True,
+                        help="Tree policy network weights (hdf5)")
     parser.add_argument("--mt-rands-file", "-mt", type=str, required=True,
                         help="Mersenne twister random number file")
     parser.add_argument("--x33-pattern", "-x33", type=str, required=True,
-                        help="3x3 pattern file")
+                        help="Non-response 3x3 pattern file")
     parser.add_argument("--d12-pattern", "-d12", type=str, required=True,
-                        help="12 point diamond(MD2) pattern file")
+                        help="Response 12 point diamond(MD2) pattern file")
+    parser.add_argument("--tree-d12-pattern", "-td12", type=str, required=True,
+                        help="Non-response 12 point diamond(MD2) pattern file")
     parser.add_argument("--policy-temp", type=float, default=0.67,
                         help="Distribution temperature of players using policies (Default: 0.67)")
     parser.add_argument("--threads", "-t", type=int, default=1,
@@ -64,9 +68,11 @@ if __name__ == "__main__":
     read_rands(args.mt_rands_file)
     x33_size = init_x33_hash(args.x33_pattern)
     d12_size = init_d12_hash(args.d12_pattern)
+    tree_d12_size = init_nonres_d12_hash(args.tree_d12_pattern)
 
-    initialize_const(0, x33_size, d12_size)
+    initialize_const(0, x33_size, d12_size, tree_d12_size)
     set_rollout_parameter(args.rollout_weights)
+    set_tree_parameter(args.tree_weights)
 
     mcts = PyMCTS(sl_policy, args.policy_temp, n_threads=args.threads, read_ahead=args.read_ahead)
     set_mcts(mcts)

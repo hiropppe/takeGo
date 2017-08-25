@@ -43,7 +43,9 @@ cdef extern from "ray.h":
 
     char FLIP_COLOR(char color) nogil
 
-    int MOVE_DISTANCE_MAX
+    int DX(int pos1, int pos2, int *board_x) nogil
+    int DY(int pos1, int pos2, int *board_y) nogil
+    int DIS(int pos1, int pos2, int *board_x, int *board_y, int move_dis[19][19]) nogil
 
     ctypedef enum stone:
         S_EMPTY
@@ -61,15 +63,6 @@ cdef extern from "ray.h":
         E_COMPLETE_ONE_EYE
         E_MAX
 
-    ctypedef enum:
-        F_RESPONSE
-        F_SAVE_ATARI
-        F_NEIGHBOR
-        F_NAKADE
-        F_RESPONSE_PAT
-        F_NON_RESPONSE_PAT
-        F_MAX
- 
     ctypedef struct move_t:
         int color
         int pos
@@ -92,7 +85,7 @@ cdef extern from "ray.h":
 
     ctypedef struct rollout_feature_t:
         int color
-        int tensor[6][361]
+        int tensor[9][361]
         int prev_neighbor8[8]
         int prev_neighbor8_num
         int prev_d12[12]
@@ -169,7 +162,7 @@ cdef int *board_y
 cdef int *board_dis_x
 cdef int *board_dis_y
 
-cdef int[:, ::1] move_dis
+cdef int move_dis[19][19]   # PURE_BOARD_SIZE
 
 cdef int *onboard_pos
 cdef int *onboard_index
