@@ -136,6 +136,7 @@ enum eye_condition {
 typedef struct move {
     int color;  // 着手した石の色
     int pos;    // 着手箇所の座標
+    unsigned long long hash;
 } move_t;
 
 
@@ -191,6 +192,7 @@ typedef struct {
     unsigned long long current_hash;     // 現在の局面のハッシュ値
     unsigned long long previous1_hash;   // 1手前の局面のハッシュ値
     unsigned long long previous2_hash;   // 2手前の局面のハッシュ値
+    unsigned long long positional_hash;  // 超劫用の局面ハッシュ
 
     char board[BOARD_MAX];              // 盤面 
     int birth_move[BOARD_MAX];          // 打たれた着手数

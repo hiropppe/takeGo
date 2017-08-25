@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+from libcpp.unordered_map cimport unordered_map
+
 
 cdef extern from "common.h":
     int MAX(int x, int y) nogil
@@ -66,6 +67,7 @@ cdef extern from "ray.h":
     ctypedef struct move_t:
         int color
         int pos
+        unsigned long long hash
 
     ctypedef struct string_t:
         char color
@@ -102,6 +104,7 @@ cdef extern from "ray.h":
         int ko_move
 
         unsigned long long current_hash
+        unsigned long long positional_hash
 
         char board[529]         # BOARD_MAX
         int birth_move[529]     # BOARD_MAX
@@ -176,6 +179,8 @@ cdef unsigned char territory[65536]     # PAT3_MAX
 cdef unsigned char nb4_empty[65536]     # PAT3_MAX
 cdef unsigned char eye_condition[65536] # PAT3_MAX
 
+cdef bint check_superko
+
 cdef void fill_n_char (char *arr, int size, char v) nogil
 cdef void fill_n_short (short *arr, int size, short v) nogil
 cdef void fill_n_int (int *arr, int size, int v) nogil
@@ -184,6 +189,7 @@ cdef void initialize_const()
 cdef void clear_const()
 cdef void set_board_size(int size)
 cdef void set_komi(double new_komi)
+cdef void set_superko(bint check)
 
 cdef game_state_t *allocate_game() nogil
 cdef void free_game(game_state_t *game) nogil
@@ -229,5 +235,6 @@ cdef bint is_legal(game_state_t *game, int pos, char color) nogil
 cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil
 cdef bint is_suicide(game_state_t *game, int pos, char color) nogil
 cdef bint is_true_eye(game_state_t *game, int pos, char color, char other_color, int empty_diagonal_stack[200], int empty_diagonal_top) nogil
+cdef bint is_superko(game_state_t *game, int pos, char color) nogil
 cdef int calculate_score(game_state_t *game) nogil
 cdef void check_bent_four_in_the_corner(game_state_t *game) nogil

@@ -48,6 +48,8 @@ max_moves = MAX_MOVES
 
 komi = KOMI
 
+check_superko = False
+
 
 cdef void fill_n_char (char *arr, int size, char v) nogil:
     cdef int i
@@ -114,6 +116,7 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
             dst.string[i].flag = False
 
     dst.current_hash = src.current_hash
+    dst.positional_hash = src.positional_hash
 
     dst.current_color = src.current_color
     dst.pass_count = src.pass_count
@@ -134,6 +137,7 @@ cdef void initialize_board(game_state_t *game):
     game.ko_move = 0
     game.pass_count = 0
     game.current_hash = 0
+    game.positional_hash = 0
 
     fill_n_char(game.board, BOARD_MAX, 0)
     fill_n_int(game.birth_move, BOARD_MAX, 0)
@@ -199,6 +203,7 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
     game.board[pos] = color
 
     game.current_hash ^= hash_bit[pos][<int>color]
+    game.positional_hash ^= hash_bit[pos][<int>color]
 
     pat.update_md2_stone(game.pat, pos, color)
 
@@ -450,6 +455,9 @@ cdef int remove_string(game_state_t *game, string_t *string) nogil:
         capture_num[0] += 1
 
         pat.update_md2_empty(game.pat, pos)
+
+        game.current_hash ^= hash_bit[pos][remove_color]
+        game.positional_hash ^= hash_bit[pos][remove_color]
 
         north_string_id = game.string_id[NORTH(pos, board_size)]
         west_string_id = game.string_id[WEST(pos)]
@@ -1002,8 +1010,12 @@ cdef void set_board_size(int size):
 
 cdef void set_komi(double new_komi):
     global komi
-
     komi = new_komi
+
+
+cdef void set_superko(bint check):
+    global check_superko
+    check_superko = check
 
 
 cdef int get_neighbor4_empty(game_state_t *game, int pos) nogil:
@@ -1021,6 +1033,9 @@ cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
         return False
 
     if game.ko_pos == pos and game.ko_move == (game.moves - 1):
+        return False
+
+    if check_superko and is_superko(game, pos, color):
         return False
 
     return True
@@ -1045,6 +1060,9 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
             return False
 
     if game.ko_pos == pos and game.ko_move == (game.moves - 1):
+        return False
+
+    if check_superko and is_superko(game, pos, color):
         return False
 
     return True
@@ -1123,6 +1141,45 @@ cdef bint is_suicide(game_state_t *game, int pos, char color) nogil:
             return False
 
     return True
+
+
+cdef bint is_superko(game_state_t *game, int pos, char color) nogil:
+    cdef int other = FLIP_COLOR(color)
+    cdef int neighbor4[4]
+    cdef int check[4]
+    cdef int checked = 0
+    cdef int string_id, string_pos
+    cdef unsigned long long hash = game.positional_hash
+    cdef bint flag
+    cdef int i, j
+
+    get_neighbor4(neighbor4, pos)
+
+    for i in range(4):
+        if game.board[neighbor4[i]] == other:
+            string_id = game.string_id[neighbor4[i]]
+            string = game.string[string_id]
+            if string.flag and string.libs == 1:
+                flag = False
+                for j in range(checked):
+                    if check[j] == string_id:
+                        flag = True
+                    if flag:
+                        continue
+                string_pos = string.origin
+                while string_pos != STRING_END:
+                    hash ^= hash_bit[string_pos][other]
+                    string_pos = game.string_next[string_pos]
+            check[checked] = string_id
+            checked += 1
+
+    hash ^= hash_bit[pos][color]
+    
+    for i in range(1, game.moves + 1):
+        if game.record[game.moves - i].hash == hash:
+            return True
+
+    return False
 
 
 cdef int calculate_score(game_state_t *game) nogil:

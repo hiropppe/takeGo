@@ -15,7 +15,7 @@ from nose.tools import ok_, eq_
 from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS, RESIGN
 from bamboo.go.board cimport FLIP_COLOR, CORRECT_X, CORRECT_Y
 from bamboo.go.board cimport game_state_t, onboard_pos
-from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi, is_legal_not_eye
+from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi, set_superko 
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
 
@@ -75,6 +75,7 @@ def self_play(time_limit=60.0, playout_limit=10000, n_games=1, n_threads=1):
     set_tree_parameter(tree_weights)
 
     set_board_size(19)
+    set_superko(True)
 
     mcts = PyMCTS(sl_policy,
                   time_limit=time_limit,
