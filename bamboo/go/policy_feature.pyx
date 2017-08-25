@@ -113,8 +113,8 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
             for n in range(4):
                 npos = neighbor4[n]
                 nstring_id = game.string_id[npos]
-                if nstring_id:
-                    nstring = &game.string[nstring_id]
+                nstring = &game.string[nstring_id]
+                if nstring.flag:
                     if nstring.color == current_color:
                         if not neighbor_checked[i][nstring_id]:
                             self_atari_size += nstring.size
@@ -136,8 +136,8 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
             for n in range(4):
                 npos = neighbor4[n]
                 nstring_id = game.string_id[npos]
-                if nstring_id:
-                    nstring = &game.string[nstring_id]
+                nstring = &game.string[nstring_id]
+                if nstring.flag:
                     if nstring.color != current_color and nstring.libs == 1 and nstring.lib[pos] != 0:
                         # add neighbor pos
                         if libpos_after_move[i][npos] == 0:
