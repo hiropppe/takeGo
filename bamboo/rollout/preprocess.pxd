@@ -39,9 +39,11 @@ cdef void update_planes_all(game_state_t *game) nogil
 cdef void update_planes(game_state_t *game) nogil
 cdef void update_save_atari(rollout_feature_t *feature, game_state_t *game, string_t *string) nogil
 cdef void update_neighbor(rollout_feature_t *feature, game_state_t *game, int pos) nogil
+cdef void update_nakade(rollout_feature_t *feature, game_state_t *game, int prev_color) nogil
 cdef void update_d12(rollout_feature_t *feature, game_state_t *game, int prev_pos, int prev_color) nogil
 cdef void update_3x3(rollout_feature_t *feature, game_state_t *game, int pos, int color) nogil
 cdef void clear_neighbor(rollout_feature_t *feature) nogil
+cdef void clear_nakade(rollout_feature_t *feature) nogil
 cdef void clear_d12(rollout_feature_t *feature) nogil
 cdef void clear_onehot_index(rollout_feature_t *feature, int pos) nogil
 cdef void clear_updated_string_cache(game_state_t *game) nogil

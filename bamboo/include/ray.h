@@ -178,6 +178,7 @@ typedef struct {
     int prev_neighbor8_num;
     int prev_d12[12];
     int prev_d12_num;
+    int prev_nakade;
     int updated[BOARD_MAX];
     int updated_num;
 } rollout_feature_t;

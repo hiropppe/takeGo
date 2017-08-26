@@ -18,8 +18,10 @@ from bamboo.go.board cimport FLIP_COLOR, POS, Y
 from bamboo.go.board cimport game_state_t, rollout_feature_t, pure_board_max, onboard_index, onboard_pos
 from bamboo.go.board cimport is_legal, get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
 
+from bamboo.rollout.nakade cimport NOT_NAKADE, get_nakade_index, get_nakade_id, get_nakade_pos
 from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout.pattern cimport d12_hash, d12_hashmap, d12_pos_mt
+from bamboo.go.printer cimport print_board
 
 
 cpdef void initialize_const(int nakade_feature_size,
@@ -70,6 +72,9 @@ cdef void initialize_planes(game_state_t *game) nogil:
     black.prev_d12_num = 0
     white.prev_d12_num = 0
 
+    black.prev_nakade = NOT_NAKADE
+    white.prev_nakade = NOT_NAKADE
+
     black.updated[0] = BOARD_MAX
     black.updated_num = 0
     white.updated[0] = BOARD_MAX
@@ -79,7 +84,7 @@ cdef void initialize_planes(game_state_t *game) nogil:
 cdef void initialize_probs(game_state_t *game) nogil:
     cdef int i, j, k
 
-    for i in range(OB_SIZE):
+    for i in range(S_OB):
         game.rollout_logits_sum[i] = .0
         for j in range(PURE_BOARD_MAX):
             game.rollout_probs[i][j] = .0
@@ -157,9 +162,11 @@ cdef void update_planes(game_state_t *game) nogil:
 
     if prev_pos == PASS:
         clear_neighbor(current_feature)
+        clear_nakade(current_feature)
         clear_d12(current_feature)
     else:
         update_neighbor(current_feature, game, prev_pos)
+        update_nakade(current_feature, game, prev_color)
         update_d12(current_feature, game, prev_pos, prev_color)
 
     updated_string_num = game.updated_string_num[current_color]
@@ -172,6 +179,7 @@ cdef void update_planes(game_state_t *game) nogil:
             while update_pos != STRING_EMPTY_END:
                 update_3x3(current_feature, game, update_pos, current_color)
                 update_pos = updated_string.empty[update_pos]
+
 
     # clear updated string memo for next feature calculation
     clear_updated_string_cache(game)
@@ -237,6 +245,32 @@ cdef void update_neighbor(rollout_feature_t *feature, game_state_t *game, int po
             feature.prev_neighbor8[feature.prev_neighbor8_num] = empty_neighbor_ix
             feature.prev_neighbor8_num += 1
             memorize_updated(feature, neighbor_pos)
+
+
+cdef void update_nakade(rollout_feature_t *feature, game_state_t *game, int prev_color) nogil:
+    cdef int capture_num
+    cdef int *capture_pos
+    cdef int nakade_index, nakade_id, nakade_pos, nakade_pure_pos
+
+    global nakade_start
+
+    clear_nakade(feature)
+
+    capture_num = game.capture_num[prev_color]
+    capture_pos = game.capture_pos[prev_color]
+
+    if capture_num < 3 or 6 < capture_num:
+        return
+
+    # index for each number of capture
+    nakade_index = get_nakade_index(capture_num, capture_pos)
+    if nakade_index != NOT_NAKADE:
+        nakade_id = get_nakade_id(capture_num, nakade_index)
+        nakade_pos = get_nakade_pos(capture_num, capture_pos, nakade_index)
+        nakade_pure_pos = onboard_index[nakade_pos]
+        feature.tensor[F_NAKADE][nakade_pure_pos] = nakade_start + nakade_id
+        feature.prev_nakade = nakade_pure_pos 
+        memorize_updated(feature, nakade_pos)
 
 
 cdef void update_d12(rollout_feature_t *feature, game_state_t *game, int prev_pos, int prev_color) nogil:
@@ -306,7 +340,7 @@ cdef void clear_neighbor(rollout_feature_t *feature) nogil:
     for i in range(feature.prev_neighbor8_num):
         pos = feature.prev_neighbor8[i]
         feature.tensor[F_NEIGHBOR][pos] = -1
-        memorize_updated(feature, pos)
+        memorize_updated(feature, onboard_pos[pos])
 
 
 cdef void clear_d12(rollout_feature_t *feature) nogil:
@@ -316,7 +350,13 @@ cdef void clear_d12(rollout_feature_t *feature) nogil:
         pos = feature.prev_d12[i]
         feature.tensor[F_RESPONSE][pos] = -1
         feature.tensor[F_RESPONSE_PAT][pos] = -1
-        memorize_updated(feature, pos)
+        memorize_updated(feature, onboard_pos[pos])
+
+
+cdef void clear_nakade(rollout_feature_t *feature) nogil:
+    if feature.prev_nakade != NOT_NAKADE:
+        feature.tensor[F_NAKADE][feature.prev_nakade] = -1
+        memorize_updated(feature, onboard_pos[feature.prev_nakade])
 
 
 cdef void clear_onehot_index(rollout_feature_t *feature, int pos) nogil:

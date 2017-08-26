@@ -12,6 +12,7 @@ from bamboo.go.board cimport FLIP_COLOR, Y
 from bamboo.go.board cimport game_state_t, rollout_feature_t, board_size, pure_board_size, pure_board_max
 from bamboo.go.board cimport onboard_pos 
 from bamboo.go.board cimport set_board_size, allocate_game, free_game, put_stone, copy_game
+from bamboo.go.zobrist_hash cimport initialize_hash 
 from bamboo.go.printer cimport print_board
 from bamboo.go.parseboard cimport parse
 
@@ -20,15 +21,17 @@ from bamboo.rollout.preprocess cimport response_start, save_atari_start, neighbo
 from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_planes_all, memorize_updated, choice_rollout_move, set_illegal, norm_probs 
 from bamboo.rollout.pattern cimport initialize_rands, put_x33_hash, put_d12_hash
 from bamboo.rollout.pattern import print_x33
+from bamboo.rollout.nakade cimport initialize_nakade_hash
 
 
-cdef int nakade_size = 0
+cdef int nakade_size = 8 
 cdef int x33_size = 100
 cdef int d12_size = 100
 
 def setup():
     initialize_const(nakade_size, x33_size, d12_size)
     initialize_rands()
+    initialize_hash()
 
     put_12diamond_test_patterns()
     put_3x3_test_patterns()
@@ -368,6 +371,614 @@ def put_3x3_test_patterns():
     put_x33_hash(0b1000000000010000110000000011000010, 10)
     put_x33_hash(0b1000010000000000110011000000000001, 10)
     put_x33_hash(0b1000010000000000110011000000000010, 10)
+
+
+def test_update_nakade_3_0():
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *feature
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . B b B . .|"
+                              ". B W a W B .|"
+                              ". . B B B . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    initialize_nakade_hash()
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . W . . .|"
+                              ". . W B W . .|"
+                              ". . W a b . .|"
+                              ". . W B W . .|"
+                              ". . . W . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    free_game(game)
+
+
+def test_update_nakade_3_1():
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *feature
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". B B B B . .|"
+                              ". B W a b . .|"
+                              ". B B W B . .|"
+                              ". . B B B . .|"
+                              ". . . . . . .|")
+
+    initialize_nakade_hash()
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 1) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    game.current_color = S_WHITE
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . B B B . .|"
+                              ". B B W B . .|"
+                              ". B W a B . .|"
+                              ". B B b B . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 1) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . B B B . .|"
+                              ". . B W B B .|"
+                              ". . B a W B .|"
+                              ". . B b B B .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 1) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . B B B B .|"
+                              ". . b a W B .|"
+                              ". . B W B B .|"
+                              ". . B B B . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 1) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    free_game(game)
+
+
+def test_update_nakade_4():
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *feature
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . W W W . .|"
+                              ". W W B W W .|"
+                              ". W B a B W .|"
+                              ". W W b W W .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    initialize_nakade_hash()
+
+    game.current_color = S_BLACK
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 2) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . W W W . .|"
+                              ". W W B W . .|"
+                              ". W B a b . .|"
+                              ". W W B W . .|"
+                              ". . W W W . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 2) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . W W W . .|"
+                              ". . W B W W .|"
+                              ". . b a B W .|"
+                              ". . W B W W .|"
+                              ". . W W W . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 2) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". W W b W W .|"
+                              ". W B a B W .|"
+                              ". W W B W W .|"
+                              ". . W W W . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 2) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    free_game(game)
+
+
+def test_update_nakade_5_0():
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *feature
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . B B B . .|"
+                              ". B B W B B .|"
+                              ". B W a W B .|"
+                              ". B B W B B .|"
+                              ". . B b B . .|"
+                              ". . . . . . .|")
+
+    initialize_nakade_hash()
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 3) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    free_game(game)
+
+
+def test_update_nakade_5_1():
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *feature
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . B B B . .|"
+                              ". B B W B . .|"
+                              ". B W a b . .|"
+                              ". B W W B . .|"
+                              ". B B B B . .|"
+                              ". . . . . . .|")
+
+    initialize_nakade_hash()
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 4) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". B B B B . .|"
+                              ". B W W B B .|"
+                              ". B W a W B .|"
+                              ". B B b B B .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 4) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . B B B B .|"
+                              ". . B W W B .|"
+                              ". . b a W B .|"
+                              ". . B W B B .|"
+                              ". . B B B . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 4) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". B B b B B .|"
+                              ". B W a W B .|"
+                              ". B B W W B .|"
+                              ". . B B B B .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 4) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . B B B . .|"
+                              ". . B W B B .|"
+                              ". . b a W B .|"
+                              ". . B W W B .|"
+                              ". . B B B B .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 4) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". B B b B B .|"
+                              ". B W a W B .|"
+                              ". B W W B B .|"
+                              ". B B B B . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 4) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". B B B B . .|"
+                              ". B W W B . .|"
+                              ". B W a b . .|"
+                              ". B B W B . .|"
+                              ". . B B B . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 4) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . B B B B .|"
+                              ". B B W W B .|"
+                              ". B W a W B .|"
+                              ". B B b B B .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 4) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    free_game(game)
+
+
+def test_update_nakade_6():
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *feature
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . W W W . .|"
+                              ". W W B W W .|"
+                              ". W B a B W .|"
+                              ". W B B W W .|"
+                              ". W W b W . .|"
+                              ". . . . . . .|")
+
+    initialize_nakade_hash()
+
+    game.current_color = S_BLACK
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 5) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". W W W W . .|"
+                              ". W B B W W .|"
+                              ". b B a B W .|"
+                              ". W W B W W .|"
+                              ". . W W W . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 5) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . W b W W .|"
+                              ". W W B B W .|"
+                              ". W B a B W .|"
+                              ". W W B W W .|"
+                              ". . W W W . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 5) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . W W W . .|"
+                              ". W W B W W .|"
+                              ". W B a B b .|"
+                              ". W W B B W .|"
+                              ". . W W W W .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_NAKADE][pure_moves['a']], nakade_start + 5) 
+    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+
+    free_game(game)
 
 
 def test_update_save_atari():
@@ -1346,13 +1957,13 @@ def test_copy_game():
 
     game.rollout_logits[black][0] = 1
     game.rollout_logits[white][360] = 2
-    game.rollout_logits_sum[black] = 1
-    game.rollout_logits_sum[white] = 2
+    game.rollout_logits_sum[black] = 3
+    game.rollout_logits_sum[white] = 4
 
-    game.rollout_probs[black][0] = 1
-    game.rollout_probs[white][360] = 2
-    game.rollout_row_probs[black][0] = 1
-    game.rollout_row_probs[white][18] = 2
+    game.rollout_probs[black][0] = 5
+    game.rollout_probs[white][360] = 6
+    game.rollout_row_probs[black][0] = 7
+    game.rollout_row_probs[white][18] = 8
 
     copy_game(copy, game)
 
@@ -1384,13 +1995,13 @@ def test_copy_game():
 
     eq_(copy.rollout_logits[black][0], 1)
     eq_(copy.rollout_logits[white][360], 2)
-    eq_(copy.rollout_logits_sum[black], 1)
-    eq_(copy.rollout_logits_sum[white], 2)
+    eq_(copy.rollout_logits_sum[black], 3)
+    eq_(copy.rollout_logits_sum[white], 4)
 
-    eq_(copy.rollout_probs[black][0], 1)
-    eq_(copy.rollout_probs[white][360], 2)
-    eq_(copy.rollout_row_probs[black][0], 1)
-    eq_(copy.rollout_row_probs[white][18], 2)
+    eq_(copy.rollout_probs[black][0], 5)
+    eq_(copy.rollout_probs[white][360], 6)
+    eq_(copy.rollout_row_probs[black][0], 7)
+    eq_(copy.rollout_row_probs[white][18], 8)
 
 
 cdef int number_of_active_positions(rollout_feature_t *feature, int feature_id):
