@@ -1,0 +1,64 @@
+FROM nvidia/cuda:8.0-cudnn6-devel-ubuntu16.04
+
+MAINTAINER sergei <sergei.0910@gmail.com>
+
+WORKDIR /root
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        software-properties-common \
+        build-essential \
+        curl \
+        vim \
+        git \
+        net-tools \
+        iputils-ping \
+        netcat \
+        libfreetype6-dev \
+        libpng12-dev \
+        libzmq3-dev \
+        pkg-config \
+        python \
+        python-dev \
+        python-numpy \
+        python-wheel \
+        python-mock \
+        rsync \
+        zip \
+        unzip \
+        g++ \
+        && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/*
+
+RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
+    python get-pip.py && \
+    rm get-pip.py
+
+RUN pip --no-cache-dir install \
+        ipykernel \
+        jupyter \
+        Cython==0.25.2 \
+        matplotlib==2.0.2 \
+        pandas==0.20.2 \
+        h5py==2.6.0 \
+        sgf==0.5 \
+        futures==3.0.5 \
+        python-jsonrpc==0.10.0 \
+        && \
+    python -m ipykernel.kernelspec
+
+WORKDIR /root
+
+# Copy cuDNN
+COPY cudnn/cudnn-8.0-linux-x64-v6.0.solitairetheme8 /tmp/
+
+RUN tar xzf /tmp/cudnn-8.0-linux-x64-v6.0.solitairetheme8 && \
+    cp -a cuda/include/* /usr/local/cuda/include/ && \
+    cp -a cuda/lib64/* /usr/local/cuda/lib64/
+
+RUN pip --no-cache-dir install \
+    https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow_gpu-1.3.0-cp27-none-linux_x86_64.whl 
+
+# For CUDA profiling, TensorFlow requires CUPTI.
+ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
