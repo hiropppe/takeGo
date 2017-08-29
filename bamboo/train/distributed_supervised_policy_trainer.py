@@ -199,8 +199,8 @@ class threading_shuffled_hdf5_batch_generator:
             return state, action, training_sample[1]
 
     def next(self):
-        state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
-        game_size = state_batch_shape[-1]
+        state_batch_shape = (self.batch_size,) + self.state_dataset.shape[2:] + self.state_dataset.shape[1:2]
+        game_size = state_batch_shape[1]
         Xbatch = np.zeros(state_batch_shape)
         Ybatch = np.zeros((self.batch_size, game_size * game_size))
 
@@ -216,8 +216,14 @@ class threading_shuffled_hdf5_batch_generator:
             state_transform = np.array([transform(plane) for plane in state])
             action_transform = transform(one_hot_action(action, game_size))
 
-            Xbatch[batch_idx] = state_transform
+            # Transpose input(state) dimention ordering.
+            # TF uses the last dimension as channel dimension,
+            # K input shape: (samples, input_depth, row, cols)
+            # TF input shape: (samples, rows, cols, input_depth)
+            Xbatch[batch_idx] = state_transform.transpose((1, 2, 0))
             Ybatch[batch_idx] = action_transform.flatten()
+
+        return (Xbatch, Ybatch)
 
 
 def load_indices_from_file(shuffle_file):
@@ -529,6 +535,7 @@ def run_training(cluster, server, num_workers):
                 while epoch < FLAGS.epoch:
                     sample_seen = 0
                     while sample_seen < epoch_length:
+                        """
                         generator_output = None
                         while not _stop.is_set():
                             if not data_gen_queue.empty():
@@ -536,8 +543,9 @@ def run_training(cluster, server, num_workers):
                                 break
                             else:
                                 time.sleep(wait_time)
-
                         states, actions = generator_output
+                        """
+                        states, actions = next(train_data_generator)
                         batch_size = len(states[0])
                         sample_seen += batch_size
 
@@ -556,6 +564,11 @@ def run_training(cluster, server, num_workers):
                                     sv.saver.save(sess, sv.save_path, global_step=step)
                                     summary_writer.add_summary(summary, global_step=step)
                                     summary_writer.flush()
+                                    print("Step: {:d},".format(step),
+                                          " Epoch: {:d},".format(epoch),
+                                          " Batch: {:d} of {:d},".format(sample_seen, epoch_length),
+                                          " Loss: {:.4f},".format(loss),
+                                          " Accuracy: {:.4f},".format(acc))
                             except:
                                 err, msg, _ = sys.exc_info()
                                 sys.stderr.write("{} {}\n".format(err, msg))
