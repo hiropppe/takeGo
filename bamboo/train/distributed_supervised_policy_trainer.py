@@ -19,7 +19,7 @@ import traceback
 from bamboo.train import nn_util
 
 flags = tf.app.flags
-flags.DEFINE_string("cluster_spec", "", "Cluster specification")
+flags.DEFINE_string("cluster_spec", "/cluster", "Cluster specification")
 flags.DEFINE_string("job_name", "", "Either 'ps' or 'worker'")
 flags.DEFINE_integer("task_index", 0, "Index of task within the job")
 

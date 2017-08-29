@@ -45,6 +45,9 @@ RUN pip --no-cache-dir install \
         sgf==0.5 \
         futures==3.0.5 \
         python-jsonrpc==0.10.0 \
+        jedi \
+        flake8 \
+        autopep8 \
         && \
     python -m ipykernel.kernelspec
 
@@ -62,3 +65,13 @@ RUN pip --no-cache-dir install \
 
 # For CUDA profiling, TensorFlow requires CUPTI.
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+
+# Puts cluster info 
+COPY cluster /
+
+# Puts scripts for distributed training
+COPY run_ps.sh /
+COPY run_worker.sh /
+
+RUN git config --global user.name "hiropppe"
+RUN git config --global user.email "sergei.0910@gmail.com"
