@@ -50,6 +50,8 @@ flags.DEFINE_float('gpu_memory_fraction', 0.15,
                    'config.per_process_gpu_memory_fraction for training session')
 flags.DEFINE_boolean('log_device_placement', False, '')
 
+flags.DEFINE_string("symmetries", "all", "none, all or comma-separated list of transforms, subset of: noop,rot90,rot180,rot270,fliplr,flipud,diag1,diag2. Default: all")
+
 flags.DEFINE_boolean('verbose', True, '')
 
 FLAGS = flags.FLAGS
@@ -301,9 +303,8 @@ def load_train_val_test_indices(verbose, arg_symmetries, dataset_length, batch_s
     return train_indices, val_indices, test_indices
 
 
-def create_and_save_shuffle_indices(max_validation,
-                                    n_total_data_size, shuffle_file_train,
-                                    shuffle_file_val, shuffle_file_test):
+def create_and_save_shuffle_indices(n_total_data_size, max_validation,
+                                    shuffle_file_train, shuffle_file_val, shuffle_file_test):
     """ create an array with all unique state and symmetry pairs,
         calculate test/validation/training set sizes,
         seperate those sets and save them to seperate files.
@@ -429,7 +430,7 @@ def run_training(cluster, server, num_workers):
         with tf.variable_scope('loss') as scope:
             loss_op = tf.reduce_mean(
                         tf.nn.softmax_cross_entropy_with_logits(
-                            logits, actions_placeholder), name=scope.name)
+                            logits=logits, labels=actions_placeholder), name=scope.name)
 
         # accuracy
         with tf.variable_scope('accuracy') as scope:
@@ -442,7 +443,7 @@ def run_training(cluster, server, num_workers):
                     FLAGS.learning_rate,
                     global_step,
                     FLAGS.decay_step, FLAGS.decay)
-            grad = tf.train.GradientDecentOptimizer(learning_rate_op)
+            grad = tf.train.GradientDescentOptimizer(learning_rate_op)
             train_op = grad.minimize(loss_op, global_step=global_step)
 
         # create a summary for our cost and accuracy
@@ -452,6 +453,7 @@ def run_training(cluster, server, num_workers):
         # merge all summaries into a single "operation" which we can execute in a session
         summary_op = tf.summary.merge_all()
         init_op = tf.global_variables_initializer()
+
         print("Variables initialized ...")
 
         # features of training data
@@ -469,11 +471,10 @@ def run_training(cluster, server, num_workers):
 
         # create and save new shuffle indices to file
         create_and_save_shuffle_indices(
-                dataset_length,
+                dataset_length, FLAGS.max_validation,
                 shuffle_file_train, shuffle_file_val, shuffle_file_test)
 
-        if FLAGS.verbose:
-            print("created new data shuffling indices")
+        print("Created new data shuffling indices")
 
         # get train/validation/test indices
         train_indices, val_indices, test_indices \
@@ -519,7 +520,7 @@ def run_training(cluster, server, num_workers):
             if is_chief:
                 summary_writer = tf.summary.FileWriter(FLAGS.logdir, sess.graph)
 
-            while not sess.should_stop():
+            while not sv.should_stop():
                 # perform training cycles
                 wait_time = 0.01  # in seconds
                 epoch = 0
