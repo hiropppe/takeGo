@@ -15,8 +15,11 @@ import sys
 import tensorflow as tf
 import time
 import traceback
+import warnings
 
-from bamboo.train import nn_util
+from . import nn_util
+
+from keras import callbacks as cbks
 
 flags = tf.app.flags
 flags.DEFINE_string("cluster_spec", "/cluster", "Cluster specification")
