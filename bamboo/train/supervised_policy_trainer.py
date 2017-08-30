@@ -15,8 +15,12 @@ import sys
 import tensorflow as tf
 import time
 import traceback
+import warnings
 
-from bamboo.train import nn_util
+from . import nn_util
+
+from keras import callbacks as cbks
+
 
 flags = tf.app.flags
 flags.DEFINE_string("cluster_spec", "/cluster", "Cluster specification")
@@ -383,7 +387,7 @@ def get_initial_weight(layer, wb, scope_name):
 
 def run_training(config):
 
-    with tf.Graph().as_default():
+    with tf.Graph().as_default() as graph:
         global_step = tf.contrib.framework.get_or_create_global_step()
 
         states_placeholder = tf.placeholder(tf.float32,
@@ -457,14 +461,15 @@ def run_training(config):
         # merge all summaries into a single "operation" which we can execute in a session
         summary_op = tf.summary.merge_all()
         init_op = tf.global_variables_initializer()
-
         # features of training data
         dataset = h5.File(FLAGS.train_data)
         dataset_length = len(dataset["states"])
         if FLAGS.epoch_length == 0:
             epoch_length = dataset_length
         else:
-            epoch_length = dataset_length
+            epoch_length = FLAGS.epoch_length
+
+        do_validation = bool(FLAGS.validation_size)
 
         # shuffle file locations for train/validation/test set
         shuffle_file_train = os.path.join(FLAGS.logdir, FILE_TRAIN)
@@ -489,32 +494,48 @@ def run_training(config):
             train_indices,
             FLAGS.batch_size,
             )
-        """
         val_data_generator = threading_shuffled_hdf5_batch_generator(
             dataset["states"],
             dataset["actions"],
             val_indices,
             FLAGS.batch_size,
-            validation=True)
-        """
+            validation=do_validation)
+
         # start generator thread storing batches into a queue
         data_gen_queue, _stop = generator_queue(train_data_generator)
 
-        sess = tf.Session(config=config)
+        sess = tf.Session(config=config, graph=graph)
         sess.run(init_op)
 
         print("Variables initialized ...")
 
-        summary_writer = tf.summary.FileWriter(FLAGS.logdir)
+        # Instantiate a SummaryWriter to output summaries and the Graph.
+        summary_writer = tf.summary.FileWriter(FLAGS.logdir, graph=sess.graph)
+        # Create a saver for writing training checkpoints.
+        saver = tf.train.Saver()
+
+        # prepare callbacks
+        callbacks = [cbks.BaseLogger(), cbks.History(), cbks.ProgbarLogger()]
+        callbacks = cbks.CallbackList(callbacks)
+        callbacks._set_params({
+            'nb_epoch': FLAGS.epoch,
+            'nb_sample': epoch_length,
+            'verbose': FLAGS.verbose,
+            'do_validation': do_validation,
+            'metrics': ['loss', 'acc', 'val_loss', 'val_acc'],
+        })
 
         # perform training cycles
         wait_time = 0.01  # in seconds
         epoch = 0
         step = 0
         reports = 0
+        callbacks.on_train_begin()
         while epoch < FLAGS.epoch:
-            sample_seen = 0
-            while sample_seen < epoch_length:
+            callbacks.on_epoch_begin(epoch)
+            samples_seen = 0
+            batch_index = 0
+            while samples_seen < epoch_length:
                 """
                 generator_output = None
                 while not _stop.is_set():
@@ -527,7 +548,10 @@ def run_training(config):
                 """
                 states, actions = next(train_data_generator)
                 batch_size = len(states[0])
-                sample_seen += batch_size
+
+                # build batch logs
+                batch_logs = {"batch": batch_index, "size": batch_size}
+                callbacks.on_batch_begin(batch_index, batch_logs)
 
                 _, loss, acc, summary, step = sess.run(
                         [train_op, loss_op, acc_op, summary_op, global_step],
@@ -536,30 +560,47 @@ def run_training(config):
                             actions_placeholder: actions
                         })
 
+                batch_logs["loss"] = loss
+                batch_logs["acc"] = acc
+                callbacks.on_batch_end(batch_index, batch_logs)
+
+                # construct epoch logs
+                epoch_logs = {}
+                batch_index += 1
+                samples_seen += batch_size
+
+                # epoch finished
+                if samples_seen > epoch_length:
+                    warnings.warn('Epoch comprised more than '
+                                  '`epoch_length` samples, '
+                                  'which might affect learning results. '
+                                  'Set `epoch_length` correctly '
+                                  'to avoid this warning.')
+                #if samples_seen >= epoch_length and do_validation:
+                #    val_loss, val_acc = evaluate_generator(val_data_generator, len(val_indices))
+                #    epoch_logs['val_loss'] = val_loss
+                #    epoch_logs['val_acc'] = val_acc
+
                 try:
                     if step >= FLAGS.checkpoint * (reports+1):
-                        print("Execute checkpoint at step {:d}.".format(step))
                         reports += 1
                         summary_writer.add_summary(summary, global_step=step)
                         summary_writer.flush()
-                        print("Step: {:d},".format(step),
-                              " Epoch: {:d},".format(epoch),
-                              " Batch: {:d} of {:d},".format(sample_seen, epoch_length),
-                              " Loss: {:.4f},".format(loss),
-                              " Accuracy: {:.4f},".format(acc))
                 except:
                     err, msg, _ = sys.exc_info()
                     sys.stderr.write("{} {}\n".format(err, msg))
                     sys.stderr.write(traceback.format_exc())
 
+            checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
+            saver.save(sess, checkpoint_file, global_step=step)
+
+            callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
 
         _stop.set()
 
 
-
 def main(argv=None):
-    # start a server for a specific task
     config = tf.ConfigProto(log_device_placement=FLAGS.log_device_placement,
                             device_count={'GPU': 1})
     config.gpu_options.per_process_gpu_memory_fraction = FLAGS.gpu_memory_fraction

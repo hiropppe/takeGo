@@ -361,15 +361,15 @@ def create_and_save_shuffle_indices(n_total_data_size, max_validation,
 def get_initial_weight(layer, wb, scope_name):
     if wb.lower() == 'w':
         if layer == 1:
-            return nn_util.variable_with_weight_decay(
+            return nn_util.xavier_variable_conv2d(
                 scope_name + '_W',
                 [FLAGS.filter_width_1, FLAGS.filter_width_1, FLAGS.input_depth, FLAGS.filter_size])
         elif layer <= 12:
-            return nn_util.variable_with_weight_decay(
+            return nn_util.xavier_variable_conv2d(
                 scope_name + '_W',
                 [FLAGS.filter_width_2_12, FLAGS.filter_width_2_12, FLAGS.filter_size, FLAGS.filter_size])
         elif layer == 13:
-            return nn_util.variable_with_weight_decay(
+            return nn_util.xavier_variable_conv2d(
                 scope_name + '_W',
                 [1, 1, FLAGS.filter_size, 1])
     elif wb.lower() == 'b':
@@ -388,7 +388,6 @@ def run_training(cluster, server, num_workers):
     with tf.device(tf.train.replica_device_setter(
                    worker_device="/job:worker/task:{:d}".format(FLAGS.task_index),
                    cluster=cluster)):
-        # count the number of updates
         global_step = tf.contrib.framework.get_or_create_global_step()
 
         states_placeholder = tf.placeholder(tf.float32,
@@ -435,8 +434,8 @@ def run_training(cluster, server, num_workers):
         # loss
         with tf.variable_scope('loss') as scope:
             loss_op = tf.reduce_mean(
-                        tf.nn.softmax_cross_entropy_with_logits(
-                            logits=logits, labels=actions_placeholder), name=scope.name)
+                        tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=actions_placeholder),
+                        name=scope.name)
 
         # accuracy
         with tf.variable_scope('accuracy') as scope:
@@ -445,11 +444,14 @@ def run_training(cluster, server, num_workers):
 
         # specify replicas optimizer
         with tf.name_scope('dist_train'):
+            """
             learning_rate_op = tf.train.exponential_decay(
                     FLAGS.learning_rate,
                     global_step,
                     FLAGS.decay_step, FLAGS.decay)
             grad = tf.train.GradientDescentOptimizer(learning_rate_op)
+            """
+            grad = tf.train.GradientDescentOptimizer(FLAGS.learning_rate)
             train_op = grad.minimize(loss_op, global_step=global_step)
 
         # create a summary for our cost and accuracy
@@ -459,7 +461,6 @@ def run_training(cluster, server, num_workers):
         # merge all summaries into a single "operation" which we can execute in a session
         summary_op = tf.summary.merge_all()
         init_op = tf.global_variables_initializer()
-
         print("Variables initialized ...")
 
         # features of training data
@@ -468,7 +469,9 @@ def run_training(cluster, server, num_workers):
         if FLAGS.epoch_length == 0:
             epoch_length = dataset_length
         else:
-            epoch_length = dataset_length
+            epoch_length = FLAGS.epoch_length
+
+        do_validation = bool(FLAGS.validation_size)
 
         # shuffle file locations for train/validation/test set
         shuffle_file_train = os.path.join(FLAGS.logdir, FILE_TRAIN)
@@ -493,14 +496,13 @@ def run_training(cluster, server, num_workers):
             train_indices,
             FLAGS.batch_size,
             )
-        """
         val_data_generator = threading_shuffled_hdf5_batch_generator(
             dataset["states"],
             dataset["actions"],
             val_indices,
             FLAGS.batch_size,
-            validation=True)
-        """
+            validation=do_validation)
+
         # start generator thread storing batches into a queue
         data_gen_queue, _stop = generator_queue(train_data_generator)
 
@@ -527,14 +529,28 @@ def run_training(cluster, server, num_workers):
                 summary_writer = tf.summary.FileWriter(FLAGS.logdir, sess.graph)
 
             while not sv.should_stop():
+                # prepare callbacks
+                callbacks = [cbks.BaseLogger(), cbks.History(), cbks.ProgbarLogger()]
+                callbacks = cbks.CallbackList(callbacks)
+                callbacks._set_params({
+                    'nb_epoch': FLAGS.epoch,
+                    'nb_sample': epoch_length,
+                    'verbose': FLAGS.verbose,
+                    'do_validation': do_validation,
+                    'metrics': ['loss', 'acc', 'val_loss', 'val_acc'],
+                })
+
                 # perform training cycles
                 wait_time = 0.01  # in seconds
                 epoch = 0
                 step = 0
                 reports = 0
+                callbacks.on_train_begin()
                 while epoch < FLAGS.epoch:
-                    sample_seen = 0
-                    while sample_seen < epoch_length:
+                    callbacks.on_epoch_begin(epoch)
+                    samples_seen = 0
+                    batch_index = 0
+                    while samples_seen < epoch_length:
                         """
                         generator_output = None
                         while not _stop.is_set():
@@ -547,7 +563,10 @@ def run_training(cluster, server, num_workers):
                         """
                         states, actions = next(train_data_generator)
                         batch_size = len(states[0])
-                        sample_seen += batch_size
+
+                        # build batch logs
+                        batch_logs = {"batch": batch_index, "size": batch_size}
+                        callbacks.on_batch_begin(batch_index, batch_logs)
 
                         _, loss, acc, summary, step = sess.run(
                                 [train_op, loss_op, acc_op, summary_op, global_step],
@@ -556,24 +575,41 @@ def run_training(cluster, server, num_workers):
                                     actions_placeholder: actions
                                 })
 
-                        if is_chief:
-                            try:
-                                if step >= FLAGS.checkpoint * (reports+1):
-                                    print("Execute checkpoint at step {:d}.".format(step))
-                                    reports += 1
-                                    sv.saver.save(sess, sv.save_path, global_step=step)
-                                    summary_writer.add_summary(summary, global_step=step)
-                                    summary_writer.flush()
-                                    print("Step: {:d},".format(step),
-                                          " Epoch: {:d},".format(epoch),
-                                          " Batch: {:d} of {:d},".format(sample_seen, epoch_length),
-                                          " Loss: {:.4f},".format(loss),
-                                          " Accuracy: {:.4f},".format(acc))
-                            except:
-                                err, msg, _ = sys.exc_info()
-                                sys.stderr.write("{} {}\n".format(err, msg))
-                                sys.stderr.write(traceback.format_exc())
+                        batch_logs["loss"] = loss
+                        batch_logs["acc"] = acc
+                        callbacks.on_batch_end(batch_index, batch_logs)
 
+                        # construct epoch logs
+                        epoch_logs = {}
+                        batch_index += 1
+                        samples_seen += batch_size
+
+                        # epoch finished
+                        if samples_seen > epoch_length:
+                            warnings.warn('Epoch comprised more than '
+                                          '`epoch_length` samples, '
+                                          'which might affect learning results. '
+                                          'Set `epoch_length` correctly '
+                                          'to avoid this warning.')
+                        #if samples_seen >= epoch_length and do_validation:
+                        #    val_loss, val_acc = evaluate_generator(val_data_generator, len(val_indices))
+                        #    epoch_logs['val_loss'] = val_loss
+                        #    epoch_logs['val_acc'] = val_acc
+
+                        try:
+                            if step >= FLAGS.checkpoint * (reports+1):
+                                reports += 1
+                                summary_writer.add_summary(summary, global_step=step)
+                                summary_writer.flush()
+                        except:
+                            err, msg, _ = sys.exc_info()
+                            sys.stderr.write("{} {}\n".format(err, msg))
+                            sys.stderr.write(traceback.format_exc())
+
+                    checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
+                    sv.saver.save(sess, checkpoint_file, global_step=step)
+
+                    callbacks.on_epoch_end(epoch, epoch_logs)
                     epoch += 1
 
                 _stop.set()
