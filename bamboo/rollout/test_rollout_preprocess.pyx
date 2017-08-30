@@ -17,8 +17,10 @@ from bamboo.go.parseboard cimport parse
 
 from bamboo.rollout.preprocess cimport F_RESPONSE, F_SAVE_ATARI, F_NEIGHBOR, F_NAKADE, F_RESPONSE_PAT, F_NON_RESPONSE_PAT
 from bamboo.rollout.preprocess cimport response_start, save_atari_start, neighbor_start, nakade_start, d12_start, x33_start
-from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_planes_all, memorize_updated, choice_rollout_move, set_illegal, norm_probs 
-from bamboo.rollout.pattern cimport initialize_rands, put_x33_hash, put_d12_hash
+from bamboo.rollout.preprocess cimport F_SELF_ATARI, F_LAST_MOVE_DISTANCE, F_NON_RESPONSE_D12_PAT
+from bamboo.rollout.preprocess cimport self_atari_start, last_move_distance_start, nonres_d12_start
+from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_planes_all, update_tree_planes_all, memorize_updated, choice_rollout_move, set_illegal, norm_probs 
+from bamboo.rollout.pattern cimport initialize_rands, put_x33_hash, put_d12_hash, put_nonres_d12_hash
 from bamboo.rollout.pattern import print_x33
 
 
@@ -26,12 +28,14 @@ cdef int nakade_size = 0
 cdef int x33_size = 100
 cdef int d12_size = 100
 
+
 def setup():
-    initialize_const(nakade_size, x33_size, d12_size)
+    initialize_const(nakade_size, x33_size, d12_size, 0)
     initialize_rands()
 
     put_12diamond_test_patterns()
     put_3x3_test_patterns()
+    put_nonres_12diamond_test_patterns()
 
 
 def teardown():
@@ -181,7 +185,7 @@ def put_3x3_test_patterns():
     """
     Pattern 2:
         +++    000
-        +X+    0 0
+        +x+    0 0
         ++B    003
     """
     put_x33_hash(0b1000000000000001101, 2)
@@ -368,6 +372,618 @@ def put_3x3_test_patterns():
     put_x33_hash(0b1000000000010000110000000011000010, 10)
     put_x33_hash(0b1000010000000000110011000000000001, 10)
     put_x33_hash(0b1000010000000000110011000000000010, 10)
+
+
+def put_nonres_12diamond_test_patterns():
+    """
+    Pattern 0:
+      +       0
+     +B+     030
+    ++o++   00 00
+     +++     000
+      +       0
+    """
+    put_nonres_d12_hash(0b00000000000000000001000000000000000000000011000010, 0)
+    put_nonres_d12_hash(0b00000000000001000000000000000000000011000000000010, 0)
+    put_nonres_d12_hash(0b00000000000100000000000000000000001100000000000010, 0)
+    put_nonres_d12_hash(0b00000100000000000000000000001100000000000000000010, 0)
+    put_nonres_d12_hash(0b00000000000000000010000000000000000000000011000001, 0)
+    put_nonres_d12_hash(0b00000000000010000000000000000000000011000000000001, 0)
+    put_nonres_d12_hash(0b00000000001000000000000000000000001100000000000001, 0)
+    put_nonres_d12_hash(0b00001000000000000000000000001100000000000000000001, 0)
+
+    """
+    Pattern 1:
+      +       0
+     B++     300
+    ++o++   00 00
+     +++     000
+      +       0
+    """
+    put_nonres_d12_hash(0b00000000000000000000010000000000000000000000110010, 1)
+    put_nonres_d12_hash(0b00000000000000000100000000000000000000001100000010, 1)
+    put_nonres_d12_hash(0b00000001000000000000000000000011000000000000000010, 1)
+    put_nonres_d12_hash(0b00010000000000000000000000110000000000000000000010, 1)
+    put_nonres_d12_hash(0b00000000000000000000100000000000000000000000110001, 1)
+    put_nonres_d12_hash(0b00000000000000001000000000000000000000001100000001, 1)
+    put_nonres_d12_hash(0b00000010000000000000000000000011000000000000000001, 1)
+    put_nonres_d12_hash(0b00100000000000000000000000110000000000000000000001, 1)
+
+    """
+    Pattern 2:
+      +       0
+     +B+     030
+    ++x++   00 00
+     +++     000
+      +       0
+    """
+    put_nonres_d12_hash(0b00000000000000000001000000000000000000000011000001, 2)
+    put_nonres_d12_hash(0b00000000000001000000000000000000000011000000000001, 2)
+    put_nonres_d12_hash(0b00000000000100000000000000000000001100000000000001, 2)
+    put_nonres_d12_hash(0b00000100000000000000000000001100000000000000000001, 2)
+    put_nonres_d12_hash(0b00000000000000000010000000000000000000000011000010, 2)
+    put_nonres_d12_hash(0b00000000000010000000000000000000000011000000000010, 2)
+    put_nonres_d12_hash(0b00000000001000000000000000000000001100000000000010, 2)
+    put_nonres_d12_hash(0b00001000000000000000000000001100000000000000000010, 2)
+
+    """
+    Pattern 3:
+      +       0
+     B++     300
+    ++x++   00 00
+     +++     000
+      +       0
+    """
+    put_nonres_d12_hash(0b00000000000000000000010000000000000000000000110001, 3)
+    put_nonres_d12_hash(0b00000000000000000100000000000000000000001100000001, 3)
+    put_nonres_d12_hash(0b00000001000000000000000000000011000000000000000001, 3)
+    put_nonres_d12_hash(0b00010000000000000000000000110000000000000000000001, 3)
+    put_nonres_d12_hash(0b00000000000000000000100000000000000000000000110010, 3)
+    put_nonres_d12_hash(0b00000000000000001000000000000000000000001100000010, 3)
+    put_nonres_d12_hash(0b00000010000000000000000000000011000000000000000010, 3)
+    put_nonres_d12_hash(0b00100000000000000000000000110000000000000000000010, 3)
+
+    """
+    Pattern 4:
+      B       3
+     +++     000
+    ++o++   00 00
+     +++     000
+      +       0
+    """
+    put_nonres_d12_hash(0b00000000000000000000000100000000000000000000001110, 4)
+    put_nonres_d12_hash(0b00000000000000010000000000000000000000110000000010, 4)
+    put_nonres_d12_hash(0b00000000010000000000000000000000110000000000000010, 4)
+    put_nonres_d12_hash(0b01000000000000000000000011000000000000000000000010, 4)
+    put_nonres_d12_hash(0b00000000000000000000001000000000000000000000001101, 4)
+    put_nonres_d12_hash(0b00000000000000100000000000000000000000110000000001, 4)
+    put_nonres_d12_hash(0b00000000100000000000000000000000110000000000000001, 4)
+    put_nonres_d12_hash(0b10000000000000000000000011000000000000000000000001, 4)
+
+    """
+    Pattern 5:
+      B       3
+     +++     000
+    ++x++   00 00
+     +++     000
+      +       0
+    """
+    put_nonres_d12_hash(0b00000000000000000000000100000000000000000000001101, 5)
+    put_nonres_d12_hash(0b00000000000000010000000000000000000000110000000001, 5)
+    put_nonres_d12_hash(0b00000000010000000000000000000000110000000000000001, 5)
+    put_nonres_d12_hash(0b01000000000000000000000011000000000000000000000001, 5)
+    put_nonres_d12_hash(0b00000000000000000000001000000000000000000000001110, 5)
+    put_nonres_d12_hash(0b00000000000000100000000000000000000000110000000010, 5)
+    put_nonres_d12_hash(0b00000000100000000000000000000000110000000000000010, 5)
+    put_nonres_d12_hash(0b10000000000000000000000011000000000000000000000010, 5)
+
+    """
+    Pattern 6:
+      B       3
+     +++     000
+    ++o++   00 00
+     +++     000
+      #       0
+    """
+    put_nonres_d12_hash(0b11000000000000000000000100000000000000000000001110, 6)
+    put_nonres_d12_hash(0b00000000110000010000000000000000000000110000000010, 6)
+    put_nonres_d12_hash(0b00000000010000110000000000000000110000000000000010, 6)
+    put_nonres_d12_hash(0b01000000000000000000001111000000000000000000000010, 6)
+    put_nonres_d12_hash(0b11000000000000000000001000000000000000000000001101, 6)
+    put_nonres_d12_hash(0b00000000110000100000000000000000000000110000000001, 6)
+    put_nonres_d12_hash(0b00000000100000110000000000000000110000000000000001, 6)
+    put_nonres_d12_hash(0b10000000000000000000001111000000000000000000000001, 6)
+
+    """
+    Pattern 7:
+      B       3
+     +++     000
+    ++x++   00 00
+     +++     000
+      #       0
+    """
+    put_nonres_d12_hash(0b11000000000000000000000100000000000000000000001101, 7)
+    put_nonres_d12_hash(0b00000000110000010000000000000000000000110000000001, 7)
+    put_nonres_d12_hash(0b00000000010000110000000000000000110000000000000001, 7)
+    put_nonres_d12_hash(0b01000000000000000000001111000000000000000000000001, 7)
+    put_nonres_d12_hash(0b11000000000000000000001000000000000000000000001110, 7)
+    put_nonres_d12_hash(0b00000000110000100000000000000000000000110000000010, 7)
+    put_nonres_d12_hash(0b00000000100000110000000000000000110000000000000010, 7)
+    put_nonres_d12_hash(0b10000000000000000000001111000000000000000000000010, 7)
+
+    """
+    Pattern 8:
+      +       0
+     ++B     003
+    ++o++   00 00
+     +++     000
+      #       0
+    """
+    put_nonres_d12_hash(0b11000000000000000100000000000000000000001100000010, 8)
+    put_nonres_d12_hash(0b11000000000000000000010000000000000000000000110010, 8)
+    put_nonres_d12_hash(0b00000000110000000000010000000000000000000000110010, 8)
+
+    """
+    Pattern 9:
+      +       0
+     +B+     030
+    ++o++   00 00
+     +++     000
+      #       0
+    """
+    put_nonres_d12_hash(0b11000000000000000001000000000000000000000011000010, 9)
+    put_nonres_d12_hash(0b00000000110001000000000000000000000011000000000010, 9)
+
+    """
+    Pattern 10:
+      B       3
+     +++     000
+    ++o++   00 00
+     ###     000
+      #       0
+    """
+    put_nonres_d12_hash(0b11111111000000000000000100000000000000000000001110, 10)
+    put_nonres_d12_hash(0b00110000111100011100000000000000000000110000000010, 10)
+
+    """
+    Pattern 11:
+      +       +
+     +W+     030
+    ++x++   00 00
+     +++     000
+      B       3
+    """
+    put_nonres_d12_hash(0b01000000000000000010000011000000000000000011000001, 11)
+
+    """
+    Pattern 12:
+      W       3
+     +++     000
+    ++x++   00 00
+     +B+     030
+      +       0
+    """
+    put_nonres_d12_hash(0b00000100000000000000001000001100000000000000001101, 12)
+
+    """
+    Pattern 13:
+      +       0
+     +B+     030
+    ++x++   00 00
+     +++     000
+      #       0
+    """
+    put_nonres_d12_hash(0b11000000000000000001000000000000000000000011000001, 13)
+
+    """
+    Pattern 14:
+      +       0
+     B++     300
+    ++x++   00 00
+     +++     000
+      #       0
+    """
+    put_nonres_d12_hash(0b11000000000000000000010000000000000000000000110001, 14)
+    put_nonres_d12_hash(0b11000000000000000100000000000000000000001100000001, 14)
+
+    """
+    Pattern 15:
+      B       3
+     +++     000
+    ++x++   00 00
+     ###     000
+      #       0
+    """
+    put_nonres_d12_hash(0b11111111000000000000000100000000000000000000001101, 15)
+
+    """
+    Pattern 16:
+      +       0
+     +++     000
+    ++o++   00 00
+     W++     300
+      B       3
+    """
+    put_nonres_d12_hash(0b01000010000000000000000011000011000000000000000010, 16)
+
+    """
+    Pattern 17:
+      +       0
+     +++     000
+    +Wo++   03 00
+     +B+     030
+      +       0
+    """
+    put_nonres_d12_hash(0b00000100000010000000000000001100000011000000000010, 17)
+
+    """
+    Pattern 18:
+      +       0
+     +++     000
+    W+o+#   30 00
+     B++     300
+      +       0
+    """
+    put_nonres_d12_hash(0b00000001110000100000000000000011000000110000000010, 18)
+
+    """
+    Pattern 19:
+      +       0
+     ++W     003
+    ++o+B   00 03
+     +++     000
+      +       0
+    """
+    put_nonres_d12_hash(0b00000000010000001000000000000000110000001100000010, 19)
+
+    """
+    Pattern 20:
+      +       0
+     +W+     030
+    ++oB+   00 30
+     +++     000
+      B       0
+    """
+    put_nonres_d12_hash(0b01000000000100000010000011000000001100000011000010, 20)
+
+    """
+    Pattern 21:
+      W       3
+     ++B     003
+    ++o++   00 00
+     +B+     030
+      +       0
+    """
+    put_nonres_d12_hash(0b00000100000000000100001000001100000000001100001110, 21)
+
+    """
+    Pattern 22:
+      +       0
+     +B+     030
+    ++o++   00 00
+     B++     300
+      +       0
+    """
+    put_nonres_d12_hash(0b00000001000000000001000000000011000000000011000010, 22)
+
+    """
+    Pattern 23:
+      B       3
+     +++     000
+    +Bo++   03 00
+     +++     000
+      +       0
+    """
+    put_nonres_d12_hash(0b00000000000001000000000100000000000011000000001110, 23)
+
+
+def test_update_self_atari():
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *feature
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . W a W . .|"
+                              ". . W B W . .|"
+                              ". . . W . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    update_tree_planes_all(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_SELF_ATARI][pure_moves['a']], self_atari_start) 
+    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . B W B . .|"
+                              ". . B a B . .|"
+                              ". . . B . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    update_tree_planes_all(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_SELF_ATARI][pure_moves['a']], self_atari_start) 
+    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+
+    (moves, pure_moves) = parse(game,
+                              "B a . . . . .|"
+                              "W W . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    update_tree_planes_all(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_SELF_ATARI][pure_moves['a']], self_atari_start) 
+    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+
+    (moves, pure_moves) = parse(game,
+                              "a B . . . . .|"
+                              "W W . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    update_tree_planes_all(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_SELF_ATARI][pure_moves['a']], self_atari_start) 
+    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . B B B|"
+                              ". . . . . a W|")
+
+    game.current_color = S_WHITE
+
+    update_tree_planes_all(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_SELF_ATARI][pure_moves['a']], self_atari_start) 
+    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . . . .|"
+                              ". . . . B B B|"
+                              ". . . . W W a|")
+
+    game.current_color = S_WHITE
+
+    update_tree_planes_all(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_SELF_ATARI][pure_moves['a']], self_atari_start) 
+    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+
+    free_game(game)
+
+
+def test_update_last_move_distance():
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *feature
+
+    (moves, pure_moves) = parse(game,
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . a . . .|"
+        ". . . . . . f e . . . . . . b B c . .|"
+        ". . . . . . . . . . . . . . . d . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . i . . . . . . . .|"
+        ". . . . . . . . . j . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . g . . .|"
+        ". . . . . . . . . . . . . . . h . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|")
+
+    game.current_color = S_WHITE
+
+    update_tree_planes_all(game)
+
+    feature = &game.rollout_feature_planes[<int>S_WHITE]
+
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['a']], last_move_distance_start + 2) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['b']], last_move_distance_start + 2) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['c']], last_move_distance_start + 2) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['d']], last_move_distance_start + 2) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['e']], last_move_distance_start + 16) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['f']], last_move_distance_start + 17) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['g']], last_move_distance_start + 16) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['h']], last_move_distance_start + 17) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['i']], last_move_distance_start + 15) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['j']], last_move_distance_start + 17) 
+
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_tree_planes_all(game)
+
+    feature = &game.rollout_feature_planes[<int>S_BLACK]
+
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['b']], last_move_distance_start + 3 + 2) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['c']], last_move_distance_start + 3 + 2) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['d']], last_move_distance_start + 4 + 2) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['e']], last_move_distance_start + 17 + 16) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['f']], last_move_distance_start + 17 + 17) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['g']], last_move_distance_start + 17 + 16) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['h']], last_move_distance_start + 17 + 17) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['i']], last_move_distance_start + 17 + 15) 
+    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][pure_moves['j']], last_move_distance_start + 17 + 17) 
+
+    free_game(game)
+
+def test_update_nonres_12diamond():
+    cdef game_state_t *game = allocate_game()
+    cdef rollout_feature_t *black
+    cdef rollout_feature_t *white
+
+    (moves, pure_moves) = parse(game,
+                              ". . . . . . . . .|"
+                              ". . . . . w o t .|"
+                              ". . . . . i n r .|"
+                              ". . . . . b e s .|"
+                              ". . . . . d c . .|"
+                              ". . . . . f g u .|"
+                              ". . . v h a j l .|"
+                              ". . . . q k m p .|"
+                              ". . . . . . . . .|")
+
+    game.current_color = S_BLACK
+
+    black = &game.rollout_feature_planes[<int>S_BLACK]
+    white = &game.rollout_feature_planes[<int>S_WHITE]
+
+    # put B[a]
+    put_stone(game, moves['a'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_tree_planes_all(game)
+
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size*2], nonres_d12_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size-1], nonres_d12_start + 1) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size],   nonres_d12_start) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size+1], nonres_d12_start + 1) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-2], nonres_d12_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-1], nonres_d12_start) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+1], nonres_d12_start) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+2], nonres_d12_start + 6) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size-1], nonres_d12_start + 8) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size],   nonres_d12_start + 9) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size+1], nonres_d12_start + 8) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size*2], nonres_d12_start + 10) 
+    eq_(number_of_active_positions(white, F_NON_RESPONSE_D12_PAT), 12)
+
+    # put W[b]
+    put_stone(game, moves['b'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_tree_planes_all(game)
+
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size*2], nonres_d12_start + 6) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size-1], nonres_d12_start + 1) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size], nonres_d12_start) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size+1], nonres_d12_start + 1) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-2], nonres_d12_start + 4) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-1], nonres_d12_start) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+1], nonres_d12_start) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+2], nonres_d12_start + 6) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+pure_board_size-1], nonres_d12_start + 1) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+pure_board_size], nonres_d12_start + 11) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+pure_board_size+1], nonres_d12_start + 1) 
+
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size-1], nonres_d12_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size], nonres_d12_start + 12) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size+1], nonres_d12_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-2], nonres_d12_start + 5) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-1], nonres_d12_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+1], nonres_d12_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+2], nonres_d12_start + 7) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size-1], nonres_d12_start + 14) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size], nonres_d12_start + 13) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size+1], nonres_d12_start + 14) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size*2], nonres_d12_start + 15) 
+    eq_(number_of_active_positions(black, F_NON_RESPONSE_D12_PAT), 22)
+
+    # put B[c]
+    put_stone(game, moves['c'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_tree_planes_all(game)
+
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size*2], nonres_d12_start + 16) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size], nonres_d12_start + 17) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size+1], nonres_d12_start + 18) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-2], nonres_d12_start + 19) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-1], nonres_d12_start + 20) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+1], nonres_d12_start + 9) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+2], nonres_d12_start + 10) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size-1], nonres_d12_start + 21) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size], nonres_d12_start + 22) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size+1], nonres_d12_start + 8) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size*2], nonres_d12_start + 23) 
+    
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size*2], nonres_d12_start + 7) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size-1], nonres_d12_start + 3) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size], nonres_d12_start + 2) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-2], nonres_d12_start + 5) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-1], nonres_d12_start + 2) 
+
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size-1], nonres_d12_start + 1) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-2], nonres_d12_start + 4) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-1], nonres_d12_start) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+2], nonres_d12_start + 6) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size-1], nonres_d12_start + 8) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size],   nonres_d12_start + 9) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size+1], nonres_d12_start + 8) 
+    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size*2], nonres_d12_start + 10) 
+    eq_(number_of_active_positions(white, F_NON_RESPONSE_D12_PAT), 24)
+
+    """
+    # put W[d]
+    put_stone(game, moves['d'], game.current_color)
+    game.current_color = FLIP_COLOR(game.current_color)
+    update_planes(game)
+    # updated around move['c']
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size], nonres_d12_start + 6) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size+1], nonres_d12_start + 2) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-1], -1) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+1], nonres_d12_start + 3) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size-1], nonres_d12_start + 7) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size], nonres_d12_start + 8) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size+1], nonres_d12_start + 2) 
+    # updated around move['d']
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size-1], nonres_d12_start) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size], nonres_d12_start + 1) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size+1], nonres_d12_start) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-1], nonres_d12_start + 9) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+1], nonres_d12_start + 6) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['d']-1], nonres_d12_start + 9) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['d']+pure_board_size-1], nonres_d12_start + 10) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['d']+pure_board_size], nonres_d12_start + 7) 
+    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['d']+pure_board_size+1], nonres_d12_start + 8) 
+    eq_(number_of_active_positions(black, F_NON_RESPONSE_D12_PAT), 17)
+    """
+    print_board(game)
+
+    free_game(game)
 
 
 def test_update_save_atari():

@@ -113,6 +113,48 @@ def test_missing_ladder_breaker_1():
     policy_feature.free_feature(feature)
 
 
+def test_missing_ladder_breaker_2():
+    # BBS(MCTS-CNN) put 'b' at after 'a' in actual game
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . W W W B B . . . . . . . . . . .|"
+        ". . B . B W B . B . B B . . . . W . .|"
+        ". . B . B W B B W W W . . . . B . W .|"
+        ". . . . B W W W . . . W . . . . . . .|"
+        ". . . . . W . . . B . . . . B . W . .|"
+        ". . . B . . . . . . W . . . . . . . .|"
+        ". . . . . . . . . . . . . . B . W . .|"
+        ". . . . . . . . . . . . . . . . . B .|"
+        ". . B B . . . . . . . . . . . B . . .|"
+        ". . B W W . . . . . . . . . . . . . .|"
+        ". B W . W . . . . . a . . . . . . . .|"
+        ". . B W W . . . . b W B B . . . . . .|"
+        ". . B B W B . . . B B W W . B . B B .|"
+        ". . . W B W B . . B W . . . . . W . .|"
+        ". . . W . W B . B W W . . . . W . . .|"
+        ". . . . . W . . W . . . . W . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|")
+
+ 
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    game.current_color = board.S_BLACK
+
+    # 'a' should catch white in a ladder, but not 'b'
+    policy_feature.update(feature, game)
+    eq_(planes[44, pure_moves['a']], 1)
+    eq_(planes[44, pure_moves['b']], 0)
+
+    # 'b' should not be an escape move for white after 'a'
+    board.do_move(game, moves['a'])
+    policy_feature.update(feature, game)
+    eq_(planes[45, pure_moves['b']], 0)
+
+ 
 def test_capture_to_escape_1():
     cdef int ladder_moves[1]
     ladder_moves[0] = 0 

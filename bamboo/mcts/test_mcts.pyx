@@ -37,7 +37,7 @@ def setup_pattern(rands_file, d12_csv, x33_csv):
     x33_size = init_x33_hash(x33_csv)
     d12_size = init_d12_hash(d12_csv)
 
-    initialize_const(0, x33_size, d12_size)
+    initialize_const(0, x33_size, d12_size, 0)
 
 
 def setup_supervised_policy(model, weights):
@@ -125,7 +125,6 @@ def test_expand():
     eq_(child.Wv, 0)
     eq_(child.Wr, 0)
     eq_(child.Q, 0)
-    eq_(child.u, 0)
     eq_(child.num_child, 0)
     eq_(child.is_root, False)
     eq_(child.is_edge, True)
@@ -190,7 +189,7 @@ def test_select():
 
     mcts.expand(node, search_game)
     # set max_child
-    node.children[72].Qu = 0.5
+    node.children[72].P = 0.99
 
     # select down the tree
     node = mcts.select(node, search_game)
@@ -199,12 +198,12 @@ def test_select():
     eq_(node.is_edge, True)
 
     mcts.expand(node, search_game)
-
-    # get max child
-    for i in range(node.num_child):
-        if node.children[node.children_pos[i]].Qu > max_child_Qu:
-            max_child_Qu = node.children[node.children_pos[i]].Qu
-            max_child_pos = node.children_pos[i]
+    # set max_child
+    max_child_pos = 300
+    node.Nr = 1000
+    node.children[max_child_pos].Nr = 1000
+    node.children[max_child_pos].Q = 0.5
+    node.P = 0.99
 
     node = mcts.select(node, search_game)
     eq_(node.pos, onboard_pos[max_child_pos])
@@ -335,54 +334,6 @@ def test_eval_leafs_by_policy_network():
     eq_(round(prob_sum), 1.0)
 
     ok_(mcts.policy_network_queue.empty())
-
-
-def test_running():
-    cdef game_state_t *game = initialize_game()
-    cdef MCTS mcts = MCTS(sl_policy)
-    cdef tree_node_t *node
-    cdef int pass_count = 0
-    cdef int pos
-    cdef int i
-
-    initialize_rollout(game)
-
-    game.current_color = S_BLACK
-
-    while True:
-        mcts.start_search_thread(game)
-
-        while True:
-            if mcts.policy_network_queue.empty():
-                break
-            node = mcts.policy_network_queue.front()
-            mcts.eval_leafs_by_policy_network(node)
-            free_game(node.game)
-            mcts.policy_network_queue.pop()
-
-        pos = mcts.genmove(game)
-
-        put_stone(game, pos, game.current_color)
-        game.current_color = FLIP_COLOR(game.current_color) 
-        update_rollout(game)
-
-        print_board(game)
-
-        if pos == PASS or pos == RESIGN:
-            print(gtp.gtp_vertex(pos))
-        else:
-            x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
-            y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
-            print(gtp.gtp_vertex((x, y)))
-
-        if pos == PASS:
-            pass_count += 1
-            if pass_count == 2:
-                break
-        else:
-            pass_count = 0
-
-    print('Score: {:s}'.format(str(calculate_score(game) - komi)))
 
 
 cdef game_state_t* initialize_game(int board_size=19):

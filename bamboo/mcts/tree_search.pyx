@@ -2,6 +2,7 @@
 # cython: wraparound = False
 # cython: cdivision = True
 
+import time
 import numpy as np
 
 cimport numpy as np
@@ -9,120 +10,322 @@ cimport numpy as np
 from libc.stdio cimport printf
 from libc.stdlib cimport abort, malloc, free, rand
 from libc.math cimport sqrt as csqrt
-
+from libc.time cimport clock as cclock
 from libcpp.queue cimport queue as cppqueue
+from libcpp.string cimport string as cppstring
+from posix.time cimport gettimeofday, timeval, timezone
 
 from cython import cdivision
 from cython.parallel import prange
 
-from bamboo.go.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS
+from bamboo.go.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS, RESIGN
 from bamboo.go.board cimport FLIP_COLOR
 from bamboo.go.board cimport onboard_pos, komi
 from bamboo.go.board cimport game_state_t
-from bamboo.go.board cimport set_board_size, initialize_board
+from bamboo.go.board cimport set_board_size, set_komi, initialize_board
 from bamboo.go.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
-from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit
-from bamboo.go.zobrist_hash cimport mt, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
-
+from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
+from bamboo.go.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
 from bamboo.go.policy_feature cimport policy_feature_t
 from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
-
-from bamboo.rollout.preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move
+from bamboo.rollout.preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move, update_tree_planes_all, get_tree_probs
 
 from bamboo.go.printer cimport print_board, print_prior_probability, print_rollout_count, print_winning_ratio, print_action_value, print_bonus, print_selection_value
+from bamboo.util cimport save_gamestate_to_sgf 
 
 cimport openmp
 
 
 cdef class MCTS(object):
 
-    def __cinit__(self, object policy, double temperature=0.67, int playout_limit=1000, int n_threads=1):
+    def __cinit__(self,
+                  object policy,
+                  double temperature=0.67,
+                  double time_limit=5.0,
+                  int playout_limit=10000,
+                  int n_threads=1):
+        cdef int i
+        cdef tree_node_t *node
+
+        self.game = NULL
+        self.player_color = -1
         self.nodes = <tree_node_t *>malloc(uct_hash_size * sizeof(tree_node_t))
+        for i in range(uct_hash_size):
+            node = &self.nodes[i]
+            node.node_i = 0
+            node.time_step = 0 
+            node.pos = 0
+            node.color = 0
+            node.player_color = 0
+            node.P = .0
+            node.Nv = .0
+            node.Wv = .0
+            node.Nr = .0
+            node.Wr = .0
+            node.Q = .0
+            node.is_root = False
+            node.is_edge = False
+            node.parent = NULL
+            node.num_child = 0
+            node.game = NULL
+            node.has_game = False
+
         self.current_root = uct_hash_size
         self.policy = policy
         self.policy_feature = allocate_feature()
         self.pondering = False
+        self.pondering_stopped = True
+        self.pondering_suspending = False
+        self.pondering_suspended = True
+        self.policy_queue_running = False
         self.n_playout = 0
         self.beta = 1.0/temperature
+        self.time_limit = time_limit
         self.playout_limit = playout_limit
         self.n_threads = n_threads
+        self.max_queue_size_P = 0
         self.debug = False
 
         initialize_feature(self.policy_feature) 
 
+        for i in range(n_threads):
+            self.n_threads_playout[i] = 0
+
+        openmp.omp_init_lock(&self.tree_lock)
+        openmp.omp_init_lock(&self.expand_lock)
+        openmp.omp_init_lock(&self.policy_queue_lock)
+
     def __dealloc__(self):
-        free_feature(self.policy_feature)
         if self.nodes:
             free(self.nodes)
 
-    cdef int genmove(self, game_state_t *game):
+        free_feature(self.policy_feature)
+
+    def clear(self):
+        time.sleep(3.)
+
+        openmp.omp_set_lock(&self.policy_queue_lock)
+        while not self.policy_network_queue.empty():
+            self.policy_network_queue.pop()
+        openmp.omp_unset_lock(&self.policy_queue_lock)
+
+        self.player_color = -1
+
+        self.initialize_nodes()
+
+        self.current_root = uct_hash_size
+        self.pondering = True
+        self.pondering_stopped = False
+        self.pondering_suspending = False
+        self.pondering_suspended = True
+        self.n_playout = 0
+        self.max_queue_size_P = 0
+
+        initialize_feature(self.policy_feature) 
+
+        openmp.omp_init_lock(&self.tree_lock)
+        openmp.omp_init_lock(&self.expand_lock)
+        openmp.omp_init_lock(&self.policy_queue_lock)
+
+    def initialize_nodes(self):
+        cdef int i
+        cdef tree_node_t *node
+
+        for i in range(uct_hash_size):
+            node = &self.nodes[i]
+            node.node_i = 0
+            node.time_step = 0 
+            node.pos = 0
+            node.color = 0
+            node.player_color = 0
+            node.P = .0
+            node.Nv = .0
+            node.Wv = .0
+            node.Nr = .0
+            node.Wr = .0
+            node.Q = .0
+            node.is_root = False
+            node.is_edge = False
+            node.parent = NULL
+            node.num_child = 0
+            if node.game != NULL:
+                free_game(node.game)
+            node.game = NULL
+            node.has_game = False
+
+            openmp.omp_init_lock(&node.lock)
+
+    cdef int genmove(self, game_state_t *game) nogil:
         cdef tree_node_t *node
         cdef tree_node_t *child
-        cdef int max_Nr = 0
-        cdef double max_P = .0
+        cdef tree_node_t *max_child
+        cdef double max_Nr
         cdef int max_pos
-        cdef int i
+        cdef int i, j
 
         self.seek_root(game)
 
         node = &self.nodes[self.current_root]
-        max_Nr = 0
-        max_pos = PASS
 
-        print_prior_probability(node)
-        # print_winning_ratio(node)
-        print_action_value(node)
-        print_bonus(node)
         print_selection_value(node)
+        print_prior_probability(node)
+        print_bonus(node)
+        print_winning_ratio(node)
         print_rollout_count(node)
 
+        if node.Nr != 0.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
+            return RESIGN
+
         for i in range(node.num_child):
-            child = node.children[node.children_pos[i]]
-            if child.Nr > max_Nr:
-                max_pos = child.pos
-                max_nr = child.Nr
+            max_Nr = .0
+            max_pos = PASS
+            for j in range(node.num_child):
+                child = node.children[node.children_pos[j]]
+                if child.Nr > max_Nr:
+                    max_child = child
+                    max_Nr = child.Nr
+                    max_pos = child.pos
 
-        return max_pos
+            if is_legal_not_eye(game, max_pos, game.current_color):
+                return max_pos
+            else:
+                printf('Candidated pos is not legal. p=%d c=%d\n', max_pos, game.current_color)
+                max_child.Nr = .0
 
-    cdef void start_search_thread(self, game_state_t *game):
+        return PASS
+
+    cdef void start_pondering(self) nogil:
+        cdef char *stone = ['#', 'B', 'W']
         cdef int i
         cdef tree_node_t *node
         cdef bint expanded
+        cdef timeval end_time
+        cdef double elapsed
 
+        printf('Starting pondering main thread ...\n')
         self.pondering = True
+        while self.pondering:
+            if self.pondering_suspended == True:
+                with gil:
+                    time.sleep(.001)
+                continue
+
+            self.ponder(self.game)
+
+            self.pondering_suspending = False
+            self.pondering_suspended = True
+
+        self.pondering_stopped = True
+
+    cdef void stop_pondering(self) nogil:
+        printf('>> Stopping pondering ...\n')
+        if not self.pondering_stopped:
+            self.pondering = False
+            while not self.pondering_stopped:
+                with gil:
+                    time.sleep(.001)
+                continue
+        printf('>> Pondering stopped.\n')
+
+    cdef void suspend_pondering(self) nogil:
+        printf('>> Suspending pondering ...\n')
+        if not self.pondering_suspended:
+            self.pondering_suspending = True
+            while not self.pondering_suspended:
+                with gil:
+                    time.sleep(.001)
+                continue
+        printf('>> Pondering suspended.\n')
+
+    cdef void resume_pondering(self) nogil:
+        printf('>> Resume pondering.\n')
+        self.pondering_suspended = False
+
+    cdef void ponder(self, game_state_t *game) nogil:
+        cdef char *stone = ['#', 'B', 'W']
+        cdef int i
+        cdef tree_node_t *node
+        cdef bint expanded
+        cdef timeval end_time
+        cdef double elapsed
+
+        self.n_playout = 0
+        for i in range(self.n_threads):
+            self.n_threads_playout[i] = 0
+
+        gettimeofday(&self.search_start_time, NULL)
 
         delete_old_hash(game)
 
         self.seek_root(game)
 
         node = &self.nodes[self.current_root]
+
+        if node.player_color == self.player_color:
+            printf("\n>> Starting pondering ... ... ... :-)\n")
+        else:
+            printf("\n>> Starting read-ahead pondering ... ... ... :-)\n")
+
+        printf("Current node color  : %s\n", cppstring(1, stone[node.player_color]).c_str())
+        if node.Nr != 0.0:
+            printf('Past Playouts       : %d\n', <int>node.Nr)
+            printf('Past Winning ratio  : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
+        else:
+            printf('>> No playout information found for current node.\n')
+
         if node.is_edge:
             expanded = self.expand(node, game)
             if expanded:
-                self.eval_leafs_by_policy_network(node)
-
-        if self.n_threads <= 1:
-            self.run_search(game) 
+                with gil:
+                    self.eval_leafs_by_policy_network(node)
         else:
-            for i in prange(self.n_threads, nogil=True):
-                self.run_search(game) 
+            print_rollout_count(node)
 
-    cdef void stop_search_thread(self):
-        self.pondering = False
+        for i in prange(self.n_threads + 1, nogil=True):
+            if i == self.n_threads:
+                self.start_policy_network_queue()
+            else:
+                self.run_search(i, game) 
 
-    cdef void run_search(self, game_state_t *game) nogil:
+        gettimeofday(&end_time, NULL)
+
+        elapsed = ((end_time.tv_sec - self.search_start_time.tv_sec) +
+                   (end_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
+
+        if node.player_color == self.player_color:
+            printf(">> Time is over :-)\n")
+        else:
+            printf(">> Stopped read-ahead pondering.\n")
+
+        printf('Playouts           : %d\n', self.n_playout)
+        for i in range(self.n_threads):
+            printf('  T%d               : %d\n', i, self.n_threads_playout[i])
+        printf('Elapsed            : %2.3lf sec\n', elapsed)
+        if elapsed != 0.0:
+            printf('Playout Speed      : %d PO/sec\n', <int>(self.n_playout/elapsed))
+        printf('Total Playouts     : %d\n', <int>node.Nr)
+        printf("Winning Ratio      : %3.2lf %\n", 100.0-(node.Wr*100.0/node.Nr))
+        printf('Queue size (P)     : %d\n', self.policy_network_queue.size())
+        printf('Queue size max (P) : %d\n', self.max_queue_size_P)
+        printf('Hash status of use : %3.2lf % (%u/%u)\n', used*100.0/uct_hash_size, used, uct_hash_size)
+
+    cdef void run_search(self, int thread_id, game_state_t *game) nogil:
         cdef game_state_t *search_game
         cdef tree_node_t *node
         cdef int pos
         cdef unsigned long long previous_hash = 0
+        cdef timeval current_time
+        cdef double elapsed = .0
 
-        self.n_playout = 0
+        printf('>> Search thread (T%d) started ...\n', thread_id)
 
         search_game = allocate_game()
 
-        while (self.pondering and
+        while (self.pondering == True and
+               self.pondering_suspending == False and
                check_remaining_hash_size() and
-               self.n_playout < self.playout_limit):
+               self.n_playout < self.playout_limit and
+               elapsed < self.time_limit):
 
             if game.moves == 0 or previous_hash != game.current_hash:
                 previous_hash = game.current_hash
@@ -133,13 +336,19 @@ cdef class MCTS(object):
 
             self.search(node, search_game)
 
+            self.n_threads_playout[thread_id] += 1
             self.n_playout += 1
 
-        printf('%d Playout\n', self.n_playout)
+            gettimeofday(&current_time, NULL)
 
-        self.pondering = False
+            elapsed = ((current_time.tv_sec - self.search_start_time.tv_sec) + 
+                       (current_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
+
+        self.policy_queue_running = False
 
         free_game(search_game)
+
+        printf('>> T%d shut down.\n', thread_id)
 
     cdef void search(self,
                      tree_node_t *node,
@@ -149,8 +358,11 @@ cdef class MCTS(object):
 
         current_node = node
 
+        openmp.omp_set_lock(&node.lock)
+        
         # selection
         while True:
+            current_node.Nr += VIRTUAL_LOSS
             if current_node.is_edge:
                 break
             else:
@@ -158,9 +370,14 @@ cdef class MCTS(object):
 
         # expansion
         if current_node.Nr >= EXPANSION_THRESHOLD:
+            openmp.omp_set_lock(&self.expand_lock)
             expanded = self.expand(current_node, search_game)
+            openmp.omp_unset_lock(&self.expand_lock)
             if expanded:
                 current_node = self.select(current_node, search_game)
+                current_node.Nr += VIRTUAL_LOSS
+
+        openmp.omp_unset_lock(&node.lock)
 
         # evaluation then backup
         self.evaluate_and_backup(current_node, search_game)
@@ -168,9 +385,10 @@ cdef class MCTS(object):
     cdef bint seek_root(self, game_state_t *game) nogil:
         cdef tree_node_t *node
         cdef int pos
-        cdef int color
+        cdef char color, other_color
 
-        color = <int>game.current_color
+        color = game.current_color
+        other_color = FLIP_COLOR(color)
 
         self.current_root = find_same_hash_index(game.current_hash, color, game.moves) 
 
@@ -179,18 +397,18 @@ cdef class MCTS(object):
             node = &self.nodes[self.current_root]
             node.node_i = self.current_root
             node.time_step = game.moves
-            if game.moves > 0:
+            if game.moves == 0:
+                node.color = other_color
+            else:
                 node.pos = game.record[game.moves - 1].pos
                 node.color = <int>game.record[game.moves - 1].color
-
+            node.player_color = color
             node.P = 0
             node.Nv = 0
             node.Wv = 0
             node.Nr = 0
             node.Wr = 0
             node.Q = 0
-            node.u = 0
-            node.Qu = 0
             node.num_child = 0
             node.is_root = True
             node.is_edge = True
@@ -216,6 +434,7 @@ cdef class MCTS(object):
         cdef char color
         cdef tree_node_t *child
         cdef tree_node_t *max_child
+        cdef double child_u, child_Qu
         cdef double max_Qu = -1.0 
         cdef int i
 
@@ -223,8 +442,13 @@ cdef class MCTS(object):
 
         for i in range(node.num_child):
             child = node.children[node.children_pos[i]]
-            if child.Qu > max_Qu:
-                max_Qu = child.Qu
+            if node.Nr > .0:
+                child_u = EXPLORATION_CONSTANT * child.P * (csqrt(node.Nr) / (1 + child.Nr))
+            else:
+                child_u = EXPLORATION_CONSTANT * child.P
+            child_Qu = child.Q + child_u
+            if child_Qu > max_Qu:
+                max_Qu = child_Qu
                 max_child = child
 
         put_stone(game, max_child.pos, color)
@@ -240,31 +464,35 @@ cdef class MCTS(object):
         cdef char color = game.current_color
         cdef char other_color = FLIP_COLOR(color)
         cdef unsigned long long child_hash
-        cdef double *move_probs
+        cdef double move_probs[361]
+        cdef int queue_size
         cdef int i
 
-        # tree policy not implemented yet. use rollout policy instead.
-        move_probs = game.rollout_probs[color]
+        # other thread may expand
+        if node.num_child > 0:
+            return True
+
+        update_tree_planes_all(game)
+        get_tree_probs(game, move_probs)
 
         for i in range(PURE_BOARD_MAX):
             child_pos = onboard_pos[i]
             if is_legal_not_eye(game, child_pos, color):
                 child_hash = game.current_hash ^ hash_bit[child_pos][<int>color]
-                child_i = search_empty_index(child_hash, color, child_moves)
+                child_i = search_empty_index(child_hash, other_color, child_moves)
                 # initialize new edge
                 child = &self.nodes[child_i]
                 child.node_i = child_i
                 child.time_step = child_moves
                 child.pos = child_pos
                 child.color = color
+                child.player_color = other_color
                 child.P = move_probs[i]
                 child.Nv = 0
                 child.Wv = 0
                 child.Nr = 0
                 child.Wr = 0
                 child.Q = 0
-                child.u = child.P
-                child.Qu = child.Q + child.u
                 child.num_child = 0
                 child.is_root = False
                 child.is_edge = True
@@ -279,7 +507,11 @@ cdef class MCTS(object):
             node.is_edge = False
             node.game = allocate_game()
             copy_game(node.game, game)
+            node.has_game = True
             self.policy_network_queue.push(node)
+            queue_size = self.policy_network_queue.size()
+            if queue_size > self.max_queue_size_P:
+                self.max_queue_size_P = queue_size
             return True
         else:
             return False
@@ -333,35 +565,100 @@ cdef class MCTS(object):
 
         node = edge_node
         while True:
-            node.Nr += 1
+            openmp.omp_set_lock(&node.lock)
+
+            node.Nr += (1 - VIRTUAL_LOSS)
+
             if node.color == winner:
                 node.Wr += 1
 
             if node.is_root:
+                openmp.omp_unset_lock(&node.lock)
                 break
             else:
                 node.Q = node.Wr/node.Nr
-                #node.Q = (1 - MIXING_PARAMETER) * node.Wv/node.Nv + MIXING_PARAMETER * node.Wr/node.Nr
-                node.u = EXPLORATION_CONSTANT * node.P * (csqrt(node.parent.Nr + 1) / (1 + node.Nr))
-                node.Qu = node.Q + node.u
-
+                openmp.omp_unset_lock(&node.lock)
                 node = node.parent
 
-    def run_policy_network(self):
+    cdef void start_policy_network_queue(self) nogil:
         cdef tree_node_t *node
         cdef int i, pos
 
-        while True:
+        if self.policy_queue_running:
+            printf('>> Policy network queue already running.\n')
+            return
+
+        self.policy_queue_running = True
+
+        printf('>> Starting policy network queue ...\n')
+
+        while self.policy_queue_running:
+            openmp.omp_set_lock(&self.policy_queue_lock)
+
             if self.policy_network_queue.empty():
+                openmp.omp_unset_lock(&self.policy_queue_lock)
                 continue
 
             node = self.policy_network_queue.front()
 
-            self.eval_leafs_by_policy_network(node)
+            if node.game != NULL:
+                with gil:
+                    self.eval_leafs_by_policy_network(node)
 
-            free_game(node.game)
+                free_game(node.game)
+                node.game = NULL
+                node.has_game = False
 
             self.policy_network_queue.pop()
+
+            openmp.omp_unset_lock(&self.policy_queue_lock)
+
+        printf('>> Policy network queue shut down.\n')
+
+    cdef void stop_policy_network_queue(self) nogil:
+        printf('>> Shutting down policy network queue ...\n')
+        self.policy_queue_running = False
+
+    cdef void clear_policy_network_queue(self) nogil:
+        cdef tree_node_t *node
+
+        openmp.omp_set_lock(&self.policy_queue_lock)
+        while not self.policy_network_queue.empty():
+            node = self.policy_network_queue.front()
+            if node.game != NULL:
+                free_game(node.game)
+                node.game = NULL
+                node.has_game = False
+            self.policy_network_queue.pop()
+        printf('>> Policy Network Queue cleared: %d\n', self.policy_network_queue.size())
+        openmp.omp_unset_lock(&self.policy_queue_lock)
+
+
+    cdef void eval_all_leafs_by_policy_network(self) nogil:
+        cdef tree_node_t *node
+        cdef int i, pos
+        cdef int n_eval = 0
+
+        openmp.omp_set_lock(&self.policy_queue_lock)
+
+        while not self.policy_network_queue.empty():
+            node = self.policy_network_queue.front()
+
+            if node.game != NULL:
+                with gil:
+                    self.eval_leafs_by_policy_network(node)
+
+                free_game(node.game)
+                node.game = NULL
+                node.has_game = False
+
+            self.policy_network_queue.pop()
+
+            n_eval += 1
+
+        openmp.omp_unset_lock(&self.policy_queue_lock)
+
+        printf('>> Policy Network Queue evaluated: %d node\n', n_eval)
 
     cdef void eval_leafs_by_policy_network(self, tree_node_t *node):
         cdef int i, pos
@@ -377,12 +674,7 @@ cdef class MCTS(object):
         for i in range(node.num_child):
             pos = node.children_pos[i]
             child = node.children[pos]
-            child.P = probs[pos]/100.0
-            if child.parent.Nr > 0:
-                child.u = EXPLORATION_CONSTANT * child.P * csqrt(child.parent.Nr) / (1 + child.Nr) 
-            else:
-                child.u = child.P 
-            child.Qu = child.Q + child.u
+            child.P = probs[pos]
 
     def apply_temperature(self, distribution):
         log_probabilities = np.log(distribution)
@@ -390,3 +682,125 @@ cdef class MCTS(object):
         log_probabilities = log_probabilities - log_probabilities.max()
         probabilities = np.exp(log_probabilities)
         return probabilities / probabilities.sum()
+
+
+cdef class PyMCTS(object):
+
+    def __cinit__(self,
+                  object policy,
+                  double temperature=0.67,
+                  double time_limit=5.0,
+                  int playout_limit=8000,
+                  int n_threads=1,
+                  bint read_ahead=False):
+        self.mcts = MCTS(policy, temperature, time_limit, playout_limit, n_threads)
+        self.game = allocate_game()
+        self.time_limit = time_limit
+        self.playout_limit = playout_limit
+        self.read_ahead = read_ahead
+
+        initialize_board(self.game)
+        initialize_rollout(self.game)
+        initialize_uct_hash()
+
+    def __dealloc__(self):
+        free_game(self.game)
+
+    def clear(self):
+        printf('>> Initializing Tree and Board ...\n')
+        if self.read_ahead:
+            self.suspend_pondering()
+        self.mcts.clear()
+        free_game(self.game)
+        self.game = allocate_game()
+        initialize_board(self.game)
+        initialize_rollout(self.game)
+        initialize_uct_hash()
+        printf('>> O.K.\n')
+
+    def start_pondering(self):
+        self.mcts.start_pondering()
+
+    def stop_pondering(self):
+        self.mcts.stop_pondering()
+
+    def suspend_pondering(self):
+        self.mcts.suspend_pondering()
+    
+    def resume_pondering(self):
+        self.mcts.game = self.game
+        self.mcts.time_limit = 86400
+        self.mcts.playout_limit = 1000000
+        self.mcts.resume_pondering()
+
+    def genmove(self, color):
+        if self.mcts.player_color == -1:
+            self.mcts.player_color = color
+
+        self.mcts.time_limit = self.time_limit
+        self.mcts.playout_limit = self.playout_limit
+        self.mcts.ponder(self.game)
+
+        self.game.current_color = color
+        pos = self.mcts.genmove(self.game)
+        return pos
+
+    def play(self, pos, color):
+        cdef bint legal
+        if self.mcts.player_color == -1:
+            self.mcts.player_color = FLIP_COLOR(color)
+
+        if self.read_ahead:
+            self.suspend_pondering()
+
+        legal = put_stone(self.game, pos, color)
+        if legal:
+            self.game.current_color = FLIP_COLOR(self.game.current_color)
+            update_rollout(self.game)
+            print_board(self.game)
+
+            if self.read_ahead:
+                if self.mcts.player_color == color:
+                    self.resume_pondering()
+
+            return True
+        else:
+            return False
+
+    def start_policy_network_queue(self):
+        self.mcts.start_policy_network_queue()
+
+    def stop_policy_network_queue(self):
+        self.mcts.stop_policy_network_queue()
+
+    def eval_all_leafs_by_policy_network(self):
+        self.mcts.eval_all_leafs_by_policy_network()
+
+    def set_size(self, bsize):
+        self.clear()
+        set_board_size(bsize)
+
+    def set_komi(self, new_komi):
+        set_komi(new_komi)
+
+    def set_time(self, m, b, stone):
+        pass
+
+    def set_time_left(self, color, time, stone):
+        pass
+
+    def set_time_limit(self, limit):
+        self.time_limit = limit
+
+    def set_playout_limit(self, limit):
+        self.playout_limit = limit
+
+    def showboard(self):
+        print_board(self.game)
+
+    def save_sgf(self, black_name, white_name):
+        from tempfile import NamedTemporaryFile
+        temp_file = NamedTemporaryFile(delete=False)
+        temp_file_name = temp_file.name + '.sgf'
+        save_gamestate_to_sgf(self.game, '/tmp/', temp_file_name, black_name, white_name)
+        return temp_file_name

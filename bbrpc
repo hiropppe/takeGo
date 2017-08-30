@@ -1,0 +1,100 @@
+import pyjsonrpc
+import os
+import sys
+import threading
+
+from bamboo.go.zobrist_hash import set_hash_size, initialize_hash, initialize_uct_hash
+from bamboo.models import policy
+from bamboo.rollout.pattern import read_rands, init_d12_hash, init_x33_hash, init_nonres_d12_hash
+from bamboo.rollout.preprocess import initialize_const, set_rollout_parameter, set_tree_parameter
+from bamboo.mcts.tree_search import PyMCTS
+from bamboo.mcts.mcts_server import set_mcts, MCTSRequestHandler
+
+
+if __name__ == "__main__":
+    global mcts
+
+    import argparse
+    parser = argparse.ArgumentParser(description='Run GTP')
+    parser.add_argument("--policy-model", "-M", type=str, required=True,
+                        help="Policy network model (json)")
+    parser.add_argument("--policy-weights", "-W", type=str, required=True,
+                        help="Policy network weights (hdf5)")
+    parser.add_argument("--rollout-weights", "-Wr", type=str, required=True,
+                        help="Rollout policy network weights (hdf5)")
+    parser.add_argument("--tree-weights", "-Wt", type=str, required=True,
+                        help="Tree policy network weights (hdf5)")
+    parser.add_argument("--mt-rands-file", "-mt", type=str, required=True,
+                        help="Mersenne twister random number file")
+    parser.add_argument("--x33-pattern", "-x33", type=str, required=True,
+                        help="Non-response 3x3 pattern file")
+    parser.add_argument("--d12-pattern", "-d12", type=str, required=True,
+                        help="Response 12 point diamond(MD2) pattern file")
+    parser.add_argument("--tree-d12-pattern", "-td12", type=str, required=True,
+                        help="Non-response 12 point diamond(MD2) pattern file")
+    parser.add_argument("--policy-temp", type=float, default=0.67,
+                        help="Distribution temperature of players using policies (Default: 0.67)")
+    parser.add_argument("--threads", "-t", type=int, default=1,
+                        help="Number of search threads (Default: 1)")
+    parser.add_argument("--node-hash-size", "-n", type=int, default=1048576,
+                        help="MCT node hash size (Default: 2**20)")
+    parser.add_argument("--host", type=str, default='localhost',
+                        help="MCTS RPC server host")
+    parser.add_argument("--port", "-p", type=int, default=6000,
+                        help="MCTS RPC server port")
+    parser.add_argument("--read-ahead", "-r", default=False, action="store_true",
+                        help="Enable read-ahead pondering")
+    parser.add_argument("--verbose", "-v", default=False, action="store_true",
+                        help="Turn on verbose mode")
+
+    args = parser.parse_args()
+
+    import tensorflow as tf
+    from keras.backend.tensorflow_backend import set_session
+    config = tf.ConfigProto()
+    config.gpu_options.per_process_gpu_memory_fraction = 0.2
+    set_session(tf.Session(config=config))
+
+    # init SL Policy
+    sl_policy = policy.CNNPolicy.load_model(args.policy_model)
+    sl_policy.model.load_weights(args.policy_weights)
+
+    # init tree hash
+    set_hash_size(args.node_hash_size)
+    initialize_hash()
+    initialize_uct_hash()
+
+    # init rollout policy
+    read_rands(args.mt_rands_file)
+    x33_size = init_x33_hash(args.x33_pattern)
+    d12_size = init_d12_hash(args.d12_pattern)
+    tree_d12_size = init_nonres_d12_hash(args.tree_d12_pattern)
+
+    initialize_const(0, x33_size, d12_size, tree_d12_size)
+    set_rollout_parameter(args.rollout_weights)
+    set_tree_parameter(args.tree_weights)
+
+    mcts = PyMCTS(sl_policy, args.policy_temp, n_threads=args.threads, read_ahead=args.read_ahead)
+    set_mcts(mcts)
+
+    if args.read_ahead:
+        start_thread = threading.Thread(target=mcts.start_pondering)
+        start_thread.setDaemon(True)
+        start_thread.start()
+
+    server = pyjsonrpc.ThreadingHttpServer(
+        server_address = (args.host, args.port),
+        RequestHandlerClass = MCTSRequestHandler
+    )
+
+    print('Starting MCTS server ...')
+    print('URL: http://{:s}:{:d}'.format(args.host, args.port))
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        if args.read_ahead:
+            mcts.stop_pondering()
+            start_thread.join(10)
+        server.shutdown()
+        print('Server shut down')
+

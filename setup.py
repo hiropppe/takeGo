@@ -22,6 +22,7 @@ extensions = [Extension('bamboo.go.board', sources=['bamboo/go/board.pyx'], lang
               Extension('bamboo.test_cyboard_eq_pyboard', sources=["bamboo/test_cyboard_eq_pyboard.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.mcts.tree_search', sources=["bamboo/mcts/tree_search.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"], extra_link_args=['-lgomp']),
               Extension('bamboo.rollout.sgf2hdf5', sources=["bamboo/rollout/sgf2hdf5.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.rollout.sgf2hdf5_tree', sources=["bamboo/rollout/sgf2hdf5_tree.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout.pattern', sources=["bamboo/rollout/pattern.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout.preprocess', sources=["bamboo/rollout/preprocess.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout.pattern_harvest', sources=["bamboo/rollout/pattern_harvest.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
@@ -35,7 +36,9 @@ extensions = [Extension('bamboo.go.board', sources=['bamboo/go/board.pyx'], lang
               Extension('bamboo.rollout.test_x33_pattern', sources=["bamboo/rollout/test_x33_pattern.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout.test_d12_pattern', sources=["bamboo/rollout/test_d12_pattern.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout.test_rollout_preprocess', sources=["bamboo/rollout/test_rollout_preprocess.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
-              Extension('bamboo.mcts.test_mcts', sources=["bamboo/mcts/test_mcts.pyx"], language="c++", extra_compile_args=["-std=c++11"])]
+              Extension('bamboo.mcts.self_play', sources=["bamboo/mcts/self_play.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.mcts.test_mcts', sources=["bamboo/mcts/test_mcts.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.test_util', sources=["bamboo/test_util.pyx"], language="c++", extra_compile_args=["-std=c++11"])]
 
 core.setup(
   ext_modules=cythonize(extensions),
@@ -53,6 +56,7 @@ setup(
   packages=find_packages(),
   scripts=[
     'bamboos',
+    'bbrpc',
     'bamboos_keras',
     'bamboos_rollout',
     'bambooc'

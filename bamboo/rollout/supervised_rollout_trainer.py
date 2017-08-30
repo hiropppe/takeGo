@@ -43,7 +43,12 @@ def start_training(args):
 
     states = dataset['states']
     actions = dataset['actions']
-    n_features = dataset['n_features'].value
+    feature_size = dataset['n_features'].value
+    if args.policy == 'rollout':
+        n_features = 6
+    else:
+        n_features = 9
+
     board_max = states.shape[-1]
 
     n_total = len(states)
@@ -51,7 +56,7 @@ def start_training(args):
     n_train = n_total - n_test
 
     rgen = np.random.RandomState(1)
-    params = {'W': rgen.normal(loc=0.0, scale=0.01, size=n_features)}
+    params = {'W': rgen.normal(loc=0.0, scale=0.01, size=feature_size)}
 
     if args.optimizer == 'sgd':
         optimizer = SGD(lr=args.learning_rate, decay_every=args.decay_every, decay_rate=args.decay)
@@ -111,7 +116,7 @@ def start_training(args):
 
                 # compute logits
                 logits = np.zeros(board_max, dtype=np.float64)
-                for k in range(6):
+                for k in range(n_features):
                     onehot_index_position = np.where(onehot_index_array[k] != -1)[0]
                     # memorize onehot positions by feature
                     onehot_index_position_by_feature[k] = onehot_index_position
@@ -128,8 +133,8 @@ def start_training(args):
                 dy = y - t
 
                 # compute grad
-                grads = {'W': np.zeros(n_features, dtype=np.float64)}
-                for k in range(6):
+                grads = {'W': np.zeros(feature_size, dtype=np.float64)}
+                for k in range(n_features):
                     for onehot_index in onehot_index_position_by_feature[k]:
                         grads['W'][onehot_index_array[k, onehot_index]] += dy[onehot_index]
 
@@ -163,7 +168,7 @@ def start_training(args):
 
                 # compute logits
                 logits = np.zeros(board_max, dtype=np.float64)
-                for k in range(6):
+                for k in range(n_features):
                     onehot_index_position = np.where(onehot_index_array[k] != -1)[0]
                     for onehot_index in onehot_index_position:
                         logits[onehot_index] += params['W'][onehot_index_array[k, onehot_index]]
@@ -206,6 +211,8 @@ def handle_arguments(cmd_line_args=None):
 
     parser.add_argument("train_data", help="A .h5 file of training data")
     parser.add_argument("out_directory", help="Directory where metadata and weights will be saved")
+    parser.add_argument("--policy", "-p", type=str, default='rollout', choices=['rollout', 'tree'],
+                        help="Choice policy to generate feature (Default: rollout)")
     parser.add_argument("--minibatch", "-B", type=int, default=DEFAULT_BATCH_SIZE,
                         help="Minibatch size. Default: " + str(DEFAULT_BATCH_SIZE))
     parser.add_argument("--epochs", "-E", type=int, default=DEFAULT_EPOCH,

@@ -12,6 +12,15 @@ class TestRolloutPreprocess(unittest.TestCase):
     def tearDownClass(clazz):
         ctest.teardown()
 
+    def test_update_self_atari(self):
+        ctest.test_update_self_atari()
+
+    def test_update_last_move_distance(self):
+        ctest.test_update_last_move_distance()
+
+    def test_update_nonres_12diamond(self):
+        ctest.test_update_nonres_12diamond()
+
     def test_update_save_atari(self):
         ctest.test_update_save_atari()
 

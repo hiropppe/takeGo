@@ -1,5 +1,7 @@
 cimport board 
 
+from bamboo.rollout.preprocess cimport initialize_rollout 
+
 
 cdef tuple parse(board.game_state_t *game, boardstr):
     '''Parses a board into a gamestate, and returns the location of any moves
@@ -19,6 +21,7 @@ cdef tuple parse(board.game_state_t *game, boardstr):
     board.set_board_size(board_size)
 
     board.initialize_board(game)
+    initialize_rollout(game)
 
     for row, rowstr in enumerate(boardstr.split('|')):
         for col, c in enumerate(rowstr):

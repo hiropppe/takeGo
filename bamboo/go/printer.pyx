@@ -7,12 +7,14 @@ from libcpp.string cimport string as cppstring
 
 from libc.string cimport memset
 from libc.stdio cimport printf, snprintf
-from libc.math cimport round as cround
+from libc.math cimport sqrt as csqrt
 
 from bamboo.go.board cimport S_BLACK, S_WHITE, S_MAX
 from bamboo.go.board cimport POS
 from bamboo.go.board cimport board_start, board_end, board_size, pure_board_size
 from bamboo.go.point cimport gogui_x
+
+from bamboo.mcts.tree_search cimport EXPLORATION_CONSTANT
 
 
 cdef void print_board(game_state_t *game) nogil:
@@ -55,19 +57,21 @@ cdef void print_board(game_state_t *game) nogil:
 
 
 cdef void print_rollout_count(tree_node_t *root) nogil:
+    cdef char *stone = ['#', 'B', 'W']
     cdef int i, x, y, pos
     cdef char buf[10]
     cdef cppstring *s
-    cdef int visit_count[361]
+    cdef int rollout_count[361]
     cdef tree_node_t *child
 
-    memset(visit_count, 0, sizeof(int) * 361);
+    memset(rollout_count, 0, sizeof(int) * 361);
 
     for i in range(root.num_child):
         pos = root.children_pos[i]
-        visit_count[pos] = <int>root.children[pos].Nr
+        rollout_count[pos] = <int>root.children[pos].Nr
 
     printf(">> Number of rollout: %d\n", <int>root.Nr)
+    printf("Player: %s\n", cppstring(1, stone[root.player_color]).c_str())
 
     printf("    ")
     i = 1
@@ -87,7 +91,7 @@ cdef void print_rollout_count(tree_node_t *root) nogil:
         printf("%s", s.c_str())
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
-            snprintf(buf, sizeof(buf), " %d", visit_count[pos])
+            snprintf(buf, sizeof(buf), " %d", rollout_count[pos])
             s = rjust(buf, 5, " ")
             printf(' %s', s.c_str())
         printf(" |\n")
@@ -99,6 +103,7 @@ cdef void print_rollout_count(tree_node_t *root) nogil:
 
 
 cdef void print_winning_ratio(tree_node_t *root) nogil:
+    cdef char *stone = ['#', 'B', 'W']
     cdef int i, x, y, pos
     cdef char buf[10]
     cdef cppstring *s
@@ -110,9 +115,14 @@ cdef void print_winning_ratio(tree_node_t *root) nogil:
     if root.Nr > 0:
         for i in range(root.num_child):
             pos = root.children_pos[i]
-            winning_ratio[pos] = root.children[pos].Wr/root.Nr
+            child = root.children[pos]
+            if child.Nr > .0:
+                winning_ratio[pos] = child.Wr/child.Nr
+            else:
+                winning_ratio[pos] = .0
 
     printf(">> Rollout Winning Ratio: %3.2lf\n", 100.0-(root.Wr*100.0/root.Nr))
+    printf("Player: %s\n", cppstring(1, stone[root.player_color]).c_str())
 
     printf("    ")
     i = 1
@@ -144,6 +154,7 @@ cdef void print_winning_ratio(tree_node_t *root) nogil:
 
 
 cdef void print_prior_probability(tree_node_t *root) nogil:
+    cdef char *stone = ['#', 'B', 'W']
     cdef int i, x, y, pos
     cdef char buf[10]
     cdef cppstring *s
@@ -157,6 +168,7 @@ cdef void print_prior_probability(tree_node_t *root) nogil:
         prior_prob[pos] = root.children[pos].P*100.0
 
     printf(">> Prior Probabilities\n")
+    printf("Player: %s\n", cppstring(1, stone[root.player_color]).c_str())
 
     printf("    ")
     i = 1
@@ -176,7 +188,7 @@ cdef void print_prior_probability(tree_node_t *root) nogil:
         printf("%s", s.c_str())
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
-            snprintf(buf, sizeof(buf), " %3.2lf", prior_prob[pos]*100.0)
+            snprintf(buf, sizeof(buf), " %3.2lf", prior_prob[pos])
             s = rjust(buf, 6, " ")
             printf(' %s', s.c_str())
         printf(" |\n")
@@ -188,6 +200,7 @@ cdef void print_prior_probability(tree_node_t *root) nogil:
 
 
 cdef void print_action_value(tree_node_t *root) nogil:
+    cdef char *stone = ['#', 'B', 'W']
     cdef int i, x, y, pos
     cdef char buf[10]
     cdef cppstring *s
@@ -201,6 +214,7 @@ cdef void print_action_value(tree_node_t *root) nogil:
         action_value[pos] = root.children[pos].Q
 
     printf(">> Action-Value(Q)\n")
+    printf("Player: %s\n", cppstring(1, stone[root.player_color]).c_str())
 
     printf("    ")
     i = 1
@@ -232,6 +246,7 @@ cdef void print_action_value(tree_node_t *root) nogil:
 
 
 cdef void print_bonus(tree_node_t *root) nogil:
+    cdef char *stone = ['#', 'B', 'W']
     cdef int i, x, y, pos
     cdef char buf[10]
     cdef cppstring *s
@@ -242,9 +257,14 @@ cdef void print_bonus(tree_node_t *root) nogil:
 
     for i in range(root.num_child):
         pos = root.children_pos[i]
-        bonus[pos] = root.children[pos].u
+        child = root.children[pos]
+        if root.Nr > .0:
+            bonus[pos] = EXPLORATION_CONSTANT * child.P * (csqrt(root.Nr) / (1 + child.Nr))
+        else:
+            bonus[pos] = EXPLORATION_CONSTANT * child.P
 
     printf(">> Bonus(u)\n")
+    printf("Player: %s\n", cppstring(1, stone[root.player_color]).c_str())
 
     printf("    ")
     i = 1
@@ -276,6 +296,7 @@ cdef void print_bonus(tree_node_t *root) nogil:
 
 
 cdef void print_selection_value(tree_node_t *root) nogil:
+    cdef char *stone = ['#', 'B', 'W']
     cdef int i, x, y, pos
     cdef char buf[10]
     cdef cppstring *s
@@ -286,9 +307,14 @@ cdef void print_selection_value(tree_node_t *root) nogil:
 
     for i in range(root.num_child):
         pos = root.children_pos[i]
-        selection[pos] = root.children[pos].Qu
+        child = root.children[pos]
+        if root.Nr > .0:
+            selection[pos] = child.Q + EXPLORATION_CONSTANT * child.P * (csqrt(root.Nr) / (1 + child.Nr))
+        else:
+            selection[pos] = child.Q + EXPLORATION_CONSTANT * child.P
 
     printf(">> Action-Value(Q) + Bonus(u)\n")
+    printf("Player: %s\n", cppstring(1, stone[root.player_color]).c_str())
 
     printf("    ")
     i = 1

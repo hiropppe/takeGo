@@ -56,10 +56,6 @@ cpdef void write_rands(object mt_file, int n=118):
             mt_out.write('\n')
 
 
-cpdef int init_nakade_hash(object nakade_csv):
-    return 0 
-
-
 cpdef int init_d12_hash(object d12_csv):
     cdef unordered_map[unsigned long long, int] id_map
     cdef int id_max = 0
@@ -76,7 +72,7 @@ cpdef int init_d12_hash(object d12_csv):
             id_map[min_hash] = id_max
             id_max += 1
         d12_hashmap[hash] = id_map[min_hash]
-    printf('12 diamond pattern loaded. #%d\n', id_max+1)
+    printf('Response 12 diamond pattern loaded. #%d\n', id_max+1)
     return id_max + 1
 
 
@@ -96,12 +92,28 @@ cpdef int init_x33_hash(object x33_csv):
             id_map[min_hash] = id_max
             id_max += 1
         x33_hashmap[hash] = id_map[min_hash]
-    printf('3x3 pattern loaded. #%d\n', id_max+1)
+    printf('Non-response 3x3 pattern loaded. #%d\n', id_max+1)
     return id_max + 1
 
 
-cpdef void put_nakade_hash(unsigned long long bits, int id):
-    pass
+cpdef int init_nonres_d12_hash(object nonres_d12_csv):
+    cdef unordered_map[unsigned long long, int] id_map
+    cdef int id_max = 0
+    cdef unsigned long long hash, min_hash
+
+    if not nonres_d12_csv:
+        return 0
+
+    df = pd.read_csv(nonres_d12_csv, dtype={'pat': np.uint64, 'min8': np.uint64, 'min16': np.uint64})
+    for _, row in df.iterrows():
+        hash = d12_hash_from_bits(row['pat'])
+        min_hash = d12_hash_from_bits(row['min16'])
+        if id_map.find(min_hash) == id_map.end():
+            id_map[min_hash] = id_max
+            id_max += 1
+        nonres_d12_hashmap[hash] = id_map[min_hash]
+    printf('Non-response 12 diamond pattern loaded. #%d\n', id_max+1)
+    return id_max + 1
 
 
 cpdef void put_d12_hash(unsigned long long bits, int id):
@@ -114,6 +126,12 @@ cpdef void put_x33_hash(unsigned long long bits, int id):
     cdef unsigned long long hash
     hash = x33_hash_from_bits(bits)
     x33_hashmap[hash] = id
+
+
+cpdef void put_nonres_d12_hash(unsigned long long bits, int id):
+    cdef unsigned long long hash
+    hash = nonres_d12_hash_from_bits(bits)
+    nonres_d12_hashmap[hash] = id
 
 
 """ 12 diamond(MD2) Pattern functions
@@ -456,7 +474,7 @@ cpdef unsigned long long x33_hash_from_bits(unsigned long long bits) except? -1:
     return hash ^ player_mt[bits & 0x3]
 
 
-cdef unsigned long long x33_bits(game_state_t *game, int pos, int color) except? -1:
+cdef unsigned long long x33_bits(game_state_t *game, int pos, int color) nogil except? -1:
     cdef int neighbor8[8]
     cdef int neighbor_pos
     cdef int string_id
@@ -628,3 +646,245 @@ cpdef void print_x33_trans16(unsigned long long pat, bint show_bits=True, bint s
 
     for i in range(16):
         print_x33(trans[i], show_bits, show_board)
+
+
+""" Non-response 12 diamond(MD2) Pattern functions
+"""
+cdef unsigned long long nonres_d12_hash(game_state_t *game, int pos, int color) nogil except? -1:
+    cdef int md12[12]
+    cdef int md_pos
+    cdef string_t *string
+    cdef unsigned long long hash = 0
+    cdef int i
+
+    get_md12(md12, pos)
+
+    for i in range(12):
+        md_pos = md12[i]
+        hash ^= color_mt[i][game.board[md_pos]]
+        string = &game.string[game.string_id[md_pos]]
+        if string.flag:
+            hash ^= liberty_mt[i][MIN(string.libs, 3)]
+        else:
+            hash ^= liberty_mt[i][0]
+
+    return hash ^ player_mt[color]
+
+
+cdef unsigned long long nonres_d12_bits(game_state_t *game, int pos, int color) nogil except? -1:
+    cdef int md12[12]
+    cdef int md_pos
+    cdef string_t *string
+    cdef unsigned long long color_pat = 0
+    cdef int lib_pat = 0
+    cdef int i
+
+    get_md12(md12, pos)
+
+    for i in range(12):
+        md_pos = md12[i]
+        color_pat |= (game.board[md_pos] << i*2)
+        string = &game.string[game.string_id[md_pos]]
+        if string.flag:
+            lib_pat |= (MIN(string.libs, 3) << i*2)
+
+    return (((color_pat << 24) | lib_pat) << 2) | color
+
+
+cpdef unsigned long long nonres_d12_hash_from_bits(unsigned long long bits) except? -1:
+    cdef int i, j
+    cdef unsigned long long hash = 0
+
+    for i in range(12):
+        hash ^= color_mt[i][bits >> (26+2*i) & 0x3]
+        hash ^= liberty_mt[i][bits >> (2+2*i) & 0x3]
+    return hash ^ player_mt[bits & 0x3]
+
+
+cpdef unsigned long long nonres_d12_trans8_min(unsigned long long pat):
+    cdef unsigned long long trans[8]
+    cdef unsigned long long min_pat
+    cdef int i
+
+    nonres_d12_trans8(pat, trans)
+
+    min_pat = trans[0]
+    for i in range(1, 8):
+        if trans[i] < min_pat:
+            min_pat = trans[i]
+
+    return min_pat
+
+
+cpdef unsigned long long nonres_d12_trans16_min(unsigned long long pat):
+    cdef unsigned long long trans[16]
+    cdef unsigned long long min_pat
+    cdef int i
+
+    nonres_d12_trans16(pat, trans)
+
+    min_pat = trans[0]
+    for i in range(1, 16):
+        if trans[i] < min_pat:
+            min_pat = trans[i]
+
+    return min_pat
+
+
+cdef void nonres_d12_trans8(unsigned long long pat, unsigned long long *trans):
+    trans[0] = pat
+    trans[1] = nonres_d12_rot90(pat)
+    trans[2] = nonres_d12_rot90(trans[1])
+    trans[3] = nonres_d12_rot90(trans[2])
+    trans[4] = nonres_d12_fliplr(pat)
+    trans[5] = nonres_d12_flipud(pat)
+    trans[6] = nonres_d12_transp(pat)
+    trans[7] = nonres_d12_fliplr(trans[1])
+
+
+cdef void nonres_d12_trans16(unsigned long long pat, unsigned long long *trans):
+    trans[0] = pat
+    trans[1] = nonres_d12_rot90(pat)
+    trans[2] = nonres_d12_rot90(trans[1])
+    trans[3] = nonres_d12_rot90(trans[2])
+    trans[4] = nonres_d12_fliplr(pat)
+    trans[5] = nonres_d12_flipud(pat)
+    trans[6] = nonres_d12_transp(pat)
+    trans[7] = nonres_d12_fliplr(trans[1])
+    trans[8] = nonres_d12_rev(trans[0])
+    trans[9] = nonres_d12_rev(trans[1])
+    trans[10] = nonres_d12_rev(trans[2])
+    trans[11] = nonres_d12_rev(trans[3])
+    trans[12] = nonres_d12_rev(trans[4])
+    trans[13] = nonres_d12_rev(trans[5])
+    trans[14] = nonres_d12_rev(trans[6])
+    trans[15] = nonres_d12_rev(trans[7])
+
+
+cpdef unsigned long long nonres_d12_rev(unsigned long long pat):
+    return ((((pat >> 27) & 0x555555) | (((pat >> 26) & 0x555555) << 1)) << 26) | ((pat >> 2 & 0xffffff) << 2) | (~pat & 0x3)
+
+
+cpdef unsigned long long nonres_d12_rot90(unsigned long long pat):
+    return (((pat & <unsigned long long>0x300c00300c) << 8) |
+            ((pat & <unsigned long long>0xc30000c30) << 14) |
+            ((pat & <unsigned long long>0xc00000c0) << 6) |
+            ((pat & <unsigned long long>0x300000300) >> 4) |
+            ((pat & <unsigned long long>0x300c00300c000) >> 8) |
+            ((pat & <unsigned long long>0xc30000c30000) >> 14) |
+            ((pat & <unsigned long long>0xc00000c0000) << 4) |
+            ((pat & <unsigned long long>0x300000300000) >> 6) |
+            (pat & 0x3))
+
+
+cpdef unsigned long long nonres_d12_fliplr(unsigned long long pat):
+    return (((pat & <unsigned long long>0xc00300c0030) << 4) |
+            ((pat & <unsigned long long>0xc00300c00300) >> 4) |
+            ((pat & <unsigned long long>0xc00000c00) << 6) |
+            ((pat & <unsigned long long>0x3000003000) << 2) |
+            ((pat & <unsigned long long>0xc00000c000) >> 2) |
+            ((pat & <unsigned long long>0x30000030000) >> 6) |
+            (pat & 0x33000cf3000cf))
+
+
+cpdef unsigned long long nonres_d12_flipud(unsigned long long pat):
+    return (((pat & <unsigned long long>0xc00000c) << 22) |
+            ((pat & <unsigned long long>0x3f00003f0) << 14) |
+            ((pat & <unsigned long long>0xfc0000fc0000) >> 14) |
+            ((pat & <unsigned long long>0x3000003000000) >> 22) |
+            (pat & 0x3fc0003fc03))
+
+
+cpdef unsigned long long nonres_d12_transp(unsigned long long pat):
+    return (((pat & <unsigned long long>0x3000c03000c) << 8) |
+            ((pat & <unsigned long long>0xc0c000c0c0) << 6) |
+            ((pat & <unsigned long long>0x300000300) << 10) |
+            ((pat & <unsigned long long>0x3000c03000c00) >> 8) |
+            ((pat & <unsigned long long>0x303000303000) >> 6) |
+            ((pat & <unsigned long long>0xc00000c0000) >> 10) |
+            (pat & 0xc00030c00033))
+
+
+cpdef void print_nonres_d12(unsigned long long pat, bint show_bits=True, bint show_board=True):
+    buf = []
+    stone = ['+', 'B', 'W', '#']
+    color = ['?', 'x', 'o']
+    liberty = [0, 1, 2, 3]
+    if show_bits:
+        buf.append("0b{:s}".format(bin(pat)[2:].rjust(50, '0')))
+    if show_board:
+        if show_bits:
+            buf.append("\n")
+        buf.append("  {:s}       {:d} \n".format(
+            stone[(pat >> 26) & 0x3],
+            liberty[(pat >> 2) & 0x3]
+            ))
+        buf.append(" {:s}{:s}{:s}     {:d}{:d}{:d}\n".format(
+            stone[(pat >> 28) & 0x3],
+            stone[(pat >> 30) & 0x3],
+            stone[(pat >> 32) & 0x3],
+            liberty[(pat >> 4) & 0x3],
+            liberty[(pat >> 6) & 0x3],
+            liberty[(pat >> 8) & 0x3]
+            ))
+        buf.append("{:s}{:s}{:s}{:s}{:s}   {:d}{:d} {:d}{:d}\n".format(
+            stone[(pat >> 34) & 0x3],
+            stone[(pat >> 36) & 0x3],
+            color[pat & 0x3],
+            stone[(pat >> 38) & 0x3],
+            stone[(pat >> 40) & 0x3],
+            liberty[(pat >> 10) & 0x3],
+            liberty[(pat >> 12) & 0x3],
+            liberty[(pat >> 14) & 0x3],
+            liberty[(pat >> 16) & 0x3]
+            ))
+        buf.append(" {:s}{:s}{:s}     {:d}{:d}{:d}\n".format(
+            stone[(pat >> 42) & 0x3],
+            stone[(pat >> 44) & 0x3],
+            stone[(pat >> 46) & 0x3],
+            liberty[(pat >> 18) & 0x3],
+            liberty[(pat >> 20) & 0x3],
+            liberty[(pat >> 22) & 0x3]
+            ))
+        buf.append("  {:s}       {:d} \n".format(
+            stone[(pat >> 48) & 0x3],
+            liberty[(pat >> 24) & 0x3]
+            ))
+    print(''.join(buf))
+
+
+cpdef void print_nonres_d12_trans8(unsigned long long pat, bint show_bits=True, bint show_board=True):
+    cdef unsigned long long trans[8]
+    cdef unsigned long long tmp_pat
+    cdef int i, j
+
+    nonres_d12_trans8(pat, trans)
+
+    for i in range(8):
+        for j in range(i+1, 8):
+            if trans[j] < trans[i]:
+                tmp = trans[j]
+                trans[j] = trans[i]
+                trans[i] = tmp
+
+    for i in range(8):
+        print_nonres_d12(trans[i], show_bits, show_board)
+
+
+cpdef void print_nonres_d12_trans16(unsigned long long pat, bint show_bits=True, bint show_board=True):
+    cdef unsigned long long trans[16]
+    cdef unsigned long long tmp_pat
+    cdef int i, j
+
+    nonres_d12_trans16(pat, trans)
+
+    for i in range(16):
+        for j in range(i+1, 16):
+            if trans[j] < trans[i]:
+                tmp = trans[j]
+                trans[j] = trans[i]
+                trans[i] = tmp
+
+    for i in range(16):
+        print_nonres_d12(trans[i], show_bits, show_board)
+

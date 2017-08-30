@@ -14,19 +14,26 @@ from libc.stdlib cimport rand, RAND_MAX
 from libc.stdio cimport printf
 
 from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_MAX, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END, OB_SIZE
-from bamboo.go.board cimport FLIP_COLOR, POS, Y
-from bamboo.go.board cimport game_state_t, rollout_feature_t, pure_board_max, onboard_index, onboard_pos
-from bamboo.go.board cimport is_legal, get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
+from bamboo.go.board cimport FLIP_COLOR, POS, Y, DIS, NORTH, WEST, EAST, SOUTH
+from bamboo.go.board cimport game_state_t, rollout_feature_t, pure_board_max
+from bamboo.go.board cimport board_size, onboard_index, onboard_pos, board_x, board_y, move_dis, liberty_end
+from bamboo.go.board cimport is_legal, is_legal_not_eye, get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
 
 from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout.pattern cimport d12_hash, d12_hashmap, d12_pos_mt
+from bamboo.rollout.pattern cimport nonres_d12_hash, nonres_d12_hashmap
 
 
-cdef void initialize_const(int nakade_feature_size,
-                           int x33_feature_size,
-                           int d12_feature_size) nogil:
+cpdef void initialize_const(int nakade_feature_size,
+                            int x33_feature_size,
+                            int d12_feature_size,
+                            int p_nonres_d12_size):
+    global rollout_feature_size
     global response_size, save_atari_size, neighbor_size, nakade_size, x33_size, d12_size
     global response_start, save_atari_start, neighbor_start, nakade_start, x33_start, d12_start
+    global tree_feature_size
+    global self_atari_size, last_move_distance_size, nonres_d12_size
+    global self_atari_start, last_move_distance_start, nonres_d12_start
 
     response_size = 1
     save_atari_size = 1
@@ -34,6 +41,9 @@ cdef void initialize_const(int nakade_feature_size,
     nakade_size = nakade_feature_size
     x33_size = x33_feature_size
     d12_size = d12_feature_size
+    self_atari_size = 1
+    last_move_distance_size = 34
+    nonres_d12_size = p_nonres_d12_size
 
     response_start = 0
     save_atari_start = response_start + response_size
@@ -41,8 +51,12 @@ cdef void initialize_const(int nakade_feature_size,
     nakade_start = neighbor_start + neighbor_size
     x33_start = nakade_start + nakade_size
     d12_start = x33_start + x33_size
+    self_atari_start = d12_start + d12_size
+    last_move_distance_start = self_atari_start + self_atari_size
+    nonres_d12_start = last_move_distance_start + last_move_distance_size
 
-    feature_size = d12_start + d12_size
+    rollout_feature_size = d12_start + d12_size
+    tree_feature_size = nonres_d12_start + nonres_d12_size
 
 
 cdef void initialize_rollout(game_state_t *game) nogil:
@@ -61,7 +75,7 @@ cdef void initialize_planes(game_state_t *game) nogil:
     black.color = <int>S_BLACK
     white.color = <int>S_WHITE
 
-    for i in range(6):
+    for i in range(9):
         for j in range(PURE_BOARD_MAX):
             black.tensor[i][j] = -1
             white.tensor[i][j] = -1
@@ -181,7 +195,7 @@ cdef void update_save_atari(rollout_feature_t *feature, game_state_t *game, stri
     """
     cdef int last_lib
     cdef int neighbor4[4]
-    cdef int neighbor_pos, neighbor_string_id
+    cdef int neighbor_pos
     cdef string_t *neighbor_string
     cdef int libs_after_move
     cdef int i
@@ -195,9 +209,8 @@ cdef void update_save_atari(rollout_feature_t *feature, game_state_t *game, stri
         get_neighbor4(neighbor4, last_lib)
         for i in range(4):
             neighbor_pos = neighbor4[i]
-            neighbor_string_id = game.string_id[neighbor_pos]
-            if neighbor_string_id:
-                neighbor_string = &game.string[neighbor_string_id]
+            neighbor_string = &game.string[game.string_id[neighbor_pos]]
+            if neighbor_string.flag:
                 if neighbor_string.libs > 1 and neighbor_string.color == game.current_color:
                     libs_after_move += neighbor_string.libs - 1
             elif game.board[neighbor_pos] != S_OB:
@@ -357,6 +370,17 @@ cpdef void set_rollout_parameter(object weights_hdf5):
         rollout_weights[i] = W[i]
 
 
+cpdef void set_tree_parameter(object weights_hdf5):
+    cdef int i
+
+    global tree_weights
+
+    weights_data = h5.File(weights_hdf5, 'r')
+    W = weights_data['W']
+    for i in range(W.shape[0]):
+        tree_weights[i] = W[i]
+
+
 cdef void update_probs_all(game_state_t *game) nogil:
     cdef int color
     cdef rollout_feature_t *feature
@@ -486,6 +510,250 @@ cdef int choice_rollout_move(game_state_t *game) nogil:
         pos += 1
 
     return onboard_pos[pos]
+
+
+cdef void update_tree_planes_all(game_state_t *game) nogil:
+    cdef int current_color
+    cdef rollout_feature_t *current_feature
+    cdef int pos
+    cdef int i, j
+
+    current_color = <int>game.current_color
+    current_feature = &game.rollout_feature_planes[current_color]
+
+    for i in range(pure_board_max):
+        pos = onboard_pos[i]
+        if is_legal_not_eye(game, pos, current_color):
+            update_self_atari(current_feature, game, pos, current_color)
+            update_last_move_distance(current_feature, game, pos)
+            update_non_response_d12(current_feature, game, pos, current_color) 
+        else:
+            current_feature.tensor[F_SELF_ATARI][i] = -1
+            current_feature.tensor[F_LAST_MOVE_DISTANCE][i] = -1
+            current_feature.tensor[F_NON_RESPONSE_D12_PAT][i] = -1
+
+
+cdef void get_tree_probs(game_state_t *game, double probs[361]) nogil:
+    cdef int color
+    cdef rollout_feature_t *feature
+    cdef double logits[361]
+    cdef double logits_sum
+    cdef int i
+
+    color = <int>game.current_color
+    feature = &game.rollout_feature_planes[color]
+    logits_sum = .0
+
+    for i in range(PURE_BOARD_MAX):
+        logits[i] = .0
+        if is_legal_not_eye(game, onboard_pos[i], color):
+            for j in range(9):
+                if feature.tensor[j][i] != -1:
+                    logits[i] += tree_weights[feature.tensor[j][i]]
+            logits[i] = cexp(logits[i])
+            logits_sum += logits[i]
+
+    for i in range(PURE_BOARD_MAX):
+        probs[i] = logits[i]/logits_sum
+
+
+cdef void update_self_atari(rollout_feature_t *feature, game_state_t *game, int pos, int color) nogil:
+    cdef char *board = game.board
+    cdef string_t *string = game.string
+    cdef int *string_id = game.string_id
+    cdef int other = FLIP_COLOR(color)
+    cdef int already[4]
+    cdef int already_num = 0
+    cdef int lib, count = 0, libs = 0
+    cdef int lib_candidate[10]
+    cdef int i
+    cdef int id
+    cdef int north, west, east, south
+    cdef bint checked
+
+    global self_atari_start
+
+    # 上下左右が空点なら呼吸点の候補に入れる
+    north = NORTH(pos, board_size)
+    west = WEST(pos)
+    east = EAST(pos)
+    south = SOUTH(pos, board_size)
+
+    if board[north] == S_EMPTY:
+        lib_candidate[libs] = north 
+        libs += 1
+    if board[west] == S_EMPTY:
+        lib_candidate[libs] = west
+        libs += 1
+    if board[east] == S_EMPTY:
+        lib_candidate[libs] = east
+        libs += 1
+    if board[south] == S_EMPTY:
+        lib_candidate[libs] = south
+        libs += 1
+
+    # 空点
+    if libs >= 2:
+        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        return
+
+    # 上を調べる
+    if board[north] == color:
+        id = string_id[north]
+        if string[id].libs > 2:
+            feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+            return
+        lib = string[id].lib[0]
+        count = 0
+        while lib != liberty_end:
+            if lib != pos:
+                checked = False
+                for i in range(libs):
+                    if lib_candidate[i] == lib:
+                        checked = True
+                        break
+                if not checked:
+                    lib_candidate[libs + count] = lib
+                    count += 1
+            lib = string[id].lib[lib]
+        libs += count
+        already[already_num] = id
+        already_num += 1
+        if libs >= 2:
+            feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+            return
+    elif board[north] == other and string[string_id[north]].libs == 1:
+        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        return
+
+    # 左を調べる
+    if board[west] == color:
+        id = string_id[west]
+        if already[0] != id:
+            if string[id].libs > 2:
+                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                return
+            lib = string[id].lib[0]
+            count = 0
+            while lib != liberty_end:
+                if lib != pos:
+                    checked = False
+                    for i in range(libs):
+                        if lib_candidate[i] == lib:
+                            checked = True
+                            break
+                    if not checked:
+                        lib_candidate[libs + count] = lib
+                        count += 1
+                lib = string[id].lib[lib]
+            libs += count
+            already[already_num] = id
+            already_num += 1
+            if libs >= 2:
+                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                return
+    elif board[west] == other and string[string_id[west]].libs == 1:
+        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        return
+
+    # 右を調べる
+    if board[east] == color:
+        id = string_id[east];
+        if already[0] != id and already[1] != id:
+            if string[id].libs > 2:
+                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                return
+            lib = string[id].lib[0]
+            count = 0
+            while lib != liberty_end:
+                if lib != pos:
+                    checked = False
+                    for i in range(libs):
+                        if lib_candidate[i] == lib:
+                            checked = True
+                            break
+                    if not checked:
+                        lib_candidate[libs + count] = lib
+                        count += 1
+                lib = string[id].lib[lib]
+            libs += count
+            already[already_num] = id
+            already_num += 1
+            if libs >= 2:
+                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                return
+    elif board[east] == other and string[string_id[east]].libs == 1:
+        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        return
+
+    # 下を調べる
+    if board[south] == color:
+        id = string_id[south]
+        if already[0] != id and already[1] != id and already[2] != id:
+            if string[id].libs > 2:
+                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                return
+            lib = string[id].lib[0]
+            count = 0
+            while lib != liberty_end:
+                if lib != pos:
+                    checked = False
+                    for i in range(libs):
+                        if lib_candidate[i] == lib:
+                            checked = True
+                            break
+                    if not checked:
+                        lib_candidate[libs + count] = lib
+                        count += 1
+                lib = string[id].lib[lib]
+            libs += count
+            already[already_num] = id
+            already_num += 1
+            if libs >= 2:
+                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                return
+    elif board[south] == other and string[string_id[south]].libs == 1:
+        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        return
+
+    feature.tensor[F_SELF_ATARI][onboard_index[pos]] = self_atari_start
+
+
+cdef void update_last_move_distance(rollout_feature_t *feature, game_state_t *game, int pos) nogil:
+    cdef int prev_pos, prev2_pos
+    cdef int prev_dis = 0, prev2_dis = 0
+
+    global last_move_distance_start
+
+    if game.moves == 0:
+        return
+    elif game.moves > 0:
+        prev_pos = game.record[game.moves - 1].pos
+        if prev_pos != PASS:
+            prev_dis = DIS(pos, prev_pos, board_x, board_y, move_dis)
+
+        if game.moves > 1:
+            prev2_pos = game.record[game.moves - 2].pos
+            if prev2_pos != PASS:
+                prev2_dis = DIS(pos, prev2_pos, board_x, board_y, move_dis)
+
+        feature.tensor[F_LAST_MOVE_DISTANCE][onboard_index[pos]] = last_move_distance_start + prev_dis + prev2_dis
+
+
+cdef void update_non_response_d12(rollout_feature_t *feature, game_state_t *game, int pos, int color) nogil:
+    """ Move matches 12-point diamond pattern centred around move 
+    """
+    cdef unsigned long long hash
+    cdef int pat_ix
+
+    global nonres_d12_start
+
+    hash = nonres_d12_hash(game, pos, color)
+    if nonres_d12_hashmap.find(hash) == nonres_d12_hashmap.end():
+        feature.tensor[F_NON_RESPONSE_D12_PAT][onboard_index[pos]] = -1
+    else:
+        pat_ix = nonres_d12_start + nonres_d12_hashmap[hash]
+        feature.tensor[F_NON_RESPONSE_D12_PAT][onboard_index[pos]] = pat_ix
 
 
 cdef void set_debug(bint dbg) nogil:

@@ -54,12 +54,6 @@ typedef struct pattern {
 } pattern_t;
 
 
-/***************
- * UctRating.h *
- ***************/
-const int MOVE_DISTANCE_MAX = 15;
-
-
 /*************
  * GoBoard.h *
  *************/
@@ -117,7 +111,7 @@ const int MAX_POLICY_FEATURE = 48;
 
 #define DX(pos1, pos2, board_x)  (abs(board_x[(pos1)] - board_x[(pos2)]))
 #define DY(pos1, pos2, board_y)  (abs(board_y[(pos1)] - board_y[(pos2)]))
-#define DIS(pos1, pos2, move_dis) (move_dis[DX(pos1, pos2)][DY(pos1, pos2)])
+#define DIS(pos1, pos2, board_x, board_y, move_dis) (move_dis[DX(pos1, pos2, board_x)][DY(pos1, pos2, board_y)])
 
 
 enum stone {
@@ -142,6 +136,7 @@ enum eye_condition {
 typedef struct move {
     int color;  // 着手した石の色
     int pos;    // 着手箇所の座標
+    unsigned long long hash;
 } move_t;
 
 
@@ -167,6 +162,9 @@ enum rollout_feature_e {
     F_NAKADE,
     F_RESPONSE_PAT,
     F_NON_RESPONSE_PAT,
+    F_SELF_ATARI,
+    F_LAST_MOVE_DISTANCE,
+    F_NON_RESPONSE_D12_PAT,
     F_MAX
 };
 
@@ -194,6 +192,7 @@ typedef struct {
     unsigned long long current_hash;     // 現在の局面のハッシュ値
     unsigned long long previous1_hash;   // 1手前の局面のハッシュ値
     unsigned long long previous2_hash;   // 2手前の局面のハッシュ値
+    unsigned long long positional_hash;  // 超劫用の局面ハッシュ
 
     char board[BOARD_MAX];              // 盤面 
     int birth_move[BOARD_MAX];          // 打たれた着手数

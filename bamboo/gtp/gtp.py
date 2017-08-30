@@ -182,6 +182,7 @@ class Engine(object):
 
     def cmd_quit(self, arguments):
         sgf_file_name = self._game.get_current_state_as_sgf()
+        self._game.quit()
         self.disconnect = True
         return sgf_file_name
 
@@ -213,10 +214,6 @@ class Engine(object):
             color, vertex = move
             if self.vertex_in_range(vertex):
                 if self._game.make_move(color, vertex):
-                    try:
-                        self._game.get_current_state_as_sgf()
-                    except:
-                        pass
                     return
         raise ValueError("illegal move")
 
@@ -224,11 +221,8 @@ class Engine(object):
         c = parse_color(arguments)
         if c:
             move = self._game.get_move(c)
-            self._game.make_move(c, move)
-            try:
-                self._game.get_current_state_as_sgf()
-            except:
-                pass
+            if move != RESIGN:
+                self._game.make_move(c, move)
             return gtp_vertex(move)
         else:
             raise ValueError("unknown player: {}".format(arguments))

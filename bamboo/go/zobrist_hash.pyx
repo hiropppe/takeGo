@@ -17,13 +17,13 @@ cdef int seed = rand_gen[0]()
 cdef mt19937_64 *engine = new mt19937_64(seed)
 
 cdef node_hash_t *node_hash
-cdef unsigned int used = 0
 cdef int oldest_move = 1
 
 cdef bint enough_size = True
 
-cdef unsigned int uct_hash_size = UCT_HASH_SIZE
-cdef unsigned int uct_hash_limit = UCT_HASH_SIZE * 9 / 10
+uct_hash_size = UCT_HASH_SIZE
+uct_hash_limit = UCT_HASH_SIZE * 9 / 10
+used = 0
 
 
 cdef unsigned long long mt() nogil:
@@ -34,7 +34,7 @@ cdef unsigned int trans_hash(unsigned long long hash) nogil:
     return ((hash & <unsigned long long>0xffffffff) ^ ((hash >> 32) & <unsigned long long>0xffffffff)) & (uct_hash_size - 1)
 
 
-cdef void set_hash_size(unsigned int new_size):
+cpdef void set_hash_size(unsigned int new_size):
     cdef int i
 
     global uct_hash_size, uct_hash_limit
@@ -48,7 +48,7 @@ cdef void set_hash_size(unsigned int new_size):
             printf("2^%d:%d\n", i, 1 << i)
 
 
-cdef void initialize_hash():
+cpdef void initialize_hash():
     cdef int i
 
     global node_hash
@@ -63,7 +63,7 @@ cdef void initialize_hash():
     node_hash = <node_hash_t *>malloc(uct_hash_size * sizeof(node_hash_t))
 
 
-cdef void initialize_uct_hash():
+cpdef void initialize_uct_hash():
     cdef unsigned int i
 
     global oldest_move, used
@@ -78,7 +78,7 @@ cdef void initialize_uct_hash():
         node_hash[i].moves = 0
 
 
-cdef void clear_uct_hash():
+cpdef void clear_uct_hash():
     cdef unsigned int i
 
     global used

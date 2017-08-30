@@ -13,6 +13,10 @@ class TestLadder(unittest.TestCase):
     def test_missing_ladder_breaker_1(self):
         test_ladder.test_missing_ladder_breaker_1()
 
+    def test_missing_ladder_breaker_2(self):
+        # BBS(MCTS-CNN) put 'b' at after 'a' in actual game
+        test_ladder.test_missing_ladder_breaker_2()
+
     def test_capture_to_escape_1(self):
         test_ladder.test_capture_to_escape_1()
 
@@ -39,4 +43,3 @@ class TestLadder(unittest.TestCase):
 
     def test_captured_2(self):
         test_ladder.test_captured_2()
-
