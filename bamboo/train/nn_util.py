@@ -30,3 +30,12 @@ def variable_with_weight_decay(name, shape, stddev=5e-2, wd=0.0):
         tf.add_to_collection('losses', weight_decay)
 
     return var
+
+def xavier_variable_conv2d(name, shape, uniform=True, seed=None, dtype=tf.float32):
+    initializer = tf.contrib.layers.xavier_initializer_conv2d(uniform=uniform, seed=seed, dtype=dtype)
+    var = tf.get_variable(name,
+                          shape,
+                          initializer=initializer,
+                          dtype=dtype)
+    return var
+
