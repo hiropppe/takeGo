@@ -599,18 +599,19 @@ def run_training(cluster, server, num_workers):
                         #    epoch_logs['val_loss'] = val_loss
                         #    epoch_logs['val_acc'] = val_acc
 
-                        try:
-                            if step >= FLAGS.checkpoint * (reports+1):
-                                reports += 1
-                                summary_writer.add_summary(summary, global_step=step)
-                                summary_writer.flush()
-                        except:
-                            err, msg, _ = sys.exc_info()
-                            sys.stderr.write("{} {}\n".format(err, msg))
-                            sys.stderr.write(traceback.format_exc())
+                        if is_chief:
+                            try:
+                                if step >= FLAGS.checkpoint * (reports+1):
+                                    reports += 1
+                                    summary_writer.add_summary(summary, global_step=step)
+                                    summary_writer.flush()
+                            except:
+                                err, msg, _ = sys.exc_info()
+                                sys.stderr.write("{} {}\n".format(err, msg))
+                                sys.stderr.write(traceback.format_exc())
 
-                    checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
-                    sv.saver.save(sess, checkpoint_file, global_step=step)
+                            checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
+                            sv.saver.save(sess, checkpoint_file, global_step=step)
 
                     callbacks.on_epoch_end(epoch, epoch_logs)
                     epoch += 1
