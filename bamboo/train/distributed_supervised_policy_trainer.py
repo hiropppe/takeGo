@@ -364,17 +364,20 @@ def create_and_save_shuffle_indices(n_total_data_size, max_validation,
 def get_initial_weight(layer, wb, scope_name):
     if wb.lower() == 'w':
         if layer == 1:
-            return nn_util.xavier_variable_conv2d(
+            return nn_util.random_uniform(
                 scope_name + '_W',
-                [FLAGS.filter_width_1, FLAGS.filter_width_1, FLAGS.input_depth, FLAGS.filter_size])
+                [FLAGS.filter_width_1, FLAGS.filter_width_1, FLAGS.input_depth, FLAGS.filter_size],
+                minval=-0.05, maxval=0.05)
         elif layer <= 12:
-            return nn_util.xavier_variable_conv2d(
+            return nn_util.random_uniform(
                 scope_name + '_W',
-                [FLAGS.filter_width_2_12, FLAGS.filter_width_2_12, FLAGS.filter_size, FLAGS.filter_size])
+                [FLAGS.filter_width_2_12, FLAGS.filter_width_2_12, FLAGS.filter_size, FLAGS.filter_size],
+                minval=-0.05, maxval=0.05)
         elif layer == 13:
-            return nn_util.xavier_variable_conv2d(
+            return nn_util.random_uniform(
                 scope_name + '_W',
-                [1, 1, FLAGS.filter_size, 1])
+                [1, 1, FLAGS.filter_size, 1],
+                minval=-0.05, maxval=0.05)
     elif wb.lower() == 'b':
         if 1 <= layer and layer <= 12:
             return nn_util.zero_variable(scope_name + '_b', [FLAGS.filter_size])
@@ -436,9 +439,22 @@ def run_training(cluster, server, num_workers):
 
         # loss
         with tf.variable_scope('loss') as scope:
+            # Note: compute crossentropy from probs like Keras. a little better performace.
+            output = probs
+            output /= tf.reduce_sum(output,
+                                    reduction_indices=len(output.get_shape()) - 1,
+                                    keep_dims=True)
+            output = tf.clip_by_value(output,
+                                      tf.cast(1e-07, dtype=tf.float32),
+                                      tf.cast(1. - 1e-07, dtype=tf.float32))
+            output = - tf.reduce_sum(actions_placeholder * tf.log(output),
+                                     reduction_indices=len(output.get_shape()) - 1)
+            loss_op = tf.reduce_mean(output, name=scope.name)
+            """
             loss_op = tf.reduce_mean(
                         tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=actions_placeholder),
                         name=scope.name)
+            """
 
         # accuracy
         with tf.variable_scope('accuracy') as scope:
@@ -514,7 +530,7 @@ def run_training(cluster, server, num_workers):
                                  logdir=FLAGS.logdir,
                                  global_step=global_step,
                                  summary_op=None,
-                                 saver=tf.train.Saver(max_to_keep=0),
+                                 saver=tf.train.Saver(max_to_keep=100),
                                  init_op=init_op)
 
         config = tf.ConfigProto(allow_soft_placement=True)
@@ -528,8 +544,8 @@ def run_training(cluster, server, num_workers):
         """
         with sv.managed_session(server.target, config=config) as sess:
             print("Session initialized.")
-            if is_chief:
-                summary_writer = tf.summary.FileWriter(FLAGS.logdir, sess.graph)
+            #if is_chief:
+            #    summary_writer = tf.summary.FileWriter(FLAGS.logdir, sess.graph)
 
             while not sv.should_stop():
                 # prepare callbacks
@@ -544,7 +560,7 @@ def run_training(cluster, server, num_workers):
                 })
 
                 # perform training cycles
-                wait_time = 0.01  # in seconds
+                #wait_time = 0.01  # in seconds
                 epoch = 0
                 step = 0
                 reports = 0
@@ -603,20 +619,22 @@ def run_training(cluster, server, num_workers):
                             try:
                                 if step >= FLAGS.checkpoint * (reports+1):
                                     reports += 1
-                                    summary_writer.add_summary(summary, global_step=step)
-                                    summary_writer.flush()
+                                    # save summary
+                                    sv.summary_computed(sess, summary, global_step=step)
+                                    sv.summary_writer.flush()
+                                    # summary_writer.add_summary(summary, global_step=step)
+                                    # summary_writer.flush()
                             except:
                                 err, msg, _ = sys.exc_info()
                                 sys.stderr.write("{} {}\n".format(err, msg))
                                 sys.stderr.write(traceback.format_exc())
 
-                            checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
-                            sv.saver.save(sess, checkpoint_file, global_step=step)
-
+                    checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
+                    sv.saver.save(sess, checkpoint_file, global_step=step)
                     callbacks.on_epoch_end(epoch, epoch_logs)
                     epoch += 1
 
-                _stop.set()
+                #_stop.set()
                 break
 
             if is_chief:

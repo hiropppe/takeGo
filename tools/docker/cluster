@@ -1,4 +1,7 @@
 {
-    "ps": ["192.168.88.155:2222"],
-    "worker": ["192.168.88.155:12222"]
+    "ps": ["ps0.tfnet:2222"],
+    "worker": ["worker0.tfnet:12222",
+               "worker1.tfnet:22222",
+               "worker2.tfnet:32222",
+               "worker3.tfnet:42222"]
 }

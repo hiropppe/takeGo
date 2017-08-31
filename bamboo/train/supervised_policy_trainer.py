@@ -23,10 +23,6 @@ from keras import callbacks as cbks
 
 
 flags = tf.app.flags
-flags.DEFINE_string("cluster_spec", "/cluster", "Cluster specification")
-flags.DEFINE_string("job_name", "", "Either 'ps' or 'worker'")
-flags.DEFINE_integer("task_index", 0, "Index of task within the job")
-
 flags.DEFINE_string("train_data", "", "")
 
 flags.DEFINE_integer("bsize", 19, "")
@@ -365,17 +361,20 @@ def create_and_save_shuffle_indices(n_total_data_size, max_validation,
 def get_initial_weight(layer, wb, scope_name):
     if wb.lower() == 'w':
         if layer == 1:
-            return nn_util.xavier_variable_conv2d(
+            return nn_util.random_uniform(
                 scope_name + '_W',
-                [FLAGS.filter_width_1, FLAGS.filter_width_1, FLAGS.input_depth, FLAGS.filter_size])
+                [FLAGS.filter_width_1, FLAGS.filter_width_1, FLAGS.input_depth, FLAGS.filter_size],
+                minval=-0.05, maxval=0.05)
         elif layer <= 12:
-            return nn_util.xavier_variable_conv2d(
+            return nn_util.random_uniform(
                 scope_name + '_W',
-                [FLAGS.filter_width_2_12, FLAGS.filter_width_2_12, FLAGS.filter_size, FLAGS.filter_size])
+                [FLAGS.filter_width_2_12, FLAGS.filter_width_2_12, FLAGS.filter_size, FLAGS.filter_size],
+                minval=-0.05, maxval=0.05)
         elif layer == 13:
-            return nn_util.xavier_variable_conv2d(
+            return nn_util.random_uniform(
                 scope_name + '_W',
-                [1, 1, FLAGS.filter_size, 1])
+                [1, 1, FLAGS.filter_size, 1],
+                minval=-0.05, maxval=0.05)
     elif wb.lower() == 'b':
         if 1 <= layer and layer <= 12:
             return nn_util.zero_variable(scope_name + '_b', [FLAGS.filter_size])
@@ -433,9 +432,22 @@ def run_training(config):
 
         # loss
         with tf.variable_scope('loss') as scope:
+            # Note: compute crossentropy from probs like Keras. a little better performace.
+            output = probs
+            output /= tf.reduce_sum(output,
+                                    reduction_indices=len(output.get_shape()) - 1,
+                                    keep_dims=True)
+            output = tf.clip_by_value(output,
+                                      tf.cast(1e-07, dtype=tf.float32),
+                                      tf.cast(1. - 1e-07, dtype=tf.float32))
+            output = - tf.reduce_sum(actions_placeholder * tf.log(output),
+                                     reduction_indices=len(output.get_shape()) - 1)
+            loss_op = tf.reduce_mean(output, name=scope.name)
+            """
             loss_op = tf.reduce_mean(
                         tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=actions_placeholder),
                         name=scope.name)
+            """
 
         # accuracy
         with tf.variable_scope('accuracy') as scope:
