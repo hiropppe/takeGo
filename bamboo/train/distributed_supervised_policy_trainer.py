@@ -17,7 +17,7 @@ import time
 import traceback
 import warnings
 
-from . import nn_util
+from . import dcnn_policy as policy
 
 from keras import callbacks as cbks
 
@@ -27,12 +27,6 @@ flags.DEFINE_string("job_name", "", "Either 'ps' or 'worker'")
 flags.DEFINE_integer("task_index", 0, "Index of task within the job")
 
 flags.DEFINE_string("train_data", "", "")
-
-flags.DEFINE_integer("bsize", 19, "")
-flags.DEFINE_integer("input_depth", 48, "")
-flags.DEFINE_integer("filter_size", 192, "")
-flags.DEFINE_integer("filter_width_1", 5, "")
-flags.DEFINE_integer("filter_width_2_12", 3, "")
 
 flags.DEFINE_string('logdir', '/tmp/logs',
                     'Directory where to save latest parameters for playout.')
@@ -53,7 +47,9 @@ flags.DEFINE_float('gpu_memory_fraction', 0.15,
                    'config.per_process_gpu_memory_fraction for training session')
 flags.DEFINE_boolean('log_device_placement', False, '')
 
-flags.DEFINE_string("symmetries", "all", "none, all or comma-separated list of transforms, subset of: noop,rot90,rot180,rot270,fliplr,flipud,diag1,diag2. Default: all")
+flags.DEFINE_string("symmetries", "all",
+                    """none, all or comma-separated list of transforms,
+                    subset of: noop,rot90,rot180,rot270,fliplr,flipud,diag1,diag2. Default: all""")
 
 flags.DEFINE_boolean('verbose', True, '')
 
@@ -361,32 +357,6 @@ def create_and_save_shuffle_indices(n_total_data_size, max_validation,
     save_indices_to_file(shuffle_file_test, test_indices)
 
 
-def get_initial_weight(layer, wb, scope_name):
-    if wb.lower() == 'w':
-        if layer == 1:
-            return nn_util.random_uniform(
-                scope_name + '_W',
-                [FLAGS.filter_width_1, FLAGS.filter_width_1, FLAGS.input_depth, FLAGS.filter_size],
-                minval=-0.05, maxval=0.05)
-        elif layer <= 12:
-            return nn_util.random_uniform(
-                scope_name + '_W',
-                [FLAGS.filter_width_2_12, FLAGS.filter_width_2_12, FLAGS.filter_size, FLAGS.filter_size],
-                minval=-0.05, maxval=0.05)
-        elif layer == 13:
-            return nn_util.random_uniform(
-                scope_name + '_W',
-                [1, 1, FLAGS.filter_size, 1],
-                minval=-0.05, maxval=0.05)
-    elif wb.lower() == 'b':
-        if 1 <= layer and layer <= 12:
-            return nn_util.zero_variable(scope_name + '_b', [FLAGS.filter_size])
-        elif layer == 13:
-            return nn_util.zero_variable(scope_name + '_b', [1])
-        elif layer == 14:
-            return nn_util.zero_variable('Variable', [FLAGS.bsize**2])
-
-
 def run_training(cluster, server, num_workers):
 
     # Assigns ops to the local worker by default.
@@ -396,91 +366,8 @@ def run_training(cluster, server, num_workers):
                    cluster=cluster)):
         global_step = tf.contrib.framework.get_or_create_global_step()
 
-        states_placeholder = tf.placeholder(tf.float32,
-                                            shape=(None, FLAGS.bsize, FLAGS.bsize, FLAGS.input_depth))
-        actions_placeholder = tf.placeholder(tf.float32,
-                                             shape=(None, FLAGS.bsize**2))
-
-        # convolution2d_1
-        with tf.variable_scope('convolution2d_1') as scope:
-            weights = get_initial_weight(1, 'w', scope.name)
-            biases = get_initial_weight(1, 'b', scope.name)
-            conv = tf.nn.conv2d(states_placeholder, weights, [1, 1, 1, 1], padding='SAME')
-            bias_add = tf.nn.bias_add(conv, biases)
-            conv1 = tf.nn.relu(bias_add, name=scope.name)
-
-        # convolution2d_2-12
-        convi = conv1
-        for i in range(2, 13):
-            with tf.variable_scope('convolution2d_' + str(i)) as scope:
-                weights = get_initial_weight(i, 'w', scope.name)
-                biases = get_initial_weight(i, 'b', scope.name)
-                conv = tf.nn.conv2d(convi, weights, [1, 1, 1, 1], padding='SAME')
-                bias_add = tf.nn.bias_add(conv, biases)
-                conv = tf.nn.relu(bias_add, name=scope.name)
-            convi = conv
-
-        # convolution2d_13
-        with tf.variable_scope('convolution2d_13') as scope:
-            weights = get_initial_weight(13, 'w', scope.name)
-            biases = get_initial_weight(13, 'b', scope.name)
-            conv = tf.nn.conv2d(convi, weights, [1, 1, 1, 1], padding='SAME')
-            conv13 = tf.nn.bias_add(conv, biases, name=scope.name)
-
-        # linear
-        with tf.variable_scope('bias_1') as scope:
-            bias = get_initial_weight(14, 'b', scope.name)
-            flatten = tf.reshape(conv13, [-1, FLAGS.bsize**2])
-            logits = tf.add(flatten, bias, name=scope.name)
-
-        # softmax
-        with tf.variable_scope('softmax') as scope:
-            probs = tf.nn.softmax(logits, name=scope.name)
-
-        # loss
-        with tf.variable_scope('loss') as scope:
-            # Note: compute crossentropy from probs like Keras. a little better performace.
-            output = probs
-            output /= tf.reduce_sum(output,
-                                    reduction_indices=len(output.get_shape()) - 1,
-                                    keep_dims=True)
-            output = tf.clip_by_value(output,
-                                      tf.cast(1e-07, dtype=tf.float32),
-                                      tf.cast(1. - 1e-07, dtype=tf.float32))
-            output = - tf.reduce_sum(actions_placeholder * tf.log(output),
-                                     reduction_indices=len(output.get_shape()) - 1)
-            loss_op = tf.reduce_mean(output, name=scope.name)
-            """
-            loss_op = tf.reduce_mean(
-                        tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=actions_placeholder),
-                        name=scope.name)
-            """
-
-        # accuracy
-        with tf.variable_scope('accuracy') as scope:
-            correct = tf.nn.in_top_k(probs, tf.argmax(actions_placeholder, 1), 1)
-            acc_op = tf.reduce_mean(tf.cast(correct, tf.float32), name=scope.name)
-
-        # specify replicas optimizer
-        with tf.name_scope('dist_train'):
-            """
-            learning_rate_op = tf.train.exponential_decay(
-                    FLAGS.learning_rate,
-                    global_step,
-                    FLAGS.decay_step, FLAGS.decay)
-            grad = tf.train.GradientDescentOptimizer(learning_rate_op)
-            """
-            grad = tf.train.GradientDescentOptimizer(FLAGS.learning_rate)
-            train_op = grad.minimize(loss_op, global_step=global_step)
-
-        # create a summary for our cost and accuracy
-        tf.summary.scalar("loss", loss_op)
-        tf.summary.scalar("accuracy", acc_op)
-
-        # merge all summaries into a single "operation" which we can execute in a session
-        summary_op = tf.summary.merge_all()
-        init_op = tf.global_variables_initializer()
-        print("Variables initialized ...")
+        states_placeholder = policy.get_states()
+        actions_placeholder = policy.get_actions()
 
         # features of training data
         dataset = h5.File(FLAGS.train_data)
@@ -493,9 +380,9 @@ def run_training(cluster, server, num_workers):
         do_validation = bool(FLAGS.validation_size)
 
         # shuffle file locations for train/validation/test set
-        shuffle_file_train = os.path.join(FLAGS.logdir, FILE_TRAIN)
-        shuffle_file_val = os.path.join(FLAGS.logdir, FILE_VALIDATE)
-        shuffle_file_test = os.path.join(FLAGS.logdir, FILE_TEST)
+        shuffle_file_train = os.path.join('./', FILE_TRAIN)
+        shuffle_file_val = os.path.join('./', FILE_VALIDATE)
+        shuffle_file_test = os.path.join('./', FILE_TEST)
 
         # create and save new shuffle indices to file
         create_and_save_shuffle_indices(
@@ -507,7 +394,7 @@ def run_training(cluster, server, num_workers):
         # get train/validation/test indices
         train_indices, val_indices, test_indices \
             = load_train_val_test_indices(FLAGS.verbose, FLAGS.symmetries, dataset_length,
-                                          FLAGS.batch_size, FLAGS.logdir)
+                                          FLAGS.batch_size, './')
 
         train_data_generator = threading_shuffled_hdf5_batch_generator(
             dataset['states'],
@@ -524,6 +411,31 @@ def run_training(cluster, server, num_workers):
 
         # start generator thread storing batches into a queue
         data_gen_queue, _stop = generator_queue(train_data_generator)
+
+        # specify replicas optimizer
+        lr = tf.train.exponential_decay(
+                FLAGS.learning_rate,
+                global_step,
+                FLAGS.decay_step, FLAGS.decay)
+        grad = tf.train.GradientDescentOptimizer(lr)
+
+        logits = policy.inference(states_placeholder)
+
+        probs = tf.nn.softmax(logits)
+
+        loss_op = policy.loss(probs, actions_placeholder)
+        acc_op = policy.accuracy(probs, actions_placeholder)
+
+        train_op = grad.minimize(loss_op, global_step=global_step)
+
+        # create a summary for our cost and accuracy
+        tf.summary.scalar("loss", loss_op)
+        tf.summary.scalar("accuracy", acc_op)
+
+        # merge all summaries into a single "operation" which we can execute in a session
+        summary_op = tf.summary.merge_all()
+        init_op = tf.global_variables_initializer()
+        print("Variables initialized ...")
 
         is_chief = FLAGS.task_index == 0
         sv = tf.train.Supervisor(is_chief=is_chief,

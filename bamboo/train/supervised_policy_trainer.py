@@ -17,19 +17,13 @@ import time
 import traceback
 import warnings
 
-from . import nn_util
+from . import dcnn_policy as policy
 
 from keras import callbacks as cbks
 
 
 flags = tf.app.flags
 flags.DEFINE_string("train_data", "", "")
-
-flags.DEFINE_integer("bsize", 19, "")
-flags.DEFINE_integer("input_depth", 48, "")
-flags.DEFINE_integer("filter_size", 192, "")
-flags.DEFINE_integer("filter_width_1", 5, "")
-flags.DEFINE_integer("filter_width_2_12", 3, "")
 
 flags.DEFINE_string('logdir', '/tmp/logs',
                     'Directory where to save latest parameters for playout.')
@@ -39,7 +33,7 @@ flags.DEFINE_integer("batch_size", 16, "")
 flags.DEFINE_integer("epoch", 10, "")
 flags.DEFINE_integer("epoch_length", 0, "")
 flags.DEFINE_integer("max_validation", 1000000000, "")
-flags.DEFINE_float("validation_size", .0, "")
+flags.DEFINE_float("validation_size", .05, "")
 flags.DEFINE_float("test_size", .0, "")
 
 flags.DEFINE_float("learning_rate", 3e-3, "Learning rate.")
@@ -50,7 +44,9 @@ flags.DEFINE_float('gpu_memory_fraction', 0.15,
                    'config.per_process_gpu_memory_fraction for training session')
 flags.DEFINE_boolean('log_device_placement', False, '')
 
-flags.DEFINE_string("symmetries", "all", "none, all or comma-separated list of transforms, subset of: noop,rot90,rot180,rot270,fliplr,flipud,diag1,diag2. Default: all")
+flags.DEFINE_string("symmetries", "all",
+                    """none, all or comma-separated list of transforms,
+                    subset of: noop,rot90,rot180,rot270,fliplr,flipud,diag1,diag2. Default: all""")
 
 flags.DEFINE_boolean('verbose', True, '')
 
@@ -358,121 +354,20 @@ def create_and_save_shuffle_indices(n_total_data_size, max_validation,
     save_indices_to_file(shuffle_file_test, test_indices)
 
 
-def get_initial_weight(layer, wb, scope_name):
-    if wb.lower() == 'w':
-        if layer == 1:
-            return nn_util.random_uniform(
-                scope_name + '_W',
-                [FLAGS.filter_width_1, FLAGS.filter_width_1, FLAGS.input_depth, FLAGS.filter_size],
-                minval=-0.05, maxval=0.05)
-        elif layer <= 12:
-            return nn_util.random_uniform(
-                scope_name + '_W',
-                [FLAGS.filter_width_2_12, FLAGS.filter_width_2_12, FLAGS.filter_size, FLAGS.filter_size],
-                minval=-0.05, maxval=0.05)
-        elif layer == 13:
-            return nn_util.random_uniform(
-                scope_name + '_W',
-                [1, 1, FLAGS.filter_size, 1],
-                minval=-0.05, maxval=0.05)
-    elif wb.lower() == 'b':
-        if 1 <= layer and layer <= 12:
-            return nn_util.zero_variable(scope_name + '_b', [FLAGS.filter_size])
-        elif layer == 13:
-            return nn_util.zero_variable(scope_name + '_b', [1])
-        elif layer == 14:
-            return nn_util.zero_variable('Variable', [FLAGS.bsize**2])
-
-
 def run_training(config):
 
     with tf.Graph().as_default() as graph:
         global_step = tf.contrib.framework.get_or_create_global_step()
 
-        states_placeholder = tf.placeholder(tf.float32,
-                                            shape=(None, FLAGS.bsize, FLAGS.bsize, FLAGS.input_depth))
-        actions_placeholder = tf.placeholder(tf.float32,
-                                             shape=(None, FLAGS.bsize**2))
+        states_placeholder = policy.get_states()
+        actions_placeholder = policy.get_actions()
 
-        # convolution2d_1
-        with tf.variable_scope('convolution2d_1') as scope:
-            weights = get_initial_weight(1, 'w', scope.name)
-            biases = get_initial_weight(1, 'b', scope.name)
-            conv = tf.nn.conv2d(states_placeholder, weights, [1, 1, 1, 1], padding='SAME')
-            bias_add = tf.nn.bias_add(conv, biases)
-            conv1 = tf.nn.relu(bias_add, name=scope.name)
+        lr = tf.train.exponential_decay(
+                FLAGS.learning_rate,
+                global_step,
+                FLAGS.decay_step, FLAGS.decay)
+        grad = tf.train.GradientDescentOptimizer(lr)
 
-        # convolution2d_2-12
-        convi = conv1
-        for i in range(2, 13):
-            with tf.variable_scope('convolution2d_' + str(i)) as scope:
-                weights = get_initial_weight(i, 'w', scope.name)
-                biases = get_initial_weight(i, 'b', scope.name)
-                conv = tf.nn.conv2d(convi, weights, [1, 1, 1, 1], padding='SAME')
-                bias_add = tf.nn.bias_add(conv, biases)
-                conv = tf.nn.relu(bias_add, name=scope.name)
-            convi = conv
-
-        # convolution2d_13
-        with tf.variable_scope('convolution2d_13') as scope:
-            weights = get_initial_weight(13, 'w', scope.name)
-            biases = get_initial_weight(13, 'b', scope.name)
-            conv = tf.nn.conv2d(convi, weights, [1, 1, 1, 1], padding='SAME')
-            conv13 = tf.nn.bias_add(conv, biases, name=scope.name)
-
-        # linear
-        with tf.variable_scope('bias_1') as scope:
-            bias = get_initial_weight(14, 'b', scope.name)
-            flatten = tf.reshape(conv13, [-1, FLAGS.bsize**2])
-            logits = tf.add(flatten, bias, name=scope.name)
-
-        # softmax
-        with tf.variable_scope('softmax') as scope:
-            probs = tf.nn.softmax(logits, name=scope.name)
-
-        # loss
-        with tf.variable_scope('loss') as scope:
-            # Note: compute crossentropy from probs like Keras. a little better performace.
-            output = probs
-            output /= tf.reduce_sum(output,
-                                    reduction_indices=len(output.get_shape()) - 1,
-                                    keep_dims=True)
-            output = tf.clip_by_value(output,
-                                      tf.cast(1e-07, dtype=tf.float32),
-                                      tf.cast(1. - 1e-07, dtype=tf.float32))
-            output = - tf.reduce_sum(actions_placeholder * tf.log(output),
-                                     reduction_indices=len(output.get_shape()) - 1)
-            loss_op = tf.reduce_mean(output, name=scope.name)
-            """
-            loss_op = tf.reduce_mean(
-                        tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=actions_placeholder),
-                        name=scope.name)
-            """
-
-        # accuracy
-        with tf.variable_scope('accuracy') as scope:
-            correct = tf.nn.in_top_k(probs, tf.argmax(actions_placeholder, 1), 1)
-            acc_op = tf.reduce_mean(tf.cast(correct, tf.float32), name=scope.name)
-
-        # specify replicas optimizer
-        with tf.name_scope('dist_train'):
-            """
-            learning_rate_op = tf.train.exponential_decay(
-                    FLAGS.learning_rate,
-                    global_step,
-                    FLAGS.decay_step, FLAGS.decay)
-            grad = tf.train.GradientDescentOptimizer(learning_rate_op)
-            """
-            grad = tf.train.GradientDescentOptimizer(FLAGS.learning_rate)
-            train_op = grad.minimize(loss_op, global_step=global_step)
-
-        # create a summary for our cost and accuracy
-        tf.summary.scalar("loss", loss_op)
-        tf.summary.scalar("accuracy", acc_op)
-
-        # merge all summaries into a single "operation" which we can execute in a session
-        summary_op = tf.summary.merge_all()
-        init_op = tf.global_variables_initializer()
         # features of training data
         dataset = h5.File(FLAGS.train_data)
         dataset_length = len(dataset["states"])
@@ -514,7 +409,26 @@ def run_training(config):
             validation=do_validation)
 
         # start generator thread storing batches into a queue
-        data_gen_queue, _stop = generator_queue(train_data_generator)
+        train_data_gen_queue, _train_stop = generator_queue(train_data_generator)
+
+        # define computation graph
+        logits = policy.inference(states_placeholder)
+
+        probs = tf.nn.softmax(logits)
+
+        loss_op = policy.loss(probs, actions_placeholder)
+        acc_op = policy.accuracy(probs, actions_placeholder)
+
+        train_op = grad.minimize(loss_op, global_step=global_step)
+
+        # create a summary for our cost and accuracy
+        tf.summary.scalar("loss", loss_op)
+        tf.summary.scalar("accuracy", acc_op)
+        tf.summary.scalar("learning_rate", lr)
+
+        # merge all summaries into a single "operation" which we can execute in a session
+        summary_op = tf.summary.merge_all()
+        init_op = tf.global_variables_initializer()
 
         sess = tf.Session(config=config, graph=graph)
         sess.run(init_op)
@@ -548,19 +462,14 @@ def run_training(config):
             samples_seen = 0
             batch_index = 0
             while samples_seen < epoch_length:
-                """
-                generator_output = None
-                while not _stop.is_set():
-                    if not data_gen_queue.empty():
-                        generator_output = data_gen_queue.get()
+                while not _train_stop.is_set():
+                    if not train_data_gen_queue.empty():
+                        states, actions = train_data_gen_queue.get()
                         break
                     else:
                         time.sleep(wait_time)
-                states, actions = generator_output
-                """
-                states, actions = next(train_data_generator)
-                batch_size = len(states[0])
 
+                batch_size = len(states[0])
                 # build batch logs
                 batch_logs = {"batch": batch_index, "size": batch_size}
                 callbacks.on_batch_begin(batch_index, batch_logs)
@@ -588,10 +497,32 @@ def run_training(config):
                                   'which might affect learning results. '
                                   'Set `epoch_length` correctly '
                                   'to avoid this warning.')
-                #if samples_seen >= epoch_length and do_validation:
-                #    val_loss, val_acc = evaluate_generator(val_data_generator, len(val_indices))
-                #    epoch_logs['val_loss'] = val_loss
-                #    epoch_logs['val_acc'] = val_acc
+
+                # evaluate the model
+                if samples_seen >= epoch_length and do_validation:
+                    processed_samples = 0
+                    val_losses = []
+                    val_accs = []
+                    val_data_gen_queue, _val_stop = generator_queue(val_data_generator)
+                    while processed_samples < len(val_indices):
+                        while not _val_stop.is_set():
+                            if not val_data_gen_queue.empty():
+                                states, actions = val_data_gen_queue.get()
+                                break
+                            else:
+                                time.sleep(wait_time)
+                        loss, acc = sess.run(
+                            [loss_op, acc_op],
+                            feed_dict={
+                                states_placeholder: states,
+                                actions_placeholder: actions
+                            })
+                        val_losses.append(loss)
+                        val_accs.append(acc)
+                        processed_samples += len(states[0])
+                    _val_stop.set()
+                    epoch_logs['val_loss'] = np.mean(val_losses)
+                    epoch_logs['val_acc'] = np.mean(val_accs)
 
                 try:
                     if step >= FLAGS.checkpoint * (reports+1):
@@ -609,7 +540,7 @@ def run_training(config):
             callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
 
-        _stop.set()
+        _train_stop.set()
 
 
 def main(argv=None):
