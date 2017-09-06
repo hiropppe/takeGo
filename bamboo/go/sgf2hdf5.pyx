@@ -1,5 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# cython: boundscheck = False
+# cython: wraparound = False
+# cython: cdivision = True
 
 import numpy as np
 cimport numpy as np
@@ -8,11 +9,12 @@ import warnings
 import sgf
 import sys
 import traceback
-import tables
 import time
 import h5py
 
 from tqdm import tqdm
+
+from libc.stdio cimport printf
 
 from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
@@ -70,6 +72,7 @@ cdef class GameConverter(object):
 
     def sgfs_to_hdf5(self,
                      sgf_files,
+                     sgf_total,
                      hdf5_file,
                      ignore_errors=True, verbose=False, quiet=False):
         """ Save each feature onehot index in board shape matrix.
@@ -106,7 +109,10 @@ cdef class GameConverter(object):
             n_not19 = 0
             n_too_few_move = 0
             n_too_many_move = 0
-            for file_name in tqdm(sgf_files):
+
+            pbar = tqdm(total=sgf_total)
+            for file_name in sgf_files:
+                pbar.update(1)
                 if verbose:
                     print(file_name)
                 n_pairs = 0

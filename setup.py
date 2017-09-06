@@ -20,6 +20,7 @@ extensions = [Extension('bamboo.go.board', sources=['bamboo/go/board.pyx'], lang
               Extension('bamboo.go.parseboard', sources=["bamboo/go/parseboard.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.util', sources=["bamboo/util.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.test_cyboard_eq_pyboard', sources=["bamboo/test_cyboard_eq_pyboard.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.merge_dataset', sources=["bamboo/merge_dataset.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.mcts.tree_search', sources=["bamboo/mcts/tree_search.pyx"], language="c++", extra_compile_args=["-std=c++11", "-fopenmp"], extra_link_args=['-lgomp']),
               Extension('bamboo.rollout.sgf2hdf5', sources=["bamboo/rollout/sgf2hdf5.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout.sgf2hdf5_tree', sources=["bamboo/rollout/sgf2hdf5_tree.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
