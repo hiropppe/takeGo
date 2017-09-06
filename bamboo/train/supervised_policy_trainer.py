@@ -40,7 +40,7 @@ flags.DEFINE_float("learning_rate", 3e-3, "Learning rate.")
 flags.DEFINE_float("decay", .5, "")
 flags.DEFINE_integer("decay_step", 80000000, "")
 
-flags.DEFINE_float('gpu_memory_fraction', 0.15,
+flags.DEFINE_float('gpu_memory_fraction', 0.2,
                    'config.per_process_gpu_memory_fraction for training session')
 flags.DEFINE_boolean('log_device_placement', False, '')
 

@@ -425,3 +425,72 @@ def test_captured_2():
 
     board.free_game(game)
     policy_feature.free_feature(feature)
+
+
+def test_escape_segmentation_fault_1():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+        ". . . W W B . . . . B . W . W W . W .|"
+        "W W W W B B . W W B W W W . W B W B B|"
+        "W . W W W B B W B B B B B W B B B W .|"
+        "B W . W W W B W W B . W B B B B . B a|"
+        ". B W B B B B . W B W B W W W W W W .|"
+        ". B W B . . B . W W B B . B W . B B W|"
+        ". W W B . W W W . W B . B B B B B W .|"
+        "W . W B B W . B . W B W W W W . . W .|"
+        "W W B B . W W . B B W B B B . W W . .|"
+        "B B . B B W . W . B W W W B B B W . .|"
+        ". . W . W B W . B W W W W W W W W W W|"
+        ". B B B B B W W W B W B B . W B B W B|"
+        ". B W B . B B B B B B B . B B . B W B|"
+        ". . W B B W B . B W W W B . B . B B B|"
+        "W W W W W W W . W . W . W B B . W W .|"
+        "W B W B W W W W W W W W W B W W W B W|"
+        "B B W B W B B B B W B W B B B W B B .|"
+        ". B B B B . . B B B B W B W W B B B .|"
+        ". . . . . B B W . W W . W W . W B . .|")
+
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    board.put_stone(game, moves['a'], board.S_WHITE)
+
+    game.current_color = board.S_BLACK
+    
+    policy_feature.update(feature, game)
+
+
+def test_capture_segmentation_fault_1():
+    game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(game,
+        ". . . W W B . . . . B . W . W W . W .|"
+        "W W W W B B . W W B W W W . W B W B B|"
+        "W . W W W B B W B B B B B W B B B W .|"
+        "B W . W W W B W W B . W B B B B a B W|"
+        ". B W B B B B . W B W B W W W W W W .|"
+        ". B W B . . B . W W B B . B W . B B W|"
+        ". W W B . W W W . W B . B B B B B W .|"
+        "W . W B B W . B . W B W W W W . . W .|"
+        "W W B B . W W . B B W B B B . W W . .|"
+        "B B . B B W . W . B W W W B B B W . .|"
+        ". . W . W B W . B W W W W W W W W W W|"
+        ". B B B B B W W W B W B B . W B B W B|"
+        ". B W B . B B B B B B B . B B . B W B|"
+        ". . W B B W B . B W W W B . B . B B B|"
+        "W W W W W W W . W . W . W B B . W W .|"
+        "W B W B W W W W W W W W W B W W W B W|"
+        "B B W B W B B B B W B W B B B W B B .|"
+        ". B B B B . . B B B B W B W W B B B .|"
+        ". . . . . B B W . W W . W W . W B . .|")
+
+    feature = policy_feature.allocate_feature()
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    board.put_stone(game, moves['a'], board.S_BLACK)
+
+    game.current_color = board.S_WHITE
+    
+    policy_feature.update(feature, game)
+

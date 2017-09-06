@@ -72,6 +72,8 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     cdef int escape_options_num
     cdef int ladder_moves_value = 0
     cdef int *ladder_moves = &ladder_moves_value
+    cdef int first_ladder_capture, first_ladder_escape
+    cdef int second_ladder_capture, second_ladder_escape
     cdef int ladder_result
     cdef int i, j
 
@@ -206,23 +208,34 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                 if not ladder_checked[string_id]:
                     # Ladder capture(1): Whether a move at this point is a successful ladder capture
                     if string.libs == 2 and string.color == other_color:
-                        for j in range(2):
-                            if j == 0:
-                                ladder_capture = string.lib[0]
-                                ladder_escape = string.lib[string.lib[0]]
-                            else:
-                                ladder_capture = string.lib[string.lib[0]]
-                                ladder_escape = string.lib[0]
-                            ladder_moves[0] = 0
-                            ladder_result = is_ladder_capture(game,
-                                                 string_id,
-                                                 ladder_capture,
-                                                 ladder_escape,
-                                                 feature.search_games,
-                                                 0,
-                                                 ladder_moves)
-                            if ladder_result == 1:
-                                F[44, onboard_index[ladder_capture]] = 1
+                        # 1st candidate
+                        ladder_moves[0] = 0
+                        first_ladder_capture = string.lib[0]
+                        first_ladder_escape = string.lib[string.lib[0]]
+                        capture_result = is_ladder_capture(game,
+                                            string_id,
+                                            first_ladder_capture,
+                                            first_ladder_escape,
+                                            feature.search_games,
+                                            0,
+                                            ladder_moves)
+                        if capture_result == 1:
+                            F[44, onboard_index[first_ladder_capture]] = 1
+    
+                        # 2nd candidate
+                        ladder_moves[0] = 0
+                        second_ladder_capture = first_ladder_escape
+                        second_ladder_escape = first_ladder_capture
+                        capture_result = is_ladder_capture(game,
+                                            string_id,
+                                            second_ladder_capture,
+                                            second_ladder_escape,
+                                            feature.search_games,
+                                            0,
+                                            ladder_moves)
+                        if capture_result == 1:
+                            F[44, onboard_index[second_ladder_capture]] = 1
+
                     # Ladder escape(1): Whether a move at this point is a successful ladder escape
                     elif string.libs == 1 and string.color == current_color:
                         ladder_moves[0] = 0
@@ -324,7 +337,8 @@ cdef int is_ladder_capture(board.game_state_t *game,
     ladder_moves[0] += 1
 
     board.copy_game(ladder_game, game)
-    board.do_move(ladder_game, pos)
+    board.put_stone(ladder_game, pos, ladder_game.current_color)
+    ladder_game.current_color = board.FLIP_COLOR(ladder_game.current_color)
 
     escape_options_num = get_escape_options(ladder_game,
                                             escape_options,
@@ -339,9 +353,7 @@ cdef int is_ladder_capture(board.game_state_t *game,
                             search_games,
                             depth+1,
                             ladder_moves)
-        if escape_result == 0:
-            continue
-        elif escape_result == 1:
+        if escape_result == 1:
             return -1
     return 1
 
@@ -359,7 +371,8 @@ cdef int is_ladder_escape(board.game_state_t *game,
     cdef char capture_color = board.FLIP_COLOR(game.current_color)
     cdef int neighbor_id
     cdef board.string_t *neighbor_string
-    cdef int ladder_capture, ladder_escape
+    cdef int first_ladder_capture, first_ladder_escape
+    cdef int second_ladder_capture, second_ladder_escape
     cdef int capture_result
     cdef int j
 
@@ -389,7 +402,8 @@ cdef int is_ladder_escape(board.game_state_t *game,
     ladder_moves[0] += 1
 
     board.copy_game(ladder_game, game)
-    board.do_move(ladder_game, pos)
+    board.put_stone(ladder_game, pos, ladder_game.current_color)
+    ladder_game.current_color = board.FLIP_COLOR(ladder_game.current_color)
 
     # May change string_id by string merge
     if is_atari_pos:
@@ -409,23 +423,28 @@ cdef int is_ladder_escape(board.game_state_t *game,
         """
         return 1
     else:
-        for j in range(2):
-            if j == 0:
-                ladder_capture = string.lib[0]
-                ladder_escape = string.lib[string.lib[0]]
-            else:
-                ladder_capture = string.lib[string.lib[0]]
-                ladder_escape = string.lib[0]
-
+        first_ladder_capture = string.lib[0]
+        first_ladder_escape = string.lib[string.lib[0]]
+        second_ladder_capture = first_ladder_escape
+        second_ladder_escape = first_ladder_capture
+        capture_result = is_ladder_capture(ladder_game,
+                             string_id,
+                             first_ladder_capture,
+                             first_ladder_escape,
+                             search_games,
+                             depth+1,
+                             ladder_moves)
+        if capture_result == 1:
+            return -1
+        else:
             capture_result = is_ladder_capture(ladder_game,
                                  string_id,
-                                 ladder_capture,
-                                 ladder_escape,
+                                 second_ladder_capture,
+                                 second_ladder_escape,
                                  search_games,
                                  depth+1,
                                  ladder_moves)
-            if capture_result == 0:
-                continue
-            elif capture_result == 1:
+            if capture_result == 1:
                 return -1
-        return 1
+            else:
+                return 1
