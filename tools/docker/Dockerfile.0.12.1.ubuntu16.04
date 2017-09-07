@@ -48,6 +48,8 @@ RUN pip --no-cache-dir install \
         keras==1.2.0 \
         sgf==0.5 \
         Flask==0.12 \
+        pandas==0.20.3 \
+        tqdm==4.15.0 \
         && \
     python -m ipykernel.kernelspec
 
