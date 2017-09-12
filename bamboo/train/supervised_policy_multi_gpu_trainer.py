@@ -20,7 +20,7 @@ import warnings
 
 from . import dcnn_policy as policy
 
-from keras import callbacks as cbks
+from keras_utils import callbacks as cbks
 
 
 flags = tf.app.flags
