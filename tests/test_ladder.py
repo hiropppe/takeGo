@@ -43,3 +43,9 @@ class TestLadder(unittest.TestCase):
 
     def test_captured_2(self):
         test_ladder.test_captured_2()
+
+    def test_escape_segmentation_fault_1(self):
+        test_ladder.test_escape_segmentation_fault_1()
+
+    def test_capture_segmentation_fault_1(self):
+        test_ladder.test_capture_segmentation_fault_1()

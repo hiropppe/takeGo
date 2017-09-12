@@ -90,6 +90,8 @@ cdef void free_game(game_state_t *game) nogil:
 
 
 cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
+    cdef int i
+
     memcpy(dst.record, src.record, sizeof(move_t) * MAX_RECORDS)
     memcpy(dst.prisoner, src.prisoner, sizeof(int) * S_MAX)
     memcpy(dst.board, src.board, sizeof(char) * BOARD_MAX)
