@@ -121,7 +121,7 @@ def main(cmd_line_args=None):
             else:
                 n_hash_corrision += 1
                 if not args.quiet:
-                    printf('Hash corrision !! "{:s}" equals to "{:s}". hash={:s}\n'.format(
+                    print('Hash corrision !! "{:s}" equals to "{:s}". hash={:s}\n'.format(
                         sgf_file,
                         str(final_hash_dict[final_hash]),
                         str(final_hash)))
