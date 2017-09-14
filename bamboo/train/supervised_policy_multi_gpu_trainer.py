@@ -7,6 +7,7 @@ import numpy as np
 import os
 import re
 import sys
+import time
 import tensorflow as tf
 import traceback
 import warnings
@@ -65,7 +66,7 @@ BOARD_TRANSFORMATIONS = {
     3: lambda feature: tf.image.rot90(feature, 3),
     4: lambda feature: tf.image.flip_left_right(feature),
     5: lambda feature: tf.image.flip_up_down(feature),
-    6: lambda feature: tf.transpose(feature),
+    6: lambda feature: tf.image.transpose_image(feature),
     7: lambda feature: tf.image.flip_left_right(tf.image.rot90(feature, 1))
 }
 
@@ -73,6 +74,7 @@ MOVING_AVERAGE_DECAY = 0.9999
 
 TOWER_NAME = 'tower'
 
+symmmetris = None
 
 def average_gradients(tower_grads):
     """Calculate the average gradient for each shared variable across all towers.
@@ -185,6 +187,7 @@ def run_training():
 
         do_validation = bool(FLAGS.validation_data)
 
+        global symmetries
         # used symmetries
         if FLAGS.symmetries == "all":
             # add all symmetries
@@ -201,28 +204,26 @@ def run_training():
 
         np.random.seed(np.random.randint(1, 4294967295+1))
 
-        features = {
-            "state": tf.FixedLenFeature([48*19*19], tf.float32),
-            "action": tf.FixedLenFeature([19*19], tf.float32)
-        }
-
         def parse_function(example_proto):
+            features = {
+                "state": tf.FixedLenFeature([48*19*19], tf.float32),
+                "action": tf.FixedLenFeature([19*19], tf.float32)
+            }
             parsed_features = tf.parse_single_example(example_proto, features)
-
-            transform = BOARD_TRANSFORMATIONS[symmetries[np.random.randint(len(symmetries))]]
-
+            # transform = BOARD_TRANSFORMATIONS[symmetries[np.random.randint(len(symmetries))]]
             state = parsed_features['state']
             state = tf.reshape(state, (19, 19, 48))
-            state = transform(state)
-
+            # state = transform(state)
             action = parsed_features['action']
-            action = tf.reshape(action, (19, 19, 1))
-            action = transform(action)
-            action = tf.reshape(action, (361,))
-
+            # action = tf.reshape(action, (19, 19, 1))
+            # action = transform(action)
+            # action = tf.reshape(action, (361,))
             return state, action
 
         filenames = tf.placeholder(tf.string, shape=[None])
+        dataset = tf.contrib.data.TFRecordDataset(filenames, compression_type='GZIP')
+        dataset = dataset.map(parse_function).shuffle(20).repeat().batch(FLAGS.batch_size)
+        iterator = dataset.make_initializable_iterator()
 
         # Calculate the gradients for each model tower.
         tower_grads = []
@@ -230,9 +231,6 @@ def run_training():
             for i in xrange(FLAGS.num_gpus):
                 with tf.device('/gpu:%d' % i):
                     with tf.name_scope('%s_%d' % (TOWER_NAME, i)) as scope:
-                        dataset = tf.contrib.data.TFRecordDataset(filenames, compression_type='GZIP')
-                        dataset = dataset.map(parse_function).shuffle(16).repeat().batch(16)
-                        iterator = dataset.make_initializable_iterator()
                         (state_batch, action_batch) = iterator.get_next()
 
                         logits = policy.inference(state_batch)
@@ -301,8 +299,6 @@ def run_training():
         sess = tf.Session(config=config)
         sess.run(init)
 
-        sess.run(iterator.initializer, feed_dict={filenames: [FLAGS.train_data]})
-
         # Start the queue runners.
         tf.train.start_queue_runners(sess=sess)
 
@@ -316,13 +312,16 @@ def run_training():
             'nb_sample': epoch_length,
             'verbose': FLAGS.verbose,
             'do_validation': do_validation,
-            'metrics': ['loss', 'acc', 'val_loss', 'val_acc'],
+            'metrics': ['loss', 'acc', 'val_loss', 'val_acc', 'examples/sec'],
         })
+
+        sess.run(iterator.initializer, feed_dict={filenames: [FLAGS.train_data]})
 
         # perform training cycles
         epoch = 0
         step = 0
         reports = 0
+        examples_per_step = FLAGS.batch_size * FLAGS.num_gpus
         callbacks.on_train_begin()
         while epoch < FLAGS.epoch:
             callbacks.on_epoch_begin(epoch)
@@ -333,11 +332,19 @@ def run_training():
                 batch_logs = {"batch": batch_index, "size": FLAGS.batch_size}
                 callbacks.on_batch_begin(batch_index, batch_logs)
 
+                start = time.time()
+
                 _, loss, acc, summary, step = sess.run(
                     [train_op, loss_op, acc_op, summary_op, global_step])
 
+                elapsed = time.time() - start
+
                 batch_logs["loss"] = loss
                 batch_logs["acc"] = acc
+
+                if step % 10 == 0:
+                    batch_logs["examples/sec"] = examples_per_step / elapsed
+
                 callbacks.on_batch_end(batch_index, batch_logs)
 
                 # construct epoch logs
