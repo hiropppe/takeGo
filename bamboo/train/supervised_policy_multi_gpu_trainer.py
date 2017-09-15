@@ -3,14 +3,12 @@
 from __future__ import print_function
 from __future__ import absolute_import
 
-import numpy as np
 import os
 import re
 import sys
 import time
 import tensorflow as tf
 import traceback
-import warnings
 
 from . import dcnn_policy as policy
 
@@ -30,51 +28,27 @@ flags.DEFINE_integer("epoch", 10, "")
 flags.DEFINE_integer("epoch_length", 0, "")
 flags.DEFINE_integer("batch_size", 16, "")
 
+flags.DEFINE_integer("num_threads", 1, "")
+flags.DEFINE_integer("shuffle_buffer_size", 100, "")
+
 flags.DEFINE_float("learning_rate", 3e-3, "Learning rate.")
 flags.DEFINE_float("decay", .5, "")
 flags.DEFINE_integer("decay_step", 80000000, "")
 
-flags.DEFINE_float('gpu_memory_fraction', 0.15,
+flags.DEFINE_float('gpu_memory_fraction', None,
                    'config.per_process_gpu_memory_fraction for training session')
 flags.DEFINE_integer('num_gpus', 1,
                      """ How many GPUs to use""")
 flags.DEFINE_boolean('log_device_placement', False, '')
 
-flags.DEFINE_string("symmetries", "all",
-                    """none, all or comma-separated list of transforms,
-                    subset of: noop,rot90,rot180,rot270,fliplr,flipud,diag1,diag2. Default: all""")
-
 flags.DEFINE_boolean('verbose', True, '')
 
 FLAGS = flags.FLAGS
-
-TRANSFORMATION_INDICES = {
-    "noop": 0,
-    "rot90": 1,
-    "rot180": 2,
-    "rot270": 3,
-    "fliplr": 4,
-    "flipud": 5,
-    "diag1": 6,
-    "diag2": 7
-}
-
-BOARD_TRANSFORMATIONS = {
-    0: lambda feature: feature,
-    1: lambda feature: tf.image.rot90(feature, 1),
-    2: lambda feature: tf.image.rot90(feature, 2),
-    3: lambda feature: tf.image.rot90(feature, 3),
-    4: lambda feature: tf.image.flip_left_right(feature),
-    5: lambda feature: tf.image.flip_up_down(feature),
-    6: lambda feature: tf.image.transpose_image(feature),
-    7: lambda feature: tf.image.flip_left_right(tf.image.rot90(feature, 1))
-}
 
 MOVING_AVERAGE_DECAY = 0.9999
 
 TOWER_NAME = 'tower'
 
-symmmetris = None
 
 def average_gradients(tower_grads):
     """Calculate the average gradient for each shared variable across all towers.
@@ -187,43 +161,22 @@ def run_training():
 
         do_validation = bool(FLAGS.validation_data)
 
-        global symmetries
-        # used symmetries
-        if FLAGS.symmetries == "all":
-            # add all symmetries
-            symmetries = TRANSFORMATION_INDICES.values()
-        elif FLAGS.symmetries == "none":
-            # only add standart orientation
-            symmetries = [TRANSFORMATION_INDICES["noop"]]
-        else:
-            # add specified symmetries
-            symmetries = [TRANSFORMATION_INDICES[name] for name in FLAGS.symmetries.strip().split(",")]
-
-        if FLAGS.verbose:
-            print("Used symmetries: " + FLAGS.symmetries)
-
-        np.random.seed(np.random.randint(1, 4294967295+1))
-
         def parse_function(example_proto):
             features = {
                 "state": tf.FixedLenFeature([48*19*19], tf.float32),
                 "action": tf.FixedLenFeature([19*19], tf.float32)
             }
             parsed_features = tf.parse_single_example(example_proto, features)
-            # transform = BOARD_TRANSFORMATIONS[symmetries[np.random.randint(len(symmetries))]]
             state = parsed_features['state']
             state = tf.reshape(state, (19, 19, 48))
-            # state = transform(state)
             action = parsed_features['action']
-            # action = tf.reshape(action, (19, 19, 1))
-            # action = transform(action)
-            # action = tf.reshape(action, (361,))
             return state, action
 
         filenames = tf.placeholder(tf.string, shape=[None])
         dataset = tf.contrib.data.TFRecordDataset(filenames, compression_type='GZIP')
-        dataset = dataset.map(parse_function).shuffle(20).repeat().batch(FLAGS.batch_size)
+        dataset = dataset.map(parse_function, num_threads=FLAGS.num_threads).shuffle(FLAGS.shuffle_buffer_size).repeat().batch(FLAGS.batch_size)
         iterator = dataset.make_initializable_iterator()
+        (state_batch, action_batch) = iterator.get_next()
 
         # Calculate the gradients for each model tower.
         tower_grads = []
@@ -231,8 +184,6 @@ def run_training():
             for i in xrange(FLAGS.num_gpus):
                 with tf.device('/gpu:%d' % i):
                     with tf.name_scope('%s_%d' % (TOWER_NAME, i)) as scope:
-                        (state_batch, action_batch) = iterator.get_next()
-
                         logits = policy.inference(state_batch)
 
                         probs = tf.nn.softmax(logits)
@@ -294,13 +245,13 @@ def run_training():
         config = tf.ConfigProto(
             allow_soft_placement=True,
             log_device_placement=FLAGS.log_device_placement)
-        config.gpu_options.per_process_gpu_memory_fraction = FLAGS.gpu_memory_fraction
+
+        if FLAGS.gpu_memory_fraction:
+            config.gpu_options.per_process_gpu_memory_fraction = FLAGS.gpu_memory_fraction
 
         sess = tf.Session(config=config)
+        sess.run(iterator.initializer, feed_dict={filenames: [FLAGS.train_data]})
         sess.run(init)
-
-        # Start the queue runners.
-        tf.train.start_queue_runners(sess=sess)
 
         summary_writer = tf.summary.FileWriter(FLAGS.logdir, sess.graph)
 
@@ -312,10 +263,8 @@ def run_training():
             'nb_sample': epoch_length,
             'verbose': FLAGS.verbose,
             'do_validation': do_validation,
-            'metrics': ['loss', 'acc', 'val_loss', 'val_acc', 'examples/sec'],
+            'metrics': ['loss', 'acc', 'val_loss', 'val_acc', 'examples/sec', 'msec/batch'],
         })
-
-        sess.run(iterator.initializer, feed_dict={filenames: [FLAGS.train_data]})
 
         # perform training cycles
         epoch = 0
@@ -334,16 +283,16 @@ def run_training():
 
                 start = time.time()
 
-                _, loss, acc, summary, step = sess.run(
-                    [train_op, loss_op, acc_op, summary_op, global_step])
+                _, loss, acc, step = sess.run([train_op, loss_op, acc_op, global_step])
 
-                elapsed = time.time() - start
+                duration = time.time() - start
 
                 batch_logs["loss"] = loss
                 batch_logs["acc"] = acc
 
-                if step % 10 == 0:
-                    batch_logs["examples/sec"] = examples_per_step / elapsed
+                if step % FLAGS.checkpoint == 0:
+                    batch_logs["examples/sec"] = examples_per_step / duration
+                    batch_logs["msec/batch"] = duration*1000 / FLAGS.num_gpus
 
                 callbacks.on_batch_end(batch_index, batch_logs)
 
@@ -355,6 +304,7 @@ def run_training():
                 try:
                     if step >= FLAGS.checkpoint * (reports+1):
                         reports += 1
+                        summary = sess.run(summary_op)
                         summary_writer.add_summary(summary, global_step=step)
                         summary_writer.flush()
                 except:
