@@ -130,7 +130,7 @@ def run_training():
             'nb_sample': epoch_length,
             'verbose': FLAGS.verbose,
             'do_validation': do_validation,
-            'metrics': ['loss', 'acc', 'val_loss', 'val_acc', 'examples/sec', 'msec/batch'],
+            'metrics': ['loss', 'acc', 'val_loss', 'val_acc', 'examples/sec', 'batch/sec', 'msec/batch'],
         })
 
         # perform training cycles
@@ -158,6 +158,7 @@ def run_training():
 
                 if step % FLAGS.checkpoint == 0:
                     batch_logs["examples/sec"] = FLAGS.batch_size / duration
+                    batch_logs["batch/sec"] = 1 / duration
                     batch_logs["msec/batch"] = duration*1000
 
                 callbacks.on_batch_end(batch_index, batch_logs)
