@@ -9,6 +9,7 @@ RUN apt-get update && \
         software-properties-common \
         build-essential \
         curl \
+        wget \
         vim \
         git \
         net-tools \
@@ -28,11 +29,20 @@ RUN apt-get update && \
         zip \
         unzip \
         g++ \
+        gfortran \
         mlocate \
+        libcupti-dev \
         && \
         apt-get clean && \
         rm -rf /var/lib/apt/lists/* && \
         updatedb
+
+RUN wget https://www.open-mpi.org/software/ompi/v3.0/downloads/openmpi-3.0.0.tar.gz --no-check-certificate \
+ && tar xzf openmpi-3.0.0.tar.gz \
+ && cd openmpi-3.0.0 \
+ && ./configure --prefix=/opt/OpenMPI CC=gcc CXX=g++ F77=gfortran FC=gfortran \
+ && make \
+ && make install
 
 RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
     python get-pip.py && \
@@ -55,6 +65,16 @@ RUN pip --no-cache-dir install \
         && \
     python -m ipykernel.kernelspec
 
+# Install Java8
+RUN add-apt-repository ppa:webupd8team/java && \
+    echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections && \
+    apt-get update && apt-get install -y oracle-java8-installer
+
+# Install Bazel for building tensorflow
+RUN wget https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel-0.4.5-installer-linux-x86_64.sh && \
+    chmod +x bazel-0.4.5-installer-linux-x86_64.sh && \
+    ./bazel-0.4.5-installer-linux-x86_64.sh --user
+
 # Copy cuDNN
 COPY cudnn/cudnn-8.0-linux-x64-v6.0.solitairetheme8 /tmp/
 
@@ -62,33 +82,72 @@ RUN tar xzf /tmp/cudnn-8.0-linux-x64-v6.0.solitairetheme8 && \
     cp -a cuda/include/* /usr/local/cuda/include/ && \
     cp -a cuda/lib64/* /usr/local/cuda/lib64/
 
-RUN pip --no-cache-dir install \
-    https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow_gpu-1.3.0-cp27-none-linux_x86_64.whl 
+# Install Tensorflow from source
+RUN git clone https://github.com/tensorflow/tensorflow && \
+    cd tensorflow && \
+    git checkout r1.3
 
-# For CUDA profiling, TensorFlow requires CUPTI.
-ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+COPY workspace.bzl /root/tensorflow/tensorflow/
 
-"""
-# Java and bazel
-    7  add-apt-repository ppa:webupd8team/java
-   10  echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
-   11  apt-get update
-   12  apt-get install -y oracle-java8-installer
-   13  java -version
-   22  wget https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel-0.4.5-installer-linux-x86_64.sh
-   24  chmod +x bazel-0.4.5-installer-linux-x86_64.sh
-   25  ./bazel-0.4.5-installer-linux-x86_64.sh
-   26  bazel version
+RUN cd tensorflow && \
+    export PATH=$PATH:/root/bin && \
+    export PYTHON_BIN_PATH=$(which python) && \
+    export PYTHON_LIB_PATH="/usr/lib/python2.7/dist-packages" && \
+    export TF_NEED_MKL="1" && \
+    export TF_DOWNLOAD_MKL="1" && \
+    export CC_OPT_FLAGS="-march=native" && \
+    export TF_NEED_JEMALLOC="1" && \
+    export TF_NEED_GCP="0" && \
+    export TF_NEED_HDFS="0" && \
+    export TF_NEED_OPENCL="0" && \
+    export TF_NEED_CUDA="1" && \
+    export TF_ENABLE_XLA="1" && \
+    export TF_NEED_VERBS="0" && \
+    export TF_CUDA_CLANG="0" && \
+    export TF_CUDA_VERSION="8.0" && \
+    export CUDA_TOOLKIT_PATH="/usr/local/cuda" && \
+    export TF_CUDNN_VERSION="6" && \
+    export CUDNN_INSTALL_PATH="/usr/local/cuda" && \
+    export TF_CUDA_COMPUTE_CAPABILITIES="6.1" && \
+    export GCC_HOST_COMPILER_PATH=$(which gcc) && \
+    export TF_NEED_MPI="1" && \
+    export MPI_HOME="/opt/OpenMPI/" && \
+    ./configure && \
+    bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 --copt=-mfma --config=cuda //tensorflow/tools/pip_package:build_pip_package && \
+    bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
 
-# build tensorflow
-   83  bazel clean
-   84  ./configure
-   85  bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 --copt=-mfma --config=cuda //tensorflow/tools/pip_package:build_pip_package
-   87  bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
-   89  pip uninstall tensorflow-tensorboard
-   92  pip uninstall tensorflow-gpu
-   94  pip install /tmp/tensorflow_pkg/tensorflow-1.3.0-cp27-cp27mu-linux_x86_64.whl
-"""
+RUN pip install /tmp/tensorflow_pkg/tensorflow-1.3.0-cp27-cp27mu-linux_x86_64.whl
+
+ENV PATH /opt/OpenMPI/bin:$PATH
+ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:/opt/OpenMPI/lib:$LD_LIBRARY_PATH
+
+RUN echo '# OpenMPI' >> ~/.bash_profile \
+ && echo 'export PATH=/opt/OpenMPI/bin:$PATH' >> ~/.bash_profile \
+ && echo 'export LD_LIBRARY_PATH=/opt/OpenMPI/lib:$LD_LIBRARY_PATH' >> ~/.bash_profile \
+ && echo '' >> ~/.bash_profile \
+ && echo '# CUPTI' >> ~/.bash_profile \
+ && echo 'export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH' >> ~/.bash_profile \
+ && echo '' >> ~/.bash_profile
+
+## Java and bazel
+#    7  add-apt-repository ppa:webupd8team/java
+#   10  echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
+#   11  apt-get update
+#   12  apt-get install -y oracle-java8-installer
+#   13  java -version
+#   22  wget https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel-0.4.5-installer-linux-x86_64.sh
+#   24  chmod +x bazel-0.4.5-installer-linux-x86_64.sh
+#   25  ./bazel-0.4.5-installer-linux-x86_64.sh
+#   26  bazel version
+
+## build tensorflow
+#   83  bazel clean
+#   84  ./configure
+#   85  bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 --copt=-mfma --config=cuda //tensorflow/tools/pip_package:build_pip_package
+#   87  bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
+#   89  pip uninstall tensorflow-tensorboard
+#   92  pip uninstall tensorflow-gpu
+#   94  pip install /tmp/tensorflow_pkg/tensorflow-1.3.0-cp27-cp27mu-linux_x86_64.whl
 
 RUN git config --global user.name "hiropppe"
 RUN git config --global user.email "sergei.0910@gmail.com"

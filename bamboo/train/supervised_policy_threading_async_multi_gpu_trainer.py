@@ -6,6 +6,7 @@ from __future__ import absolute_import
 import os
 import sys
 import tensorflow as tf
+import threading
 import traceback
 
 from . import dcnn_policy as policy
@@ -25,8 +26,8 @@ flags.DEFINE_integer("dataset_length", None, "")
 flags.DEFINE_integer("epoch", 10, "")
 flags.DEFINE_integer("epoch_length", 0, "")
 flags.DEFINE_integer("batch_size", 16, "")
-
-flags.DEFINE_integer("num_threads", 1, "")
+flags.DEFINE_integer("num_train_threads", 1, "")
+flags.DEFINE_integer("num_data_threads", 1, "")
 flags.DEFINE_integer("shuffle_buffer_size", 100, "")
 
 flags.DEFINE_float("learning_rate", 3e-3, "Learning rate.")
@@ -35,16 +36,21 @@ flags.DEFINE_integer("decay_step", 80000000, "")
 
 flags.DEFINE_float('gpu_memory_fraction', None,
                    'config.per_process_gpu_memory_fraction for training session')
+flags.DEFINE_integer('num_gpus', 1,
+                     """ How many GPUs to use""")
 flags.DEFINE_boolean('log_device_placement', False, '')
 
 flags.DEFINE_boolean('verbose', True, '')
 
 FLAGS = flags.FLAGS
 
+TOWER_NAME = 'tower'
+
 
 def run_training():
 
-    with tf.Graph().as_default() as graph:
+    # with tf.Graph().as_default() as graph:
+    with tf.Graph().as_default(), tf.device('/cpu:0'):
         global_step = tf.contrib.framework.get_or_create_global_step()
 
         lr = tf.train.exponential_decay(
@@ -81,7 +87,7 @@ def run_training():
 
         filenames = tf.placeholder(tf.string, shape=[None])
         dataset = tf.contrib.data.TFRecordDataset(filenames, compression_type='GZIP')
-        dataset = dataset.map(parse_function, num_threads=FLAGS.num_threads) \
+        dataset = dataset.map(parse_function, num_threads=FLAGS.num_data_threads) \
                          .shuffle(FLAGS.shuffle_buffer_size) \
                          .repeat() \
                          .batch(FLAGS.batch_size)
@@ -89,15 +95,25 @@ def run_training():
         iterator = dataset.make_initializable_iterator()
         (state_batch, action_batch) = iterator.get_next()
 
-        # define computation graph
-        logits = policy.inference(state_batch)
+        gpu_ops = []
+        # define computation graph for each gpu
+        with tf.variable_scope(tf.get_variable_scope()):
+            for i in xrange(FLAGS.num_gpus):
+                with tf.device('/gpu:%d' % i):
+                    with tf.name_scope('%s_%d' % (TOWER_NAME, i)):
+                        logits = policy.inference(state_batch)
 
-        probs = tf.nn.softmax(logits)
+                        probs = tf.nn.softmax(logits)
 
-        loss_op = policy.loss(probs, action_batch)
-        acc_op = policy.accuracy(probs, action_batch)
+                        loss_op = policy.loss(probs, action_batch)
+                        acc_op = policy.accuracy(probs, action_batch)
 
-        train_op = grad.minimize(loss_op, global_step=global_step)
+                        # Reuse variables for the next tower.
+                        tf.get_variable_scope().reuse_variables()
+
+                        train_op = grad.minimize(loss_op, global_step=global_step)
+
+                        gpu_ops.append((train_op, loss_op, acc_op))
 
         # create a summary for our cost and accuracy
         tf.summary.scalar("loss", loss_op)
@@ -108,11 +124,12 @@ def run_training():
         summary_op = tf.summary.merge_all()
         init_op = tf.global_variables_initializer()
 
-        config = tf.ConfigProto(log_device_placement=FLAGS.log_device_placement)
+        config = tf.ConfigProto(allow_soft_placement=True,
+                                log_device_placement=FLAGS.log_device_placement)
         if FLAGS.gpu_memory_fraction:
             config.gpu_options.per_process_gpu_memory_fraction = FLAGS.gpu_memory_fraction
 
-        sess = tf.Session(config=config, graph=graph)
+        sess = tf.Session(config=config)
         sess.run(iterator.initializer, feed_dict={filenames: [FLAGS.train_data]})
         sess.run(init_op)
 
@@ -135,38 +152,83 @@ def run_training():
 
         # perform training cycles
         epoch = 0
-        step = 0
-        reports = 0
         callbacks.on_train_begin()
         while epoch < FLAGS.epoch:
             callbacks.on_epoch_begin(epoch)
-            while callbacks.callbacks[0].seen < epoch_length:
-                batch_logs = {"size": FLAGS.batch_size}
-                callbacks.on_batch_begin(None, batch_logs)
 
-                _, loss, acc, step = sess.run([train_op, loss_op, acc_op, global_step])
+            if FLAGS.num_train_threads == 1:
+                train(sess,
+                      train_op,
+                      loss_op,
+                      acc_op,
+                      global_step,
+                      epoch_length,
+                      callbacks,
+                      summary_writer,
+                      summary_op,
+                      is_chief=True)
+            else:
+                train_threads = []
+                for i in range(FLAGS.num_train_threads):
+                    if i == 0:
+                        is_chief = True
+                    else:
+                        is_chief = False
 
-                batch_logs["loss"] = loss
-                batch_logs["acc"] = acc
+                    ops = gpu_ops[i % FLAGS.num_gpus]
 
-                callbacks.on_batch_end(None, batch_logs)
+                    train_args = (sess, ops[0], ops[1], ops[2], global_step, epoch_length, callbacks, summary_writer, summary_op, is_chief)
+                    train_thread = threading.Thread(name='train_thread_%d'.format(i),
+                                                    target=train,
+                                                    args=train_args)
+                    train_threads.append(train_thread)
 
-                try:
-                    if step >= FLAGS.checkpoint * (reports+1):
-                        reports += 1
-                        summary = sess.run(summary_op)
-                        summary_writer.add_summary(summary, global_step=step)
-                        summary_writer.flush()
-                except:
-                    err, msg, _ = sys.exc_info()
-                    sys.stderr.write("{} {}\n".format(err, msg))
-                    sys.stderr.write(traceback.format_exc())
+                for tt in train_threads:
+                    tt.start()
+
+                for tt in train_threads:
+                    tt.join()
 
             checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
-            saver.save(sess, checkpoint_file, global_step=step)
+            saver.save(sess, checkpoint_file, global_step=epoch)
 
             callbacks.on_epoch_end(epoch)
             epoch += 1
+
+
+def train(sess,
+          train_op,
+          loss_op,
+          acc_op,
+          global_step,
+          epoch_length,
+          callbacks,
+          summary_writer,
+          summary_op,
+          is_chief=False):
+    reports = 0
+    while callbacks.callbacks[0].seen < epoch_length:
+        batch_logs = {"size": FLAGS.batch_size}
+        callbacks.on_batch_begin(None, batch_logs)
+
+        _, loss, acc, step = sess.run([train_op, loss_op, acc_op, global_step])
+
+        batch_logs["loss"] = loss
+        batch_logs["acc"] = acc
+
+        callbacks.on_batch_end(None, batch_logs)
+
+        if is_chief:
+            try:
+                if step >= FLAGS.checkpoint * (reports+1):
+                    reports += 1
+                    summary = sess.run(summary_op)
+                    summary_writer.add_summary(summary, global_step=step)
+                    summary_writer.flush()
+            except:
+                err, msg, _ = sys.exc_info()
+                sys.stderr.write("{} {}\n".format(err, msg))
+                sys.stderr.write(traceback.format_exc())
 
 
 def main(argv=None):

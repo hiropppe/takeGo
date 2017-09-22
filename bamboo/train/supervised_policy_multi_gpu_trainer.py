@@ -6,7 +6,6 @@ from __future__ import absolute_import
 import os
 import re
 import sys
-import time
 import tensorflow as tf
 import traceback
 
@@ -263,44 +262,28 @@ def run_training():
             'nb_sample': epoch_length,
             'verbose': FLAGS.verbose,
             'do_validation': do_validation,
-            'metrics': ['loss', 'acc', 'val_loss', 'val_acc', 'examples/sec', 'batch/sec', 'msec/batch'],
+            'checkpoint': FLAGS.checkpoint,
+            'metrics': ['loss', 'acc', 'val_loss', 'val_acc'],
         })
 
         # perform training cycles
         epoch = 0
         step = 0
         reports = 0
-        examples_per_step = FLAGS.batch_size * FLAGS.num_gpus
         callbacks.on_train_begin()
         while epoch < FLAGS.epoch:
             callbacks.on_epoch_begin(epoch)
-            samples_seen = 0
-            batch_index = 0
-            while samples_seen < epoch_length:
+            while callbacks.callbacks[0].seen < epoch_length:
                 # build batch logs
-                batch_logs = {"batch": batch_index, "size": FLAGS.batch_size}
-                callbacks.on_batch_begin(batch_index, batch_logs)
-
-                start = time.time()
+                batch_logs = {"size": FLAGS.batch_size}
+                callbacks.on_batch_begin(None, batch_logs)
 
                 _, loss, acc, step = sess.run([train_op, loss_op, acc_op, global_step])
-
-                duration = time.time() - start
 
                 batch_logs["loss"] = loss
                 batch_logs["acc"] = acc
 
-                if step % FLAGS.checkpoint == 0:
-                    batch_logs["examples/sec"] = examples_per_step / duration
-                    batch_logs["batch/sec"] = 1 / duration
-                    batch_logs["msec/batch"] = duration*1000 / FLAGS.num_gpus
-
-                callbacks.on_batch_end(batch_index, batch_logs)
-
-                # construct epoch logs
-                epoch_logs = {}
-                batch_index += 1
-                samples_seen += FLAGS.batch_size
+                callbacks.on_batch_end(None, batch_logs)
 
                 try:
                     if step >= FLAGS.checkpoint * (reports+1):
@@ -313,13 +296,10 @@ def run_training():
                     sys.stderr.write("{} {}\n".format(err, msg))
                     sys.stderr.write(traceback.format_exc())
 
-            # evaluate the model
-            # TODO
-
             checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
             saver.save(sess, checkpoint_file, global_step=step)
 
-            callbacks.on_epoch_end(epoch, epoch_logs)
+            callbacks.on_epoch_end(epoch)
             epoch += 1
 
 

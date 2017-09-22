@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import threading
 import time
 import json
 import warnings
@@ -162,6 +163,8 @@ class ProgbarLogger(Callback):
     def on_train_begin(self, logs={}):
         self.verbose = self.params['verbose']
         self.nb_epoch = self.params['nb_epoch']
+        self.checkpoint = self.params['checkpoint']
+        self.lock = threading.Lock()
 
     def on_epoch_begin(self, epoch, logs={}):
         if self.verbose:
@@ -169,6 +172,9 @@ class ProgbarLogger(Callback):
             self.progbar = Progbar(target=self.params['nb_sample'],
                                    verbose=self.verbose)
         self.seen = 0
+        self.step = 0
+        self.reports = 0
+        self.start_time = time.time()
 
     def on_batch_begin(self, batch, logs={}):
         if self.seen < self.params['nb_sample']:
@@ -177,22 +183,31 @@ class ProgbarLogger(Callback):
     def on_batch_end(self, batch, logs={}):
         batch_size = logs.get('size', 0)
         self.seen += batch_size
+        self.step += 1
 
         for k in self.params['metrics']:
             if k in logs:
                 self.log_values.append((k, logs[k]))
 
+        if self.step >= self.checkpoint * (self.reports+1):
+            duration = time.time() - self.start_time
+            self.log_values.append(('examples/sec', self.seen/duration))
+            self.log_values.append(('step/sec', self.step/duration))
+            self.reports += 1
+
         # skip progbar update for the last batch;
         # will be handled by on_epoch_end
         if self.verbose and self.seen < self.params['nb_sample']:
-            self.progbar.update(self.seen, self.log_values)
+            with self.lock:
+                self.progbar.update(self.seen, self.log_values)
 
     def on_epoch_end(self, epoch, logs={}):
         for k in self.params['metrics']:
             if k in logs:
                 self.log_values.append((k, logs[k]))
         if self.verbose:
-            self.progbar.update(self.seen, self.log_values)
+            with self.lock:
+                self.progbar.update(self.seen, self.log_values)
 
 
 class History(Callback):
