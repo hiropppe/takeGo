@@ -164,7 +164,7 @@ def run_training():
                     sys.stderr.write(traceback.format_exc())
 
             checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
-            saver.save(sess, checkpoint_file, global_step=step)
+            saver.save(sess, checkpoint_file, global_step=epoch)
 
             callbacks.on_epoch_end(epoch)
             epoch += 1
