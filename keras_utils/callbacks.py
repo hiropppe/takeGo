@@ -2,6 +2,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import numpy as np
+import os
+import pickle
 import threading
 import time
 import json
@@ -136,6 +138,14 @@ class BaseLogger(Callback):
     This callback is automatically applied to
     every Keras model.
     '''
+    def __init__(self, logdir=None):
+        super(Callback, self).__init__()
+        self.logdir = logdir
+
+    def on_train_begin(self, logs={}):
+        self.start_time = time.time()
+        self.logs_history = {}
+
     def on_epoch_begin(self, epoch, logs={}):
         self.seen = 0
         self.totals = {}
@@ -150,11 +160,19 @@ class BaseLogger(Callback):
             else:
                 self.totals[k] = v * batch_size
 
+        if self.logdir:
+            logs['duration'] = time.time() - self.start_time
+            self.logs_history[logs['step']] = logs
+
     def on_epoch_end(self, epoch, logs={}):
         for k in self.params['metrics']:
             if k in self.totals:
                 # make value available to next callbacks
                 logs[k] = self.totals[k] / self.seen
+
+        if self.logdir:
+            with open(os.path.join(self.logdir, 'BaseLogger_StepLogs.pkl'), 'w') as f:
+                pickle.dump(self.logs_history, f)
 
 
 class ProgbarLogger(Callback):

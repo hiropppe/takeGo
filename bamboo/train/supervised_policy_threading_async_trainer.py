@@ -123,7 +123,7 @@ def run_training():
         saver = tf.train.Saver()
 
         # prepare callbacks
-        callbacks = [cbks.BaseLogger(), cbks.History(), cbks.ProgbarLogger()]
+        callbacks = [cbks.BaseLogger(FLAGS.logdir), cbks.History(), cbks.ProgbarLogger()]
         callbacks = cbks.CallbackList(callbacks)
         callbacks._set_params({
             'nb_epoch': FLAGS.epoch,
@@ -197,6 +197,7 @@ def train(sess,
 
         batch_logs["loss"] = loss
         batch_logs["acc"] = acc
+        batch_logs["step"] = step
 
         callbacks.on_batch_end(None, batch_logs)
 
