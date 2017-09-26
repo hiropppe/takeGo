@@ -3,8 +3,6 @@ import multiprocessing
 
 from bamboo.gtp import gtp
 
-from bamboo.gtp.gtp_connector import GTPGameConnector
-
 AXIS = 'abcdefghjklmnopqrst'
 RESULT = 'DBW'
 

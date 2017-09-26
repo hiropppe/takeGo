@@ -1,4 +1,4 @@
-from bamboo.go import test_policy_feature as ctest
+from bamboo import test_policy_feature as ctest
 
 import unittest
 

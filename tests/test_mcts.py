@@ -1,4 +1,4 @@
-from bamboo.mcts import test_mcts as ctest
+from bamboo import test_mcts as ctest
 
 import os
 import unittest
@@ -8,7 +8,7 @@ class TestMCTS(unittest.TestCase):
     @classmethod
     def setUpClass(clazz):
         import tensorflow as tf
-        from keras.backend.tensorflow_backend import set_session
+        from tensorflow.contrib.keras.python.keras.backend import set_session
         # config = tf.ConfigProto(device_count={"GPU": 0})
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
@@ -20,7 +20,7 @@ class TestMCTS(unittest.TestCase):
         weights = os.path.join(d, '../params/policy/weights.00088.hdf5')
         ctest.setup_supervised_policy(model, weights)
         # setup rollout policy
-        rollout_weights = os.path.join(d, '../params/rollout/sample.hdf5')
+        rollout_weights = os.path.join(d, '../params/rollout/rollout_weights.hdf5')
         ctest.setup_rollout_policy(rollout_weights)
         # setup pattern hash for rollout
         rands_file = os.path.join(d, '../params/rollout/mt_rands.txt')

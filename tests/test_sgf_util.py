@@ -1,4 +1,4 @@
-from bamboo import test_util as ctest
+from bamboo import test_sgf_util as ctest
 
 import unittest
 

@@ -1,4 +1,4 @@
-from bamboo.go import test_board
+from bamboo import test_board
 
 import unittest
 

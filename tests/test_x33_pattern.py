@@ -1,4 +1,4 @@
-from bamboo.rollout import test_x33_pattern as ctest
+from bamboo import test_x33_pattern as ctest
 
 import unittest
 

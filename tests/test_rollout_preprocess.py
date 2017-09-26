@@ -1,4 +1,4 @@
-from bamboo.rollout import test_rollout_preprocess as ctest
+from bamboo import test_rollout_preprocess as ctest
 
 import unittest
 

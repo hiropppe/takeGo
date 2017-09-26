@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 cimport numpy as np
 
-from bamboo.models import policy
+from bamboo.models.keras_dcnn_policy import CNNPolicy
 
 from libc.stdio cimport printf
 
@@ -43,7 +43,7 @@ def setup_pattern(rands_file, d12_csv, x33_csv):
 def setup_supervised_policy(model, weights):
     global sl_policy
 
-    sl_policy = policy.CNNPolicy.load_model(model)
+    sl_policy = CNNPolicy(init_network=True)
     sl_policy.model.load_weights(weights)
 
 

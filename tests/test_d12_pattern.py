@@ -1,4 +1,4 @@
-from bamboo.rollout import test_d12_pattern as ctest
+from bamboo import test_d12_pattern as ctest
 
 import unittest
 

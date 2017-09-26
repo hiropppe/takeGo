@@ -7,7 +7,7 @@ import sys
 import traceback
 import warnings
 
-from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
+from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from libcpp.string cimport string as cppstring
 

@@ -3,12 +3,12 @@ import os
 import sys
 import threading
 
-from bamboo.go.zobrist_hash import set_hash_size, initialize_hash, initialize_uct_hash
-from bamboo.train.keras_dcnn_policy import CNNPolicy
-from bamboo.rollout.pattern import read_rands, init_d12_hash, init_x33_hash, init_nonres_d12_hash
-from bamboo.rollout.preprocess import initialize_const, set_rollout_parameter, set_tree_parameter
-from bamboo.mcts.tree_search import PyMCTS
-from bamboo.mcts.mcts_server import set_mcts, MCTSRequestHandler
+from bamboo.zobrist_hash import set_hash_size, initialize_hash, initialize_uct_hash
+from bamboo.models.keras_dcnn_policy import CNNPolicy
+from bamboo.local_pattern import read_rands, init_d12_hash, init_x33_hash, init_nonres_d12_hash
+from bamboo.rollout_preprocess import initialize_const, set_rollout_parameter, set_tree_parameter
+from bamboo.tree_search import PyMCTS
+from bamboo.mcts_server import set_mcts, MCTSRequestHandler
 
 
 if __name__ == "__main__":
