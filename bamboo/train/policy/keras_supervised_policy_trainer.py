@@ -9,8 +9,8 @@ import tensorflow as tf
 from tensorflow.contrib.keras.python import keras
 from tensorflow.contrib.keras.python.keras import backend as K
 
-from ..util import confirm
-from .keras_dcnn_policy import CNNPolicy
+from bamboo.util import confirm
+from bamboo.models.keras_dcnn_policy import CNNPolicy
 
 
 # default settings

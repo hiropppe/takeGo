@@ -17,7 +17,7 @@ import time
 import traceback
 import warnings
 
-from . import dcnn_policy as policy
+from bamboo.models import dcnn_policy as policy
 
 from keras import callbacks as cbks
 

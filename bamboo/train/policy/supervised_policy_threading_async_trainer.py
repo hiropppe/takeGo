@@ -6,9 +6,10 @@ from __future__ import absolute_import
 import os
 import sys
 import tensorflow as tf
+import threading
 import traceback
 
-from . import dcnn_policy as policy
+from bamboo.models import dcnn_policy as policy
 
 from keras_utils import callbacks as cbks
 
@@ -25,8 +26,8 @@ flags.DEFINE_integer("dataset_length", None, "")
 flags.DEFINE_integer("epoch", 10, "")
 flags.DEFINE_integer("epoch_length", 0, "")
 flags.DEFINE_integer("batch_size", 16, "")
-
-flags.DEFINE_integer("num_threads", 1, "")
+flags.DEFINE_integer("num_train_threads", 1, "")
+flags.DEFINE_integer("num_data_threads", 1, "")
 flags.DEFINE_integer("shuffle_buffer_size", 100, "")
 
 flags.DEFINE_float("learning_rate", 3e-3, "Learning rate.")
@@ -81,7 +82,7 @@ def run_training():
 
         filenames = tf.placeholder(tf.string, shape=[None])
         dataset = tf.contrib.data.TFRecordDataset(filenames, compression_type='GZIP')
-        dataset = dataset.map(parse_function, num_threads=FLAGS.num_threads) \
+        dataset = dataset.map(parse_function, num_threads=FLAGS.num_data_threads) \
                          .shuffle(FLAGS.shuffle_buffer_size) \
                          .repeat() \
                          .batch(FLAGS.batch_size)
@@ -135,39 +136,82 @@ def run_training():
 
         # perform training cycles
         epoch = 0
-        step = 0
-        reports = 0
         callbacks.on_train_begin()
         while epoch < FLAGS.epoch:
             callbacks.on_epoch_begin(epoch)
-            while callbacks.callbacks[0].seen < epoch_length:
-                batch_logs = {"size": FLAGS.batch_size}
-                callbacks.on_batch_begin(None, batch_logs)
 
-                _, loss, acc, step = sess.run([train_op, loss_op, acc_op, global_step])
+            if FLAGS.num_train_threads == 1:
+                train(sess,
+                      train_op,
+                      loss_op,
+                      acc_op,
+                      global_step,
+                      epoch_length,
+                      callbacks,
+                      summary_writer,
+                      summary_op,
+                      is_chief=True)
+            else:
+                train_threads = []
+                for i in range(FLAGS.num_train_threads):
+                    if i == 0:
+                        is_chief = True
+                    else:
+                        is_chief = False
 
-                batch_logs["loss"] = loss
-                batch_logs["acc"] = acc
-                batch_logs["step"] = step
+                    train_args = (sess, train_op, loss_op, acc_op, global_step, epoch_length, callbacks, summary_writer, summary_op, is_chief)
+                    train_thread = threading.Thread(name='train_thread_%d'.format(i),
+                                                    target=train,
+                                                    args=train_args)
+                    train_threads.append(train_thread)
 
-                callbacks.on_batch_end(None, batch_logs)
+                for tt in train_threads:
+                    tt.start()
 
-                try:
-                    if step >= FLAGS.checkpoint * (reports+1):
-                        reports += 1
-                        summary = sess.run(summary_op)
-                        summary_writer.add_summary(summary, global_step=step)
-                        summary_writer.flush()
-                except:
-                    err, msg, _ = sys.exc_info()
-                    sys.stderr.write("{} {}\n".format(err, msg))
-                    sys.stderr.write(traceback.format_exc())
+                for tt in train_threads:
+                    tt.join()
 
             checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
             saver.save(sess, checkpoint_file, global_step=epoch)
 
             callbacks.on_epoch_end(epoch)
             epoch += 1
+
+
+def train(sess,
+          train_op,
+          loss_op,
+          acc_op,
+          global_step,
+          epoch_length,
+          callbacks,
+          summary_writer,
+          summary_op,
+          is_chief=False):
+    reports = 0
+    while callbacks.callbacks[0].seen < epoch_length:
+        batch_logs = {"size": FLAGS.batch_size}
+        callbacks.on_batch_begin(None, batch_logs)
+
+        _, loss, acc, step = sess.run([train_op, loss_op, acc_op, global_step])
+
+        batch_logs["loss"] = loss
+        batch_logs["acc"] = acc
+        batch_logs["step"] = step
+
+        callbacks.on_batch_end(None, batch_logs)
+
+        if is_chief:
+            try:
+                if step >= FLAGS.checkpoint * (reports+1):
+                    reports += 1
+                    summary = sess.run(summary_op)
+                    summary_writer.add_summary(summary, global_step=step)
+                    summary_writer.flush()
+            except:
+                err, msg, _ = sys.exc_info()
+                sys.stderr.write("{} {}\n".format(err, msg))
+                sys.stderr.write(traceback.format_exc())
 
 
 def main(argv=None):

@@ -9,7 +9,7 @@ import tensorflow as tf
 import threading
 import traceback
 
-from . import dcnn_policy as policy
+from bamboo.models import dcnn_policy as policy
 
 from keras_utils import callbacks as cbks
 
