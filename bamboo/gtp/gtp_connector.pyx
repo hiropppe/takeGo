@@ -12,9 +12,6 @@ from bamboo.go.board cimport game_state_t
 from bamboo.go.board cimport allocate_game, free_game, initialize_board, set_board_size
 from bamboo.go.board cimport do_move
 
-from bamboo.ai.greedy cimport GreedyPolicyPlayer
-from bamboo.ai.rollout cimport RolloutPolicyPlayer
-
 from bamboo.go.printer cimport print_board
 
 
@@ -96,9 +93,6 @@ cdef class GTPGameConnector(object):
     """
 
     cdef game_state_t *game
-    cdef GreedyPolicyPlayer greedy_player
-    cdef RolloutPolicyPlayer rollout_player
-    cdef object player_name
 
     def __cinit__(self):
         self.game = allocate_game()
@@ -112,24 +106,9 @@ cdef class GTPGameConnector(object):
         self.game = allocate_game()
         self.set_size(19)
 
-    def set_greedy(self, GreedyPolicyPlayer player):
-        self.greedy_player = player
-        self.player_name = 'greedy'
-
-    def set_rollout(self, RolloutPolicyPlayer player):
-        self.rollout_player = player
-        self.player_name = 'rollout'
-
     def get_move(self, color):
         cdef int x, y, pos
         self.game.current_color = color
-
-        if self.player_name == 'greedy':
-            pos = self.greedy_player.get_move(self.game)
-        elif self.player_name == 'rollout':
-            pos = self.rollout_player.get_move(self.game)
-        else:
-            raise Exception()
 
         if pos == PASS:
             return gtp.PASS

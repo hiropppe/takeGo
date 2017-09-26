@@ -1,7 +1,10 @@
 from libcpp.string cimport string as cppstring
-
 from bamboo.go.board cimport game_state_t
 from bamboo.mcts.tree_search cimport tree_node_t
+
+
+cdef extern from "ray.h":
+    char *gogui_x
 
 
 cdef void print_board(game_state_t *game) nogil

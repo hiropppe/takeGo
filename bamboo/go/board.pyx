@@ -15,7 +15,6 @@ from libc.stdio cimport printf
 
 from libcpp.string cimport string as cppstring
 
-cimport point
 cimport pattern as pat
 cimport printer 
 cimport policy_feature
@@ -1263,75 +1262,3 @@ cdef void memorize_updated_string(game_state_t *game, int string_id) nogil:
     if num_for_white[0] < MAX_RECORDS:
         game.updated_string_id[<int>S_WHITE][num_for_white[0]] = string_id
         num_for_white[0] += 1
-
-
-cpdef test_playout(int n_playout=1, int move_limit=500):
-    """ benchmark playout speed
-    """
-    cdef int i, n
-    cdef char color = S_BLACK
-    cdef list empties = []
-    cdef list move_speeds = [0]
-    cdef list policy_feature_speeds = [0]
-    cdef list copy_speeds = [0]
-    cdef float total_po_sec
-    cdef list po_overheads = [0]
-    cdef game_state_t *game
-    cdef game_state_t *clone
-    cdef policy_feature.policy_feature_t *feature
-
-    import itertools
-    import random
-    import time
-
-    set_board_size(19)
-
-    game = allocate_game()
-    #clone = allocate_game()
-    #feature = policy_feature.allocate_feature()
-
-    ps = time.time()
-    for n in range(n_playout):
-        poos = time.time()
-
-        initialize_board(game)
-        #policy_feature.initialize_feature(feature)
-
-        #policy_feature.update(feature, game)
-
-        pos_generator = itertools.product(range(board_start, board_end + 1), repeat=2)
-        empties = [POS(p[0], p[1], board_size) for p in pos_generator]
-
-        po_overheads.append(time.time() - poos)
-        for i in range(move_limit):
-            if not empties:
-                break
-            pos = random.choice(empties)
-            empties.remove(pos)
-            ms = time.time()
-            if is_legal_not_eye(game, pos, game.current_color):
-                do_move(game, pos)
-                move_speeds.append(time.time() - ms)
-                """
-                Fps = time.time()
-                policy_feature.update(feature, game)
-                np.asarray(feature.planes).reshape((48, pure_board_size, pure_board_size))
-                policy_feature_speeds.append(time.time() - Fps)
-
-                Cps = time.time()
-                copy_game(clone, game)
-                copy_speeds.append(time.time() - Cps)
-                """
-        printer.print_board(game)
-
-    total_po_sec = time.time() - ps - np.sum(po_overheads) - np.sum(policy_feature_speeds) - np.sum(copy_speeds)
-
-    free_game(game)
-    #free_game(clone)
-    #policy_feature.free_feature(feature)
-
-    print("Avg PO. {:.3f} us. ".format(total_po_sec*1000**2/n_playout) +
-          "Avg Move. {:.3f} ns. ".format(np.mean(move_speeds)*1000**3) +
-          "Avg Copy. {:.3f} us. ".format(np.mean(copy_speeds)*1000**2) +
-          "Avg Feature Calc (Policy). {:.3f} us. ".format(np.mean(policy_feature_speeds)*1000**2))
-
