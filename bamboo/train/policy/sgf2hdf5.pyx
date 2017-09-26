@@ -16,9 +16,9 @@ from tqdm import tqdm
 
 from libc.stdio cimport printf
 
-from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
+from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
-from bamboo.util cimport SGFMoveIterator
+from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.go.board cimport PASS
 from bamboo.go.board cimport game_state_t, pure_board_max, onboard_index
 from bamboo.go.policy_feature cimport policy_feature_t, allocate_feature, initialize_feature, free_feature, update

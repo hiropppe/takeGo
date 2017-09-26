@@ -1,10 +1,9 @@
-
 from bamboo.go.board cimport S_BLACK, S_WHITE, PASS
 from bamboo.go.board cimport game_state_t
 from bamboo.go.board cimport allocate_game, put_stone
 from bamboo.go.parseboard cimport parse
 from bamboo.go.printer cimport print_board
-from bamboo.util cimport save_gamestate_to_sgf
+from bamboo.sgf_util cimport save_gamestate_to_sgf
 
 def test_save_gamestate_to_sgf():
     cdef game_state_t *game = allocate_game()

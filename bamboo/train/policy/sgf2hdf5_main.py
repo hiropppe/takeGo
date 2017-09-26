@@ -1,6 +1,6 @@
 import os
 
-from bamboo.go.sgf2hdf5 import GameConverter
+from bamboo.train.policy.sgf2hdf5 import GameConverter
 
 
 def run_game_converter(cmd_line_args=None):

@@ -11,7 +11,7 @@ import traceback
 
 from bamboo.models import dcnn_policy as policy
 
-from keras_utils import callbacks as cbks
+from ..keras_utils import callbacks as cbks
 
 
 flags = tf.app.flags

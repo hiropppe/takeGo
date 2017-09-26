@@ -13,8 +13,8 @@ from libc.stdio cimport printf
 
 from bamboo.go.board cimport game_state_t
 from bamboo.go.zobrist_hash cimport initialize_hash 
-from bamboo.util cimport SGFMoveIterator
-from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
+from bamboo.sgf_util cimport SGFMoveIterator
+from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 
 def main(cmd_line_args=None):
