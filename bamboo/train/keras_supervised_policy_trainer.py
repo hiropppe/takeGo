@@ -136,10 +136,8 @@ class threading_shuffled_hdf5_batch_generator:
             return state, action, training_sample[1]
 
     def next(self):
-        state_batch_shape = (self.batch_size,) + self.state_dataset.shape[2:] + self.state_dataset.shape[1:2]
-        game_size = state_batch_shape[1]
-        #state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
-        #game_size = state_batch_shape[-1]
+        state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
+        game_size = state_batch_shape[-1]
         Xbatch = np.zeros(state_batch_shape)
         Ybatch = np.zeros((self.batch_size, game_size * game_size))
 
@@ -155,12 +153,7 @@ class threading_shuffled_hdf5_batch_generator:
             state_transform = np.array([transform(plane) for plane in state])
             action_transform = transform(one_hot_action(action, game_size))
 
-            # Transpose input(state) dimention ordering.
-            # TF uses the last dimension as channel dimension,
-            # K input shape: (samples, input_depth, row, cols)
-            # TF input shape: (samples, rows, cols, input_depth)
-            Xbatch[batch_idx] = state_transform.transpose((1, 2, 0))
-            #Xbatch[batch_idx] = state_transform
+            Xbatch[batch_idx] = state_transform
             Ybatch[batch_idx] = action_transform.flatten()
 
         return (Xbatch, Ybatch)

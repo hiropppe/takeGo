@@ -5,16 +5,14 @@ from tensorflow.contrib.keras.python import keras
 from bamboo.train.keras_nn_util import Bias, NeuralNetBase, neuralnet
 
 
-def flatten_idx(position, size):
-    (x, y) = position
-    return x * size + y
-
-
 @neuralnet
 class CNNPolicy(NeuralNetBase):
     """uses a convolutional neural network to evaluate the state of the game
     and compute a probability distribution over the next action
     """
+    def eval_state(self, tensor):
+        network_output = self.forward(tensor)
+        return network_output[0]
 
     @staticmethod
     def create_network(**kwargs):
@@ -54,7 +52,7 @@ class CNNPolicy(NeuralNetBase):
             kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
             activation='relu',
             padding='same',
-            input_shape=(params["board"], params["board"], params["input_dim"]),
+            input_shape=(params["input_dim"], params["board"], params["board"]),
             name='Conv2D_1'))
 
         # create all other layers

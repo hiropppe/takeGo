@@ -4,7 +4,7 @@ import sys
 import threading
 
 from bamboo.go.zobrist_hash import set_hash_size, initialize_hash, initialize_uct_hash
-from bamboo.models import policy
+from bamboo.train.keras_dcnn_policy import CNNPolicy
 from bamboo.rollout.pattern import read_rands, init_d12_hash, init_x33_hash, init_nonres_d12_hash
 from bamboo.rollout.preprocess import initialize_const, set_rollout_parameter, set_tree_parameter
 from bamboo.mcts.tree_search import PyMCTS
@@ -16,8 +16,6 @@ if __name__ == "__main__":
 
     import argparse
     parser = argparse.ArgumentParser(description='Run GTP')
-    parser.add_argument("--policy-model", "-M", type=str, required=True,
-                        help="Policy network model (json)")
     parser.add_argument("--policy-weights", "-W", type=str, required=True,
                         help="Policy network weights (hdf5)")
     parser.add_argument("--rollout-weights", "-Wr", type=str, required=True,
@@ -50,13 +48,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     import tensorflow as tf
-    from keras.backend.tensorflow_backend import set_session
+    from tensorflow.contrib.keras.python.keras.backend import set_session
     config = tf.ConfigProto()
     config.gpu_options.per_process_gpu_memory_fraction = 0.2
     set_session(tf.Session(config=config))
 
     # init SL Policy
-    sl_policy = policy.CNNPolicy.load_model(args.policy_model)
+    sl_policy = CNNPolicy(init_network=True)
     sl_policy.model.load_weights(args.policy_weights)
 
     # init tree hash
