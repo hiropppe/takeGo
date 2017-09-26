@@ -1,8 +1,8 @@
 from libcpp.queue cimport queue as cppqueue
 from posix.time cimport timeval
 
-from bamboo.go.board cimport game_state_t
-from bamboo.go.policy_feature cimport policy_feature_t
+from bamboo.board cimport game_state_t
+from bamboo.policy_feature cimport policy_feature_t
 
 cimport openmp
 

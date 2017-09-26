@@ -7,7 +7,7 @@ cimport printer
 cimport parseboard
 cimport pattern as pat
 
-from bamboo.go.board cimport STRING_EMPTY_END
+from bamboo.board cimport STRING_EMPTY_END
 
 
 def test_set_board_size_9():

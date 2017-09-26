@@ -11,8 +11,8 @@ from tqdm import tqdm
 
 from libc.stdio cimport printf 
 
-from bamboo.go.board cimport game_state_t
-from bamboo.go.zobrist_hash cimport initialize_hash 
+from bamboo.board cimport game_state_t
+from bamboo.zobrist_hash cimport initialize_hash 
 from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 

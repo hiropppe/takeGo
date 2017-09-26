@@ -11,7 +11,7 @@ cimport policy_feature
 cimport parseboard
 cimport printer
 
-from bamboo.go.board cimport is_legal
+from bamboo.board cimport is_legal
 
 
 def test_stone_color():

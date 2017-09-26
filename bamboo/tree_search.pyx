@@ -18,20 +18,20 @@ from posix.time cimport gettimeofday, timeval, timezone
 from cython import cdivision
 from cython.parallel import prange
 
-from bamboo.go.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS, RESIGN
-from bamboo.go.board cimport FLIP_COLOR
-from bamboo.go.board cimport onboard_pos, komi
-from bamboo.go.board cimport game_state_t
-from bamboo.go.board cimport set_board_size, set_komi, initialize_board
-from bamboo.go.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
-from bamboo.go.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
-from bamboo.go.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
-from bamboo.go.policy_feature cimport policy_feature_t
-from bamboo.go.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
-from bamboo.rollout.preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move, update_tree_planes_all, get_tree_probs
+from bamboo.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS, RESIGN
+from bamboo.board cimport FLIP_COLOR
+from bamboo.board cimport onboard_pos, komi
+from bamboo.board cimport game_state_t
+from bamboo.board cimport set_board_size, set_komi, initialize_board
+from bamboo.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
+from bamboo.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
+from bamboo.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
+from bamboo.policy_feature cimport policy_feature_t
+from bamboo.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
+from bamboo.rollout_preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move, update_tree_planes_all, get_tree_probs
 
-from bamboo.go.printer cimport print_board, print_prior_probability, print_rollout_count, print_winning_ratio, print_action_value, print_bonus, print_selection_value
-from bamboo.util cimport save_gamestate_to_sgf 
+from bamboo.printer cimport print_board, print_prior_probability, print_rollout_count, print_winning_ratio, print_action_value, print_bonus, print_selection_value
+from bamboo.sgf_util cimport save_gamestate_to_sgf 
 
 cimport openmp
 

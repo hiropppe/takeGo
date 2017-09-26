@@ -7,8 +7,8 @@ import sys
 
 from tqdm import tqdm
 
-from bamboo.util import SGFMoveIterator
-from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
+from bamboo.sgf_util import SGFMoveIterator
+from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 def extract_decent_sgf():
     """Run conversions. command-line args may be passed in as a list

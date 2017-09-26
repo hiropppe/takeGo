@@ -12,14 +12,14 @@ from libc.stdio cimport printf
 
 from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
-from bamboo.util cimport SGFMoveIterator
-from bamboo.go.board cimport PASS, S_EMPTY, STRING_EMPTY_END
-from bamboo.go.board cimport game_state_t, string_t 
-from bamboo.go.board cimport onboard_index, get_md12
-from bamboo.go.printer cimport print_board
-from bamboo.rollout.pattern cimport x33_bits, x33_trans8_min, x33_trans16_min, print_x33
-from bamboo.rollout.pattern cimport d12_bits, d12_trans8_min, d12_trans16_min, print_d12
-from bamboo.rollout.pattern cimport nonres_d12_bits, nonres_d12_trans8_min, nonres_d12_trans16_min, print_nonres_d12
+from bamboo.sgf_util cimport SGFMoveIterator
+from bamboo.board cimport PASS, S_EMPTY, STRING_EMPTY_END
+from bamboo.board cimport game_state_t, string_t 
+from bamboo.board cimport onboard_index, get_md12
+from bamboo.printer cimport print_board
+from bamboo.local_pattern cimport x33_bits, x33_trans8_min, x33_trans16_min, print_x33
+from bamboo.local_pattern cimport d12_bits, d12_trans8_min, d12_trans16_min, print_d12
+from bamboo.local_pattern cimport nonres_d12_bits, nonres_d12_trans8_min, nonres_d12_trans16_min, print_nonres_d12
 
 
 cdef unsigned long long nonres_pat[361]

@@ -2,6 +2,6 @@
 
 import sys
 
-from bamboo.rollout import pattern_harvest
+from bamboo.train.rollout import pattern_harvest
 
 pattern_harvest.main(sys.argv[1:])

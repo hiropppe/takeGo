@@ -9,19 +9,19 @@ from libc.stdio cimport printf
 
 from nose.tools import ok_, eq_
 
-from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS, RESIGN
-from bamboo.go.board cimport FLIP_COLOR, CORRECT_X, CORRECT_Y
-from bamboo.go.board cimport game_state_t, onboard_pos
-from bamboo.go.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi
-from bamboo.go.printer cimport print_board
-from bamboo.go.parseboard cimport parse
+from bamboo.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS, RESIGN
+from bamboo.board cimport FLIP_COLOR, CORRECT_X, CORRECT_Y
+from bamboo.board cimport game_state_t, onboard_pos
+from bamboo.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi
+from bamboo.printer cimport print_board
+from bamboo.parseboard cimport parse
 
-from bamboo.go.zobrist_hash cimport uct_hash_size
-from bamboo.go.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
-from bamboo.mcts.tree_search cimport tree_node_t, MCTS
+from bamboo.zobrist_hash cimport uct_hash_size
+from bamboo.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
+from bamboo.tree_search cimport tree_node_t, MCTS
 
-from bamboo.rollout.preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter
-from bamboo.rollout.pattern cimport read_rands, init_d12_hash, init_x33_hash
+from bamboo.rollout_preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter
+from bamboo.local_pattern cimport read_rands, init_d12_hash, init_x33_hash
 
 from bamboo.gtp import gtp
 

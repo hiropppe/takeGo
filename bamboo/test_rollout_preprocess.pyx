@@ -7,21 +7,21 @@ from libc.stdlib cimport malloc, free
 
 from nose.tools import ok_, eq_
 
-from bamboo.go.board cimport BOARD_MAX, PURE_BOARD_SIZE, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, PASS
-from bamboo.go.board cimport FLIP_COLOR, Y
-from bamboo.go.board cimport game_state_t, rollout_feature_t, board_size, pure_board_size, pure_board_max
-from bamboo.go.board cimport onboard_pos 
-from bamboo.go.board cimport set_board_size, allocate_game, free_game, put_stone, copy_game
-from bamboo.go.printer cimport print_board
-from bamboo.go.parseboard cimport parse
+from bamboo.board cimport BOARD_MAX, PURE_BOARD_SIZE, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, PASS
+from bamboo.board cimport FLIP_COLOR, Y
+from bamboo.board cimport game_state_t, rollout_feature_t, board_size, pure_board_size, pure_board_max
+from bamboo.board cimport onboard_pos 
+from bamboo.board cimport set_board_size, allocate_game, free_game, put_stone, copy_game
+from bamboo.printer cimport print_board
+from bamboo.parseboard cimport parse
 
-from bamboo.rollout.preprocess cimport F_RESPONSE, F_SAVE_ATARI, F_NEIGHBOR, F_NAKADE, F_RESPONSE_PAT, F_NON_RESPONSE_PAT
-from bamboo.rollout.preprocess cimport response_start, save_atari_start, neighbor_start, nakade_start, d12_start, x33_start
-from bamboo.rollout.preprocess cimport F_SELF_ATARI, F_LAST_MOVE_DISTANCE, F_NON_RESPONSE_D12_PAT
-from bamboo.rollout.preprocess cimport self_atari_start, last_move_distance_start, nonres_d12_start
-from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_planes_all, update_tree_planes_all, memorize_updated, choice_rollout_move, set_illegal, norm_probs 
-from bamboo.rollout.pattern cimport initialize_rands, put_x33_hash, put_d12_hash, put_nonres_d12_hash
-from bamboo.rollout.pattern import print_x33
+from bamboo.rollout_preprocess cimport F_RESPONSE, F_SAVE_ATARI, F_NEIGHBOR, F_NAKADE, F_RESPONSE_PAT, F_NON_RESPONSE_PAT
+from bamboo.rollout_preprocess cimport response_start, save_atari_start, neighbor_start, nakade_start, d12_start, x33_start
+from bamboo.rollout_preprocess cimport F_SELF_ATARI, F_LAST_MOVE_DISTANCE, F_NON_RESPONSE_D12_PAT
+from bamboo.rollout_preprocess cimport self_atari_start, last_move_distance_start, nonres_d12_start
+from bamboo.rollout_preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_planes_all, update_tree_planes_all, memorize_updated, choice_rollout_move, set_illegal, norm_probs 
+from bamboo.local_pattern cimport initialize_rands, put_x33_hash, put_d12_hash, put_nonres_d12_hash
+from bamboo.local_pattern import print_x33
 
 
 cdef int nakade_size = 0

@@ -6,12 +6,12 @@ from libc.stdlib cimport malloc, free
 
 from nose.tools import ok_, eq_
 
-from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE
-from bamboo.go.board cimport game_state_t, allocate_game, free_game, put_stone
-from bamboo.go.parseboard cimport parse
-from bamboo.rollout.pattern cimport initialize_rands, d12_bits, d12_hash, d12_hash_from_bits, d12_pos_mt
+from bamboo.board cimport S_EMPTY, S_BLACK, S_WHITE
+from bamboo.board cimport game_state_t, allocate_game, free_game, put_stone
+from bamboo.parseboard cimport parse
+from bamboo.local_pattern cimport initialize_rands, d12_bits, d12_hash, d12_hash_from_bits, d12_pos_mt
 
-from bamboo.rollout.pattern import print_d12
+from bamboo.local_pattern import print_d12
 
 
 def test_d12_bits_0():

@@ -9,11 +9,11 @@ from libc.string cimport memset
 from libc.stdio cimport printf, snprintf
 from libc.math cimport sqrt as csqrt
 
-from bamboo.go.board cimport S_BLACK, S_WHITE, S_MAX
-from bamboo.go.board cimport POS
-from bamboo.go.board cimport board_start, board_end, board_size, pure_board_size
+from bamboo.board cimport S_BLACK, S_WHITE, S_MAX
+from bamboo.board cimport POS
+from bamboo.board cimport board_start, board_end, board_size, pure_board_size
 
-from bamboo.mcts.tree_search cimport EXPLORATION_CONSTANT
+from bamboo.tree_search cimport EXPLORATION_CONSTANT
 
 
 cdef void print_board(game_state_t *game) nogil:

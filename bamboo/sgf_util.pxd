@@ -1,4 +1,4 @@
-from bamboo.go.board cimport game_state_t
+from bamboo.board cimport game_state_t
 
 
 cpdef min_sgf_extract(sgf_string)

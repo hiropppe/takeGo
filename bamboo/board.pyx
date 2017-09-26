@@ -19,10 +19,10 @@ cimport pattern as pat
 cimport printer 
 cimport policy_feature
 
-from bamboo.go.zobrist_hash cimport HASH_PASS, HASH_BLACK, HASH_WHITE, HASH_KO
-from bamboo.go.zobrist_hash cimport hash_bit
-from bamboo.rollout.preprocess cimport MOVE_DISTANCE_MAX
-from bamboo.rollout.preprocess cimport initialize_rollout
+from bamboo.zobrist_hash cimport HASH_PASS, HASH_BLACK, HASH_WHITE, HASH_KO
+from bamboo.zobrist_hash cimport hash_bit
+from bamboo.rollout_preprocess cimport MOVE_DISTANCE_MAX
+from bamboo.rollout_preprocess cimport initialize_rollout
 
 pure_board_size = PURE_BOARD_SIZE
 pure_board_max = PURE_BOARD_MAX

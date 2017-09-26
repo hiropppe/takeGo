@@ -13,15 +13,15 @@ from libc.math cimport round as cround
 from libc.stdlib cimport rand, RAND_MAX
 from libc.stdio cimport printf
 
-from bamboo.go.board cimport PURE_BOARD_SIZE, BOARD_MAX, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END, OB_SIZE
-from bamboo.go.board cimport FLIP_COLOR, POS, Y, DIS, NORTH, WEST, EAST, SOUTH
-from bamboo.go.board cimport game_state_t, rollout_feature_t, pure_board_max
-from bamboo.go.board cimport board_size, onboard_index, onboard_pos, board_x, board_y, move_dis, liberty_end
-from bamboo.go.board cimport is_legal, is_legal_not_eye, get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
+from bamboo.board cimport PURE_BOARD_SIZE, BOARD_MAX, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, S_OB, PASS, STRING_EMPTY_END, OB_SIZE
+from bamboo.board cimport FLIP_COLOR, POS, Y, DIS, NORTH, WEST, EAST, SOUTH
+from bamboo.board cimport game_state_t, rollout_feature_t, pure_board_max
+from bamboo.board cimport board_size, onboard_index, onboard_pos, board_x, board_y, move_dis, liberty_end
+from bamboo.board cimport is_legal, is_legal_not_eye, get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
 
-from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
-from bamboo.rollout.pattern cimport d12_hash, d12_hashmap, d12_pos_mt
-from bamboo.rollout.pattern cimport nonres_d12_hash, nonres_d12_hashmap
+from bamboo.local_pattern cimport x33_hash, x33_hashmap
+from bamboo.local_pattern cimport d12_hash, d12_hashmap, d12_pos_mt
+from bamboo.local_pattern cimport nonres_d12_hash, nonres_d12_hashmap
 
 
 cpdef void initialize_const(int nakade_feature_size,

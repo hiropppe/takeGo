@@ -11,12 +11,12 @@ from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFe
 
 from libcpp.string cimport string as cppstring
 
-from bamboo.go.board cimport S_BLACK, S_WHITE, PASS, OB_SIZE, BOARD_MAX, BOARD_SIZE, PURE_BOARD_SIZE
-from bamboo.go.board cimport POS, FLIP_COLOR, CORRECT_X, CORRECT_Y
-from bamboo.go.board cimport board_size, pure_board_size, komi
-from bamboo.go.board cimport game_state_t, move_t, board_size
-from bamboo.go.board cimport allocate_game, set_board_size, initialize_const, clear_const, initialize_board, free_game, put_stone
-from bamboo.go.printer cimport print_board
+from bamboo.board cimport S_BLACK, S_WHITE, PASS, OB_SIZE, BOARD_MAX, BOARD_SIZE, PURE_BOARD_SIZE
+from bamboo.board cimport POS, FLIP_COLOR, CORRECT_X, CORRECT_Y
+from bamboo.board cimport board_size, pure_board_size, komi
+from bamboo.board cimport game_state_t, move_t, board_size
+from bamboo.board cimport allocate_game, set_board_size, initialize_const, clear_const, initialize_board, free_game, put_stone
+from bamboo.printer cimport print_board
 
 # for board location indexing
 LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'

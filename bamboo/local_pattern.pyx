@@ -7,11 +7,11 @@ from libc.stdio cimport printf
 
 from libcpp.string cimport string as cppstring
 
-from bamboo.go.board cimport MIN
-from bamboo.go.board cimport S_EMPTY, S_BLACK, S_WHITE, S_OB
-from bamboo.go.board cimport game_state_t, string_t, get_neighbor8_in_order, get_md12
-from bamboo.go.zobrist_hash cimport mt
-from bamboo.go.printer cimport print_board
+from bamboo.board cimport MIN
+from bamboo.board cimport S_EMPTY, S_BLACK, S_WHITE, S_OB
+from bamboo.board cimport game_state_t, string_t, get_neighbor8_in_order, get_md12
+from bamboo.zobrist_hash cimport mt
+from bamboo.printer cimport print_board
 
 
 class IllegalState(Exception):

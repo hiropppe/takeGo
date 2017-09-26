@@ -19,10 +19,10 @@ from libc.stdio cimport printf
 from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.sgf_util cimport SGFMoveIterator
-from bamboo.go.board cimport PASS
-from bamboo.go.board cimport game_state_t, pure_board_max, onboard_index
-from bamboo.go.policy_feature cimport policy_feature_t, allocate_feature, initialize_feature, free_feature, update
-from bamboo.go.printer cimport print_board
+from bamboo.board cimport PASS
+from bamboo.board cimport game_state_t, pure_board_max, onboard_index
+from bamboo.policy_feature cimport policy_feature_t, allocate_feature, initialize_feature, free_feature, update
+from bamboo.printer cimport print_board
 
 
 def onboard_index_to_np_move(ix, size):

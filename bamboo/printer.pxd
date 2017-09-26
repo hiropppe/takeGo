@@ -1,6 +1,6 @@
 from libcpp.string cimport string as cppstring
-from bamboo.go.board cimport game_state_t
-from bamboo.mcts.tree_search cimport tree_node_t
+from bamboo.board cimport game_state_t
+from bamboo.tree_search cimport tree_node_t
 
 
 cdef extern from "ray.h":

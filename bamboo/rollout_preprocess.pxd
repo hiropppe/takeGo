@@ -1,4 +1,4 @@
-from bamboo.go.board cimport game_state_t, rollout_feature_t, string_t
+from bamboo.board cimport game_state_t, rollout_feature_t, string_t
 
 cdef extern from "ray.h":
     ctypedef enum:

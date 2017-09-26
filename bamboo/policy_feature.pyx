@@ -14,11 +14,11 @@ from libc.stdio cimport printf
 cimport board 
 cimport printer
 
-from bamboo.go.board cimport LIBERTY_END, NEIGHBOR_END
-from bamboo.go.board cimport NORTH, WEST, EAST, SOUTH
-from bamboo.go.board cimport board_size, liberty_end, string_end, onboard_index, eye_condition, board_dis_x, board_dis_y
-from bamboo.go.board cimport is_true_eye, get_neighbor4, get_neighbor4_empty
-from bamboo.go.pattern cimport pat3
+from bamboo.board cimport LIBERTY_END, NEIGHBOR_END
+from bamboo.board cimport NORTH, WEST, EAST, SOUTH
+from bamboo.board cimport board_size, liberty_end, string_end, onboard_index, eye_condition, board_dis_x, board_dis_y
+from bamboo.board cimport is_true_eye, get_neighbor4, get_neighbor4_empty
+from bamboo.pattern cimport pat3
 
 
 cdef policy_feature_t *allocate_feature():

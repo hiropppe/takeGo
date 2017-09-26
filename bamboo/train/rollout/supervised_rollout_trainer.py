@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import h5py as h5
 import numpy as np
 import os
@@ -6,7 +8,7 @@ import traceback
 
 from tqdm import tqdm
 
-from bamboo.rollout.optimizer import SGD, Momentum, AdaGrad, Adam, Nesterov, RMSprop
+from bamboo.train.rollout.optimizer import SGD, Momentum, AdaGrad, Adam, Nesterov, RMSprop
 
 # default settings
 DEFAULT_EPOCH = 10

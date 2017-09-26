@@ -1,6 +1,6 @@
 from libcpp.unordered_map cimport unordered_map
 
-from bamboo.go.board cimport game_state_t
+from bamboo.board cimport game_state_t
 
 cdef enum:
     x33_MAX = 69338

@@ -17,14 +17,14 @@ from tqdm import tqdm
 
 from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
-from bamboo.util cimport SGFMoveIterator
-from bamboo.go.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
-from bamboo.go.board cimport game_state_t, rollout_feature_t, pure_board_size, pure_board_max, onboard_index
-from bamboo.go.printer cimport print_board
-from bamboo.rollout.pattern cimport read_rands, init_x33_hash, init_d12_hash, init_nonres_d12_hash
-from bamboo.rollout.pattern cimport x33_hash, x33_hashmap
-from bamboo.rollout.preprocess cimport tree_feature_size
-from bamboo.rollout.preprocess cimport initialize_const, initialize_planes, update_planes, update_tree_planes_all 
+from bamboo.sgf_util cimport SGFMoveIterator
+from bamboo.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
+from bamboo.board cimport game_state_t, rollout_feature_t, pure_board_size, pure_board_max, onboard_index
+from bamboo.printer cimport print_board
+from bamboo.local_pattern cimport read_rands, init_x33_hash, init_d12_hash, init_nonres_d12_hash
+from bamboo.local_pattern cimport x33_hash, x33_hashmap
+from bamboo.rollout_preprocess cimport tree_feature_size
+from bamboo.rollout_preprocess cimport initialize_const, initialize_planes, update_planes, update_tree_planes_all 
 
 
 cdef class GameConverter(object):
