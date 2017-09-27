@@ -55,15 +55,6 @@ cdef extern from "ray.h":
         S_OB
         S_MAX
 
-    ctypedef enum eye_condition_e:
-        E_NOT_EYE
-        E_COMPLETE_HALF_EYE
-        E_HALF_3_EYE
-        E_HALF_2_EYE
-        E_HALF_1_EYE
-        E_COMPLETE_ONE_EYE
-        E_MAX
-
     ctypedef struct move_t:
         int color
         int pos
@@ -80,10 +71,6 @@ cdef extern from "ray.h":
         int origin
         int size
         bint flag
-
-    ctypedef struct pattern_t:
-        unsigned int *list
-        unsigned long long *large_list
 
     ctypedef struct rollout_feature_t:
         int color
@@ -111,7 +98,7 @@ cdef extern from "ray.h":
 
         int pass_count
 
-        pattern_t pat[529]      # BOARD_MAX
+        unsigned int pat[529]   # BOARD_MAX
 
         string_t string[288]    # MAX_STRING
         int string_id[483]      # STRING_POS_MAX
@@ -124,8 +111,6 @@ cdef extern from "ray.h":
 
         int updated_string_num[3]       # S_OB
         int updated_string_id[3][1083]  # S_OB, MAX_RECORDS
-
-        bint rollout
 
         rollout_feature_t rollout_feature_planes[3] # S_OB
         double rollout_probs[3][361]    # S_OB, PURE_BOARD_MAX
@@ -173,11 +158,8 @@ cdef int *onboard_index
 cdef int *corner
 cdef int[:, ::1] corner_neighbor
 
-cdef unsigned char eye[65536]           # PAT3_MAX
-cdef unsigned char false_eye[65536]     # PAT3_MAX
 cdef unsigned char territory[65536]     # PAT3_MAX
 cdef unsigned char nb4_empty[65536]     # PAT3_MAX
-cdef unsigned char eye_condition[65536] # PAT3_MAX
 
 cdef bint check_superko
 
@@ -225,10 +207,8 @@ cdef void get_md12(int md12[12], int pos) nogil
 cdef void init_board_position()
 cdef void init_line_number()
 cdef void init_move_distance()
-cdef void init_board_position_id()
 cdef void init_corner()
 cdef void initialize_neighbor()
-cdef void initialize_eye()
 cdef void initialize_territory()
 cdef int get_neighbor4_empty(game_state_t *game, int pos) nogil
 cdef bint is_legal(game_state_t *game, int pos, char color) nogil

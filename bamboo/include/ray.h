@@ -15,44 +15,7 @@
 #define REV3(p) (((p) >> 4) | ((p) & 0xC) | (((p) & 0x3) << 4))
 #define REV(p) (((p) >> 2) | (((p) & 0x3) << 2))
 
-/*
-#define N(board_size)   (-board_size)
-#define S(board_size)   (board_size)
-#define E   (1)
-#define W   (-1)
-#define NN(board_size)  (N+N)
-#define NE(board_size)  (N+E)
-#define NW(board_size)  (N+W)
-#define SS(board_size)  (S+S)
-#define SE(board_size)  (S+E)
-#define SW(board_size)  (S+W)
-#define WW  (W+W)
-#define EE  (E+E)
-*/
-
-const int MD2_MAX = 16777216;	// 2^24
 const int PAT3_MAX = 65536;	// 2^16
-
-const int MD2_LIMIT = 1060624;
-const int PAT3_LIMIT = 4468;
-
-enum MD {
-  MD_2,
-  MD_3,
-  MD_4,
-  MD_MAX
-};
-
-enum LARGE_MD {
-  MD_5,
-  MD_LARGE_MAX
-};
-
-typedef struct pattern {
-  unsigned int list[MD_MAX];
-  unsigned long long large_list[MD_LARGE_MAX];
-} pattern_t;
-
 
 /*************
  * GoBoard.h *
@@ -122,15 +85,6 @@ enum stone {
     S_MAX
 };
 
-enum eye_condition {
-  E_NOT_EYE,           // 眼でない
-  E_COMPLETE_HALF_EYE, // 完全に欠け眼(8近傍に打って1眼にできない)
-  E_HALF_3_EYE,        // 欠け眼であるが, 3手で1眼にできる
-  E_HALF_2_EYE,        // 欠け眼であるが, 2手で1眼にできる
-  E_HALF_1_EYE,        // 欠け眼であるが, 1手で1眼にできる
-  E_COMPLETE_ONE_EYE,  // 完全な1眼
-  E_MAX,
-};
 
 // 着手を記録する構造体
 typedef struct move {
@@ -199,7 +153,7 @@ typedef struct {
 
     int pass_count;                   // パスした回数
 
-    pattern_t pat[BOARD_MAX];    // 周囲の石の配置 
+    unsigned int pat[BOARD_MAX];      // 周囲の石の配置 
 
     string_t string[MAX_STRING];        // 連のデータ(19x19 : 573,845bytes)
     int string_id[STRING_POS_MAX];    // 各座標の連のID
@@ -214,24 +168,12 @@ typedef struct {
     int updated_string_num[S_OB];               // 前の着手から更新された連の数
     int updated_string_id[S_OB][MAX_RECORDS];   // 前の着手から更新された連のID
 
-    bool rollout;
-
     rollout_feature_t rollout_feature_planes[S_OB];
     double rollout_probs[S_OB][PURE_BOARD_MAX];
     double rollout_row_probs[S_OB][PURE_BOARD_SIZE];
     double rollout_logits[S_OB][PURE_BOARD_MAX];
     double rollout_logits_sum[S_OB];
 } game_state_t;
-
-//int onboard_pos[PURE_BOARD_MAX];
-//int board_x[BOARD_MAX];
-//int board_y[BOARD_MAX];
-
-//unsigned char eye[PAT3_MAX];
-//unsigned char false_eye[PAT3_MAX];
-//unsigned char territory[PAT3_MAX];
-//unsigned char nb4_empty[PAT3_MAX];
-//unsigned char eye_condition[PAT3_MAX];
 
 
 /*****************
@@ -322,58 +264,3 @@ const int VIRTUAL_LOSS = 3;
 const int EXPANSION_THRESHOLD = 40;
 const int EXPLORATION_CONSTANT = 5;
 const int MIXING_PARAMETER = 1.0;
-
-/*
-enum SEARCH_MODE {
-  CONST_PLAYOUT_MODE, // 1手のプレイアウト回数を固定したモード
-  CONST_TIME_MODE,    // 1手の思考時間を固定したモード
-  TIME_SETTING_MODE,  // 持ち時間ありのモード
-};
-
-typedef struct {
-  game_info_t *game; // 探索対象の局面
-  int thread_id;   // スレッド識別番号
-  int color;       // 探索する手番
-} thread_arg_t;
-
-typedef struct{
-  std::atomic<int> colors[3];  // その箇所を領地にした回数
-} statistic_t;
-
-typedef struct {
-  int pos;  // 着手する座標
-  std::atomic<int> move_count;  // 探索回数
-  std::atomic<int> win;         // 勝った回数
-  int index;   // インデックス
-  double rate; // 着手のレート
-  bool flag;   // Progressive Wideningのフラグ
-  bool open;   // 常に探索候補に入れるかどうかのフラグ
-  bool ladder; // シチョウのフラグ
-} child_node_t;
-
-//  9x9  : 1828bytes
-// 13x13 : 3764bytes
-// 19x19 : 7988bytes
-typedef struct {
-  int previous_move1;                 // 1手前の着手
-  int previous_move2;                 // 2手前の着手
-  std::atomic<int> move_count;
-  std::atomic<int> win;
-  int width;                          // 探索幅
-  int child_num;                      // 子ノードの数
-  child_node_t child[UCT_CHILD_MAX];  // 子ノードの情報
-  statistic_t statistic[BOARD_MAX];   // 統計情報 
-  bool seki[BOARD_MAX];
-} uct_node_t;
-
-typedef struct {
-  int num;   // 次の手の探索回数
-  int halt;  // 探索を打ち切る回数
-  std::atomic<int> count;       // 現在の探索回数
-} po_info_t;
-
-typedef struct {
-  int index;    // ノードのインデックス
-  double rate;  // その手のレート
-} rate_order_t;
-*/

@@ -95,7 +95,7 @@ cdef void copy_game(game_state_t *dst, game_state_t *src) nogil:
     memcpy(dst.prisoner, src.prisoner, sizeof(int) * S_MAX)
     memcpy(dst.board, src.board, sizeof(char) * BOARD_MAX)
     memcpy(dst.birth_move, src.birth_move, sizeof(int) * BOARD_MAX)
-    memcpy(dst.pat, src.pat, sizeof(pattern_t) * BOARD_MAX)
+    memcpy(dst.pat, src.pat, sizeof(int) * BOARD_MAX)
     memcpy(dst.string_id, src.string_id, sizeof(int) * STRING_POS_MAX)
     memcpy(dst.string_next, src.string_next, sizeof(int) * STRING_POS_MAX)
     memcpy(dst.capture_num, src.capture_num, sizeof(int) * S_OB)
@@ -130,7 +130,7 @@ cdef void initialize_board(game_state_t *game):
     cdef int i, j, x, y, pos
 
     memset(game.record, 0, sizeof(move_t) * MAX_RECORDS)
-    memset(game.pat, 0, sizeof(pattern_t) * BOARD_MAX)
+    memset(game.pat, 0, sizeof(int) * BOARD_MAX)
 
     game.current_color = S_BLACK
     game.moves = 0
@@ -158,10 +158,7 @@ cdef void initialize_board(game_state_t *game):
     pat.clear_pattern(game.pat)
 
     initialize_neighbor()
-    initialize_eye()
     initialize_territory()
-
-    game.rollout = False
 
     initialize_rollout(game)
 
@@ -245,8 +242,7 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
 
     game.moves += 1
 
-    if not game.rollout:
-        game.birth_move[pos] = game.moves
+    game.birth_move[pos] = game.moves
 
     return True
 
@@ -449,8 +445,7 @@ cdef int remove_string(game_state_t *game, string_t *string) nogil:
     while True:
         game.board[pos] = S_EMPTY
 
-        if not game.rollout:
-            game.birth_move[pos] = 0
+        game.birth_move[pos] = 0
 
         capture_pos[capture_num[0]] = pos 
         capture_num[0] += 1
@@ -704,29 +699,6 @@ cdef void init_move_distance():
                 move_dis[x][y] = MOVE_DISTANCE_MAX
 
 
-cdef void init_board_position_id():
-    cdef int i, x, y
-
-    global board_pos_id
-
-    free(board_pos_id)
-
-    board_pos_id = <int *>malloc(board_max * sizeof(int))
-    fill_n_int(board_pos_id, board_max, 0)
-    i = 1
-    for y in range(board_start, board_start + pure_board_size / 2 + 1):
-        for x in range(board_start, y + 1):
-            board_pos_id[POS(x, y, board_size)] = i
-            board_pos_id[POS(board_end + OB_SIZE - x, y, board_size)] = i
-            board_pos_id[POS(y, x, board_size)] = i
-            board_pos_id[POS(y, board_end + OB_SIZE - x, board_size)] = i
-            board_pos_id[POS(x, board_end + OB_SIZE - y, board_size)] = i
-            board_pos_id[POS(board_end + OB_SIZE - x, board_end + OB_SIZE - y, board_size)] = i
-            board_pos_id[POS(board_end + OB_SIZE - y, x, board_size)] = i
-            board_pos_id[POS(board_end + OB_SIZE - y, board_end + OB_SIZE - x, board_size)] = i
-            i+=1
-
-
 cdef void init_corner():
     global corner, corner_neighbor
 
@@ -767,167 +739,6 @@ cdef void initialize_neighbor():
         nb4_empty[i] = empty
 
 
-cdef void initialize_eye():
-    cdef unsigned int eye_pat3[16]
-    cdef unsigned int false_eye_pat3[4]
-    cdef unsigned int complete_half_eye[12]
-    cdef unsigned int half_3_eye[2]
-    cdef unsigned int half_2_eye[4]
-    cdef unsigned int half_1_eye[6]
-    cdef unsigned int complete_1_eye[5]
-
-    cdef unsigned int transp[8]
-    cdef unsigned int pat3_transp16[16]
-
-    cdef int i, j
-
-    """
-      眼のパターンはそれぞれ1か所あたり最大2ビットで表現
-        012
-        3*4
-        567
-      それぞれの番号×2ビットだけシフトさせる
-        +:空点      0
-        O:自分の石  1
-        X:相手の石 10
-        #:盤外     11
-    """
-    eye_pat3[:] = [
-      # +OO     XOO     +O+     XO+
-      # O*O     O*O     O*O     O*O
-      # OOO     OOO     OOO     OOO
-      0x5554, 0x5556, 0x5544, 0x5546,
-
-      # +OO     XOO     +O+     XO+
-      # O*O     O*O     O*O     O*O
-      # OO+     OO+     OO+     OO+
-      0x1554, 0x1556, 0x1544, 0x1546,
-
-      # +OX     XO+     +OO     OOO
-      # O*O     O*O     O*O     O*O
-      # OO+     +O+     ###     ###
-      0x1564, 0x1146, 0xFD54, 0xFD55,
-
-      # +O#     OO#     XOX     XOX
-      # O*#     O*#     O+O     O+O
-      # ###     ###     OOO     ###
-      0xFF74, 0xFF75, 0x5566, 0xFD66,
-    ]
-
-    false_eye_pat3[:] = [
-      # OOX     OOO     XOO     XO#
-      # O*O     O*O     O*O     O*#
-      # XOO     XOX     ###     ###
-      0x5965, 0x9955, 0xFD56, 0xFF76,
-    ]
-
-    complete_half_eye[:] = [
-      # XOX     OOX     XOX     XOX     XOX
-      # O*O     O*O     O*O     O*O     O*O
-      # OOO     XOO     +OO     XOO     +O+
-      0x5566, 0x5965, 0x5166, 0x5966, 0x1166,
-      # +OX     XOX     XOX     XOO     XO+
-      # O*O     O*O     O*O     O*O     O*O
-      # XO+     XO+     XOX     ###     ###
-      0x1964, 0x1966, 0x9966, 0xFD56, 0xFD46,
-      # XOX     XO#
-      # O*O     O*#
-      # ###     ###
-      0xFD66, 0xFF76
-    ]
-
-    half_3_eye[:] = [
-      # +O+     XO+
-      # O*O     O*O
-      # +O+     +O+
-      0x1144, 0x1146
-    ]
-
-    half_2_eye[:] = [
-      # +O+     XO+     +OX     +O+
-      # O*O     O*O     O*O     O*O
-      # +OO     +OO     +OO     ###
-      0x5144, 0x5146, 0x5164, 0xFD44,
-    ]
-
-    half_1_eye[:] = [
-      # +O+     XO+     OOX     OOX     +OO
-      # O*O     O*O     O*O     O*O     O*O
-      # OOO     OOO     +OO     +OO     ###
-      0x5544, 0x5564, 0x5145, 0x5165, 0xFD54,
-      # +O#
-      # O*#
-      # ###
-      0xFF74,
-    ]
-
-    complete_1_eye[:] = [
-      # OOO     +OO     XOO     OOO     OO#
-      # O*O     O*O     O*O     O*O     O*#
-      # OOO     OOO     OOO     ###     ###
-      0x5555, 0x5554, 0x5556, 0xFD55, 0xFF75,
-    ]
-
-    fill_n_unsigned_char(eye_condition, E_NOT_EYE, 0);
-
-    for i in range(12):
-        pat.pat3_transpose16(complete_half_eye[i], pat3_transp16)
-        for j in range(16):
-            eye_condition[pat3_transp16[j]] = E_COMPLETE_HALF_EYE
-
-    for i in range(2):
-        pat.pat3_transpose16(half_3_eye[i], pat3_transp16);
-        for j in range(16):
-            eye_condition[pat3_transp16[j]] = E_HALF_3_EYE;
-
-    for i in range(4):
-        pat.pat3_transpose16(half_2_eye[i], pat3_transp16);
-        for j in range(16):
-            eye_condition[pat3_transp16[j]] = E_HALF_2_EYE;
-
-    for i in range(6):
-        pat.pat3_transpose16(half_1_eye[i], pat3_transp16);
-        for j in range(16):
-            eye_condition[pat3_transp16[j]] = E_HALF_1_EYE;
-
-    for i in range(5):
-        pat.pat3_transpose16(complete_1_eye[i], pat3_transp16);
-        for j in range(16):
-            eye_condition[pat3_transp16[j]] = E_COMPLETE_ONE_EYE;
-
-    # BBB
-    # B*B
-    # BBB
-    eye[0x5555] = S_BLACK;
-
-    # WWW
-    # W*W
-    # WWW
-    eye[pat.pat3_reverse(0x5555)] = S_WHITE;
-
-    # +B+
-    # B*B
-    # +B+
-    eye[0x1144] = S_BLACK;
-
-    # +W+
-    # W*W
-    # +W+
-    eye[pat.pat3_reverse(0x1144)] = S_WHITE;
-
-    for i in range(14):
-      pat.pat3_transpose8(eye_pat3[i], transp);
-      for j in range(8):
-        eye[transp[j]] = S_BLACK;
-        eye[pat.pat3_reverse(transp[j])] = S_WHITE;
-
-    for i in range(4):
-      pat.pat3_transpose8(false_eye_pat3[i], transp);
-      for j in range(8):
-        false_eye[transp[j]] = S_BLACK;
-        false_eye[pat.pat3_reverse(transp[j])] = S_WHITE;
-
-
 cdef void initialize_territory():
     cdef int i
 
@@ -944,8 +755,6 @@ cdef void initialize_const():
     init_line_number()
 
     init_move_distance()
-
-    #init_board_position_id()
 
     init_corner()
 
@@ -993,18 +802,7 @@ cdef void set_board_size(int size):
     max_records = pure_board_max * 3
     max_moves = max_records - 1
 
-    pat.N = -board_size
-    pat.S = board_size
-    pat.W = -1
-    pat.E = 1
-    pat.NN = pat.N + pat.N
-    pat.NW = pat.N + pat.W
-    pat.NE = pat.N + pat.E
-    pat.SS = pat.S + pat.S
-    pat.SW = pat.S + pat.W
-    pat.SE = pat.S + pat.E
-    pat.WW = pat.W + pat.W
-    pat.EE = pat.E + pat.E
+    pat.init_const()
 
     initialize_const()
 

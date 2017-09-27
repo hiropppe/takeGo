@@ -13,24 +13,7 @@ cdef extern from "ray.h":
     unsigned int REV16(unsigned int p)
     unsigned int REV18(unsigned int p)
 
-    int MD2_MAX
     int PAT3_MAX
-    int MD2_LIMIT
-    int PAT3_LIMIT
-
-    ctypedef enum MD:
-        MD_2
-        MD_3
-        MD_4
-        MD_MAX
-
-    ctypedef enum LARGE_MD:
-        MD_5
-        MD_LARGE_MAX
-
-    ctypedef struct pattern_t:
-        unsigned int *list
-        unsigned long long *large_list
 
 
 cdef int N
@@ -49,11 +32,14 @@ cdef int EE
 
 # init
 cdef void init_const()
-cdef void clear_pattern(pattern_t *pat)
+cdef void clear_pattern(unsigned int *pat)
 
 # update
-cdef void update_md2_stone(pattern_t *pat, int pos, char color) nogil
-cdef void update_md2_empty(pattern_t *pat, int pos) nogil
+cdef void update_md2_stone(unsigned int *pat, int pos, char color) nogil
+cdef void update_md2_empty(unsigned int *pat, int pos) nogil
+
+# search pattern
+cdef unsigned int pat3(unsigned int *pat, int pos) nogil
 
 # symmetric 
 cdef void pat3_transpose8(unsigned int pat3, unsigned int *transp)
@@ -70,9 +56,6 @@ cdef unsigned int pat3_horizontal_mirror(unsigned int pat3)
 
 # rotate
 cdef unsigned int pat3_rotate90(unsigned int pat3)
-
-# search pattern
-cdef unsigned int pat3(pattern_t *pat, int pos) nogil
 
 # print pattern
 cdef void print_input_pat3(unsigned int pat3)
