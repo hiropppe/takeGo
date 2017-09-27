@@ -1,4 +1,4 @@
-Cython==0.25.2
+Cython==0.27
 h5py==2.6.0
 numpy==1.11.3
 sgf==0.5

@@ -51,13 +51,15 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
 RUN pip --no-cache-dir install \
         ipykernel \
         jupyter \
-        Cython==0.25.2 \
+        Cython==0.24 \
         matplotlib==2.0.2 \
         pandas==0.20.2 \
         h5py==2.6.0 \
         sgf==0.5 \
         futures==3.0.5 \
         python-jsonrpc==0.10.0 \
+        flask==0.12.2 \
+        nose \
         tqdm \
         jedi \
         flake8 \
