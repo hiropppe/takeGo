@@ -106,37 +106,6 @@ cdef void update_rollout(game_state_t *game) nogil:
     update_probs(game)
 
 
-cdef void update_planes_all(game_state_t *game) nogil:
-    cdef rollout_feature_t *current_feature
-    cdef int current_color = <int>game.current_color
-    cdef int prev_pos, prev_color
-    cdef string_t *string
-    cdef int pos
-    cdef int i
-
-    initialize_rollout(game)
-
-    if game.moves == 0:
-        return
-
-    current_feature = &game.rollout_feature_planes[current_color]
-
-    prev_pos = game.record[game.moves - 1].pos
-    prev_color = game.record[game.moves - 1].color
-
-    if prev_pos != PASS:
-        update_neighbor(current_feature, game, prev_pos)
-        update_d12(current_feature, game, prev_pos, prev_color)
-
-    for i in range(pure_board_max):
-        pos = onboard_pos[i]
-        if game.board[pos] == S_EMPTY:
-            update_3x3(current_feature, game, pos, current_color)
-        else:
-            string = &game.string[game.string_id[pos]]
-            update_save_atari(current_feature, game, string)
-
-
 cdef void update_planes(game_state_t *game) nogil:
     cdef rollout_feature_t *current_feature
     cdef int current_color = <int>game.current_color
@@ -379,35 +348,6 @@ cpdef void set_tree_parameter(object weights_hdf5):
     W = weights_data['W']
     for i in range(W.shape[0]):
         tree_weights[i] = W[i]
-
-
-cdef void update_probs_all(game_state_t *game) nogil:
-    cdef int color
-    cdef rollout_feature_t *feature
-    cdef double *probs
-    cdef double *row_probs
-    cdef double *logits
-    cdef int pos
-    cdef int i, j
-
-    color = <int>game.current_color
-    feature = &game.rollout_feature_planes[color]
-    probs = game.rollout_probs[color]
-    row_probs = game.rollout_row_probs[color]
-    logits = game.rollout_logits[color]
-
-    for i in range(PURE_BOARD_MAX):
-        if is_legal(game, onboard_pos[i], color):
-            for j in range(6):
-                if feature.tensor[j][i] != -1:
-                    logits[i] += rollout_weights[feature.tensor[j][i]]
-            logits[i] = cexp(logits[i])
-            game.rollout_logits_sum[color] += logits[i]
-        else:
-            logits[i] = .0
-
-    if game.rollout_logits_sum[color] > .0:
-        norm_probs(probs, row_probs, logits, game.rollout_logits_sum[color])
 
 
 cdef void update_probs(game_state_t *game) nogil:

@@ -51,7 +51,6 @@ cdef void initialize_rollout(game_state_t *game) nogil
 cdef void update_rollout(game_state_t *game) nogil
 
 cdef void initialize_planes(game_state_t *game) nogil
-cdef void update_planes_all(game_state_t *game) nogil
 cdef void update_planes(game_state_t *game) nogil
 cdef void update_save_atari(rollout_feature_t *feature, game_state_t *game, string_t *string) nogil
 cdef void update_neighbor(rollout_feature_t *feature, game_state_t *game, int pos) nogil
@@ -64,7 +63,6 @@ cdef void clear_updated_string_cache(game_state_t *game) nogil
 cdef bint memorize_updated(rollout_feature_t *feature, int pos) nogil
 
 cdef void initialize_probs(game_state_t *game) nogil
-cdef void update_probs_all(game_state_t *game) nogil
 cdef void update_probs(game_state_t *game) nogil
 cdef void norm_probs(double *probs, double *row_probs, double *logits, double logits_sum) nogil
 cdef void set_illegal(game_state_t *game, int pos) nogil
