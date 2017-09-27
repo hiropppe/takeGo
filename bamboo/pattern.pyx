@@ -26,18 +26,18 @@ update_mask[:] = [
 
 
 cdef void init_const():
-    global N, S, W, E, NN, NE, SS, SW, SE, WW, EE
+    global N, S, W, E, NN, NW, NE, SS, SW, SE, WW, EE
 
     N = -board.board_size
     S = board.board_size
-    W = 1
-    E = -1
+    W = -1
+    E = 1
     NN = N + N
-    NW = N + E
-    NE = N + W
+    NW = N + W
+    NE = N + E
     SS = S + S
-    SW = S + E
-    SE = S + W
+    SW = S + W
+    SE = S + E
     WW = W + W
     EE = E + E
 
