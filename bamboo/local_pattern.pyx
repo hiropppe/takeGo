@@ -144,7 +144,6 @@ cdef unsigned long long d12_hash(game_state_t *game, int pos, int color,
     """
     cdef int md12[12]
     cdef int md_pos, md_color
-    cdef int string_id
     cdef string_t *string
     cdef unsigned long long hash = 0
     cdef int i
@@ -161,9 +160,8 @@ cdef unsigned long long d12_hash(game_state_t *game, int pos, int color,
         md_pos = md12[i-1]
         md_color = game.board[md_pos]
         hash ^= color_mt[i][md_color]
-        string_id = game.string_id[md_pos]
-        if string_id:
-            string = &game.string[string_id]
+        string = &game.string[game.string_id[md_pos]]
+        if string.flag:
             hash ^= liberty_mt[i][MIN(string.libs, 3)]
         else:
             hash ^= liberty_mt[i][0]
@@ -196,7 +194,6 @@ cdef unsigned long long d12_bits(game_state_t *game, int pos, int color,
     """
     cdef int md12[12]
     cdef int md_pos, md_color
-    cdef int string_id
     cdef string_t *string
     cdef unsigned long long color_pat = 0
     cdef int lib_pat = 0
@@ -214,9 +211,8 @@ cdef unsigned long long d12_bits(game_state_t *game, int pos, int color,
         md_pos = md12[i]
         md_color = game.board[md_pos]
         color_pat |= (md_color << (i+1)*2)
-        string_id = game.string_id[md_pos]
-        if string_id:
-            string = &game.string[string_id]
+        string = &game.string[game.string_id[md_pos]]
+        if string.flag:
             lib_pat |= (MIN(string.libs, 3) << (i+1)*2)
 
         # memorize empty position for update positional bits or hash
@@ -445,7 +441,6 @@ cpdef void print_d12_trans16(unsigned long long pat, bint show_bits=True, bint s
 cdef unsigned long long x33_hash(game_state_t *game, int pos, int color) nogil except? -1:
     cdef int neighbor8[8]
     cdef int neighbor_pos
-    cdef int string_id
     cdef string_t *string
     cdef unsigned long long hash = 0
     cdef int i
@@ -455,9 +450,8 @@ cdef unsigned long long x33_hash(game_state_t *game, int pos, int color) nogil e
     for i in range(8):
         neighbor_pos = neighbor8[i]
         hash ^= color_mt[i][game.board[neighbor_pos]]
-        string_id = game.string_id[neighbor_pos]
-        if string_id:
-            string = &game.string[string_id]
+        string = &game.string[game.string_id[neighbor_pos]]
+        if string.flag:
             hash ^= liberty_mt[i][MIN(string.libs, 3)]
         else:
             hash ^= liberty_mt[i][0]
@@ -477,7 +471,6 @@ cpdef unsigned long long x33_hash_from_bits(unsigned long long bits) except? -1:
 cdef unsigned long long x33_bits(game_state_t *game, int pos, int color) nogil except? -1:
     cdef int neighbor8[8]
     cdef int neighbor_pos
-    cdef int string_id
     cdef string_t *string
     cdef unsigned long long color_pat = 0 
     cdef int lib_pat = 0
@@ -488,9 +481,8 @@ cdef unsigned long long x33_bits(game_state_t *game, int pos, int color) nogil e
     for i in range(8):
         neighbor_pos = neighbor8[i]
         color_pat |= (game.board[neighbor_pos] << i*2)
-        string_id = game.string_id[neighbor_pos]
-        if string_id:
-            string = &game.string[string_id]
+        string = &game.string[game.string_id[neighbor_pos]]
+        if string.flag:
             lib_pat |= (MIN(string.libs, 3) << i*2)
 
     return (((color_pat << 16) | lib_pat) << 2) | color
