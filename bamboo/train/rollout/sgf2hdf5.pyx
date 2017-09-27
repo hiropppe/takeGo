@@ -20,6 +20,8 @@ from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
 from bamboo.board cimport game_state_t, rollout_feature_t, pure_board_size, pure_board_max, onboard_index
 from bamboo.printer cimport print_board
+from bamboo.zobrist_hash cimport initialize_hash
+from bamboo.nakade cimport initialize_nakade_hash
 from bamboo.local_pattern cimport read_rands, init_x33_hash, init_d12_hash
 from bamboo.local_pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout_preprocess cimport rollout_feature_size
@@ -39,12 +41,13 @@ cdef class GameConverter(object):
 
         read_rands(rands_file)
 
+        nakade_size = initialize_nakade_hash()
         x33_size = init_x33_hash(x33_file)
         d12_size = init_d12_hash(d12_file)
 
         self.update_speeds = list()
 
-        initialize_const(0, x33_size, d12_size, 0)
+        initialize_const(nakade_size, x33_size, d12_size, 0)
 
     def __dealloc__(self):
         pass

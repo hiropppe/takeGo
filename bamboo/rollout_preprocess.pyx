@@ -319,7 +319,7 @@ cdef void clear_neighbor(rollout_feature_t *feature) nogil:
     for i in range(feature.prev_neighbor8_num):
         pos = feature.prev_neighbor8[i]
         feature.tensor[F_NEIGHBOR][pos] = -1
-        memorize_updated(feature, pos)
+        memorize_updated(feature, onboard_pos[pos])
 
 
 cdef void clear_d12(rollout_feature_t *feature) nogil:
@@ -329,7 +329,7 @@ cdef void clear_d12(rollout_feature_t *feature) nogil:
         pos = feature.prev_d12[i]
         feature.tensor[F_RESPONSE][pos] = -1
         feature.tensor[F_RESPONSE_PAT][pos] = -1
-        memorize_updated(feature, pos)
+        memorize_updated(feature, onboard_pos[pos])
 
 
 cdef void clear_nakade(rollout_feature_t *feature) nogil:

@@ -36,6 +36,24 @@ class TestRolloutPreprocess(unittest.TestCase):
     def test_update_neighbor_0(self):
         ctest.test_update_neighbor_0()
 
+    def test_update_nakade_3_0(self):
+        ctest.test_update_nakade_3_0()
+
+    def test_update_nakade_3_1(self):
+        ctest.test_update_nakade_3_1()
+
+    def test_update_nakade_4(self):
+        ctest.test_update_nakade_4()
+
+    def test_update_nakade_5_0(self):
+        ctest.test_update_nakade_5_0()
+
+    def test_update_nakade_5_1(self):
+        ctest.test_update_nakade_5_1()
+
+    def test_update_nakade_6(self):
+        ctest.test_update_nakade_6()
+
     def test_update_12diamond_0(self):
         ctest.test_update_12diamond_0()
 
