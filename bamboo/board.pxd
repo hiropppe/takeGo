@@ -79,6 +79,7 @@ cdef extern from "ray.h":
         int prev_neighbor8_num
         int prev_d12[12]
         int prev_d12_num
+        int prev_nakade
         int updated[529]
         int updated_num
 

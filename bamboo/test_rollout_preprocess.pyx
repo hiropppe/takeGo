@@ -24,13 +24,14 @@ from bamboo.local_pattern cimport initialize_rands, put_x33_hash, put_d12_hash, 
 from bamboo.local_pattern import print_x33
 
 
-cdef int nakade_size = 0
+cdef int nakade_size = 8
 cdef int x33_size = 100
 cdef int d12_size = 100
+cdef int nonres_d12_size = 100
 
 
 def setup():
-    initialize_const(nakade_size, x33_size, d12_size, 0)
+    initialize_const(nakade_size, x33_size, d12_size, nonres_d12_size)
     initialize_rands()
 
     put_12diamond_test_patterns()
