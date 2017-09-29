@@ -11,6 +11,8 @@ cimport policy_feature
 cimport parseboard
 cimport printer
 
+from bamboo.policy_feature cimport MAX_POLICY_PLANES
+
 
 def test_captured_1():
     game = board.allocate_game()
@@ -21,7 +23,7 @@ def test_captured_1():
                              ". . . . . . .|"
                              ". . . . . . .|"
                              ". . . . . W .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -57,7 +59,7 @@ def test_breaker_1():
                                  ". . . . . . .|"
                                  ". . . . . W .|"
                                  ". . . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -92,7 +94,7 @@ def test_missing_ladder_breaker_1():
                                  ". . . . . . .|"
                                  ". W . . . . .|"
                                  ". . . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -138,7 +140,7 @@ def test_missing_ladder_breaker_2():
         ". . . . . . . . . . . . . . . . . . .|")
 
  
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -166,7 +168,7 @@ def test_capture_to_escape_1():
                                 ". . a . . . .|"
                                 ". O . . . . .|"
                                 ". . . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -197,7 +199,7 @@ def test_throw_in_1():
                                 "X X . . . .|"
                                 ". . . . . .|"
                                 ". . . O . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -227,7 +229,7 @@ def test_snapback_1():
                                 ". . X O X . . . .|"
                                 ". . . X . . . . .|"
                                 ". . . . . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -249,7 +251,7 @@ def test_two_captures():
                             ". X O O X .|"
                             ". . X X . .|"
                             ". . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -272,7 +274,7 @@ def test_two_escapes():
                             ". O X b . .|"
                             ". . O . . .|"
                             ". . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -305,7 +307,7 @@ def test_escapes_1():
                             "B . . . . a W B b W .|"
                             ". . . . . B W W B . .|"
                             ". . . . . . B B . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -344,7 +346,7 @@ def test_escapes_require_many_moves():
                             ". . . B . . . . . . . . . W B . B . .|"
                             ". . . . . . . . . . . . . . . . . . .|"
                             ". . . . . . . . . . . . . . . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -378,7 +380,7 @@ def test_captured_require_many_moves():
                             ". . . B . . . . . . B B . B W W W W .|"
                             ". . . . . W . . . . . . . B W . . . .|"
                             ". . . . . . . . . . . . . . B W . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -413,7 +415,7 @@ def test_captured_2():
                             ". . . . . . . . . . . . . . . . . . .|"
                             ". . . . . . . . . . . . . . . . . . .|"
                             ". . . . . . . . . . . . . . . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -450,7 +452,7 @@ def test_escape_segmentation_fault_1():
         ". B B B B . . B B B B W B W W B B B .|"
         ". . . . . B B W . W W . W W . W B . .|")
 
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -484,7 +486,7 @@ def test_capture_segmentation_fault_1():
         ". B B B B . . B B B B W B W W B B B .|"
         ". . . . . B B W . W W . W W . W B . .|")
 
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 

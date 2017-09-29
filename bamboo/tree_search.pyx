@@ -26,6 +26,7 @@ from bamboo.board cimport set_board_size, set_komi, initialize_board
 from bamboo.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
 from bamboo.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
 from bamboo.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
+from bamboo.policy_feature cimport MAX_POLICY_PLANES, MAX_VALUE_PLANES
 from bamboo.policy_feature cimport policy_feature_t
 from bamboo.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
 from bamboo.rollout_preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, update_probs, set_illegal, choice_rollout_move, update_tree_planes_all, get_tree_probs
@@ -72,7 +73,7 @@ cdef class MCTS(object):
 
         self.current_root = uct_hash_size
         self.policy = policy
-        self.policy_feature = allocate_feature()
+        self.policy_feature = allocate_feature(MAX_POLICY_PLANES)
         self.pondering = False
         self.pondering_stopped = True
         self.pondering_suspending = False

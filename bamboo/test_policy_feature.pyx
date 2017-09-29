@@ -12,6 +12,7 @@ cimport parseboard
 cimport printer
 
 from bamboo.board cimport is_legal
+from bamboo.policy_feature cimport MAX_POLICY_PLANES
 
 
 def test_stone_color():
@@ -20,7 +21,7 @@ def test_stone_color():
                              "a . .|"
                              ". b .|"
                              ". . c|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -59,7 +60,7 @@ def test_turns_since():
                              ". d e f .|"
                              ". g . . .|"
                              ". . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -120,7 +121,7 @@ def test_liberties():
                              ". . b . .|"
                              ". . c . .|"
                              ". . d . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -158,7 +159,7 @@ def test_capture_size():
                              ". . . . . . . . .|"
                              "X X X X X X X X .|"
                              "O O O O O O O O b|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -193,7 +194,7 @@ def test_self_atari_size():
                              ". . . . . . . . .|"
                              "X X X X X X X X .|"
                              "O O O O O O O O b|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -223,7 +224,7 @@ def test_liberties_after_move():
                              ". . b . .|"
                              ". . c . .|"
                              ". . d e .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -267,7 +268,7 @@ def test_liberties_after_move_1():
                              ". W a B .|"
                              ". . . . .|"
                              ". . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -286,7 +287,7 @@ def test_liberties_after_move_dupe_empty():
                              ". B B W . .|"
                              ". . . B W .|"
                              ". . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -305,7 +306,7 @@ def test_liberties_after_move_captured():
                              ". . a B W .|"
                              ". . B W W .|"
                              ". . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -325,7 +326,7 @@ def test_liberties_after_move_captured_1():
                              "B W B B W W .|"
                              "B W W B W . .|"
                              ". B . W . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -347,7 +348,7 @@ def test_liberties_after_move_captured_2():
                              "B W W W W B B . .|"
                              "B B W W B B . . .|"
                              "B W W B B . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -367,7 +368,7 @@ def test_sensibleness_not_suicide():
                             "B B B W . . .|"
                             "W B W . . . .|"
                             ". W . . . . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -388,7 +389,7 @@ def test_sensibleness_true_eye():
                             "B B B W g W W|"
                             "B c B W W W W|"
                             "B B B W h W i|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -419,7 +420,7 @@ def test_sensibleness_not_true_eye():
                             "W W W . . . .|"
                             ". . . . . W W|"
                             ". . . . W d W|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
@@ -446,7 +447,7 @@ def test_sensibleness_true_eye_remove_stone():
                              "B W B B W W W|"
                              "B B a B B B B|"
                              "W B b c d . .|")
-    feature = policy_feature.allocate_feature()
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 

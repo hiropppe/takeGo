@@ -21,6 +21,7 @@ from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFew
 from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.board cimport PASS
 from bamboo.board cimport game_state_t, pure_board_max, onboard_index
+from bamboo.policy_feature cimport MAX_POLICY_PLANES
 from bamboo.policy_feature cimport policy_feature_t, allocate_feature, initialize_feature, free_feature, update
 from bamboo.printer cimport print_board
 
@@ -40,7 +41,7 @@ cdef class GameConverter(object):
 
     def __cinit__(self, bsize=19):
         self.bsize = bsize
-        self.feature = allocate_feature()
+        self.feature = allocate_feature(MAX_POLICY_PLANES)
         self.n_features = self.feature.n_planes
         self.update_speeds = list()
 

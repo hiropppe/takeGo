@@ -21,14 +21,14 @@ from bamboo.board cimport is_true_eye, get_neighbor4, get_neighbor4_empty
 from bamboo.pattern cimport pat3
 
 
-cdef policy_feature_t *allocate_feature():
+cdef policy_feature_t *allocate_feature(int n_planes):
     cdef policy_feature_t *feature
     cdef int i
 
     feature = <policy_feature_t *>malloc(sizeof(policy_feature_t))
     memset(feature, 0, sizeof(policy_feature_t))
 
-    feature.planes = np.zeros((MAX_POLICY_PLANES, board.pure_board_max), dtype=np.int32)
+    feature.planes = np.zeros((n_planes, board.pure_board_max), dtype=np.int32)
     feature.n_planes = feature.planes.shape[0]
 
     return feature
@@ -194,6 +194,9 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
             # Whether a move is legal and does not fill its own eyes
             if not is_true_eye(game, pos, color, other_color, empty_diagonal_stack, empty_diagonal_top):
                 F[46, i] = 1
+            # Player color(1): Whether current player is black (value network only)
+            if feature.n_planes == MAX_VALUE_PLANES:
+                F[48, i] = (current_color == board.S_BLACK)
         else:
             if color:
                 string_id = game.string_id[pos]
@@ -221,7 +224,7 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                                             ladder_moves)
                         if capture_result == 1:
                             F[44, onboard_index[first_ladder_capture]] = 1
-    
+
                         # 2nd candidate
                         ladder_moves[0] = 0
                         second_ladder_capture = first_ladder_escape
@@ -359,12 +362,12 @@ cdef int is_ladder_capture(board.game_state_t *game,
 
 
 cdef int is_ladder_escape(board.game_state_t *game,
-                           int string_id,
-                           int pos,
-                           bint is_atari_pos,
-                           board.game_state_t search_games[80],
-                           int depth,
-                           int *ladder_moves):
+                          int string_id,
+                          int pos,
+                          bint is_atari_pos,
+                          board.game_state_t search_games[80],
+                          int depth,
+                          int *ladder_moves):
     cdef board.game_state_t *ladder_game = &search_games[depth]
     cdef board.string_t *string
     cdef char escape_color = game.current_color
