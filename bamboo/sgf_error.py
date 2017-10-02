@@ -17,3 +17,7 @@ class TooManyMove(Exception):
 class TooFewMove(Exception):
     def __init__(self, n_moves):
         self.n_moves = n_moves
+
+
+class NoResultError(Exception):
+    pass

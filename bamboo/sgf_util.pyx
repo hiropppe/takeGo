@@ -7,7 +7,7 @@ import sys
 import traceback
 import warnings
 
-from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
+from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove, NoResultError
 
 from libcpp.string cimport string as cppstring
 
@@ -37,9 +37,10 @@ cpdef min_sgf_extract(sgf_string):
     size = ''.join(re.findall(r'SZ\[.+?\]', sgf_string, flags=re.IGNORECASE))
     player = ''.join(re.findall(r'PL\[.+?\]', sgf_string, flags=re.IGNORECASE))
     kiryoku = ''.join(re.findall(r'[BW]R\[.+?\]', sgf_string, flags=re.IGNORECASE))
+    result = ''.join(re.findall(r'RE\[.+?\]', sgf_string, flags=re.IGNORECASE))
     add_stone = ''.join(re.findall(r'A[BW](?:\[[a-z]+\]\s*)+', sgf_string, flags=re.IGNORECASE))
     moves = ''.join(re.findall(r';[WB]\[[a-z]*?\]', sgf_string, flags=re.IGNORECASE))
-    return '(;{:s}{:s}{:s}{:s}{:s})'.format(size, player, kiryoku, add_stone, moves)
+    return '(;{:s}{:s}{:s}{:s}{:s}{:s})'.format(size, player, kiryoku, result, add_stone, moves)
 
 
 cdef class SGFMoveIterator:
@@ -148,6 +149,19 @@ cdef class SGFMoveIterator:
                 put_stone(self.game, _parse_sgf_move(stone), S_WHITE)
         # setup done; set player according to 'PL' property
         self.game.current_color = S_BLACK if s_player == 'B' else S_WHITE
+
+        # set winner
+        s_re = props.get('RE')
+        if s_re:
+            winner = s_re[0].strip()[0]
+            if winner == 'B':
+                self.winner = S_BLACK
+            elif winner == 'W':
+                self.winner = S_WHITE
+            else:
+                self.winner = 0
+        else:
+            raise NoResultError
 
 
 cdef void save_gamestate_to_sgf(game_state_t *game,
