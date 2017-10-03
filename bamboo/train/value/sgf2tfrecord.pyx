@@ -22,7 +22,7 @@ from libc.stdio cimport printf
 from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove, NoResultError
 
 from bamboo.sgf_util cimport SGFMoveIterator
-from bamboo.board cimport PASS, S_BLACK
+from bamboo.board cimport PASS, S_BLACK, S_WHITE
 from bamboo.board cimport game_state_t, pure_board_max, onboard_index
 from bamboo.policy_feature cimport MAX_VALUE_PLANES
 from bamboo.policy_feature cimport policy_feature_t, allocate_feature, initialize_feature, free_feature, update
@@ -306,5 +306,10 @@ cdef class GameConverter(object):
                     planes = planes.transpose(1, 2, 0)
                     planes = planes.astype(np.float32)
 
-                    z = float(sgf_iter.winner == S_BLACK)
+                    if sgf_iter.winner == S_BLACK:
+                        z = 1.0
+                    elif sgf_iter.winner == S_WHITE:
+                        z = -1.0
+                    else:
+                        z = 0.0
                     yield (planes, z)
