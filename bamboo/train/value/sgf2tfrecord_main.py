@@ -16,6 +16,8 @@ def run_game_converter(cmd_line_args=None):
                         help="Split output file by specified method. (Default: transformation)")
     parser.add_argument("--size", "-s", type=int, default=19,
                         help="Size of the game board. SGFs not matching this are discarded with a warning")
+    parser.add_argument("--samples_per_game", type=int, default=1,
+                        help="")
     parser.add_argument("--workers", "-w", type=int, default=1,
                         help="")
     parser.add_argument("--verbose", "-v", default=False, action="store_true",
@@ -32,6 +34,7 @@ def run_game_converter(cmd_line_args=None):
                      args.outfile,
                      args.workers,
                      split_by=args.split_by,
+                     samples_per_game=args.samples_per_game,
                      verbose=args.verbose,
                      quiet=args.quiet)
 

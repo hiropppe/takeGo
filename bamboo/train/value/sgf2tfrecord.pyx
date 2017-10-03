@@ -7,6 +7,7 @@ import numpy as np
 cimport numpy as np
 import os
 import warnings
+import re
 import sgf
 import sys
 import tensorflow as tf
@@ -74,6 +75,7 @@ def sgfs_to_tfrecord(data_directory,
                      out_name,
                      n_workers,
                      split_by,
+                     samples_per_game,
                      verbose=False,
                      quiet=False):
     if n_workers > 1:
@@ -90,12 +92,14 @@ def sgfs_to_tfrecord(data_directory,
                                 out_name,
                                 n_workers,
                                 worker_seq,
-                                split_by=split_by,
+                                split_by,
+                                samples_per_game,
                                 verbose=verbose,
                                 quiet=quiet)
     else:
         write_tfrecord_all(data_directory,
                            out_name,
+                           samples_per_game,
                            verbose,
                            quiet)
 
@@ -105,15 +109,28 @@ def sgfs_to_tfrecord_by_worker(directory,
                                n_workers,
                                worker_seq,
                                split_by,
+                               samples_per_game,
                                verbose,
                                quiet):
     if split_by == 'transformation':
-        write_tfrecord_by_transformation(directory, out_name, n_workers, worker_seq, verbose, quiet)
+        write_tfrecord_by_transformation(directory,
+                out_name,
+                n_workers,
+                worker_seq,
+                samples_per_game,
+                verbose,
+                quiet)
     else:
-        write_tfrecord_by_data(directory, out_name, n_workers, worker_seq, verbose, quiet)
+        write_tfrecord_by_data(directory,
+                out_name,
+                n_workers,
+                worker_seq,
+                samples_per_game,
+                verbose,
+                quiet)
 
 
-def write_tfrecord_all(data_directory, out_name, verbose, quiet):
+def write_tfrecord_all(data_directory, out_name, samples_per_game, verbose, quiet):
     n_sgfs = count_all_sgfs(data_directory)
     sgf_generator = walk_all_sgfs(data_directory)
     converter = GameConverter()
@@ -122,11 +139,12 @@ def write_tfrecord_all(data_directory, out_name, verbose, quiet):
         out_name,
         None,
         BOARD_TRANSFORMATIONS,
+        samples_per_game,
         verbose,
         quiet)
 
 
-def write_tfrecord_by_transformation(data_directory, out_name, n_workers, worker_seq, verbose, quiet):
+def write_tfrecord_by_transformation(data_directory, out_name, n_workers, worker_seq, samples_per_game, verbose, quiet):
     n_sgfs = count_all_sgfs(data_directory)
     sgf_generator = walk_all_sgfs(data_directory)
     apply_transformations = {}
@@ -140,11 +158,12 @@ def write_tfrecord_by_transformation(data_directory, out_name, n_workers, worker
         out_name,
         worker_seq,
         apply_transformations,
+        samples_per_game,
         verbose,
         quiet)
 
 
-def write_tfrecord_by_data(data_directory, out_name, n_workers, worker_seq, verbose, quiet):
+def write_tfrecord_by_data(data_directory, out_name, n_workers, worker_seq, samples_per_game, verbose, quiet):
     n_sgfs = count_all_sgfs(data_directory)
     if worker_seq < n_sgfs % n_workers:
         n_sgfs = int(n_sgfs/n_workers) + 1
@@ -159,6 +178,7 @@ def write_tfrecord_by_data(data_directory, out_name, n_workers, worker_seq, verb
         out_name,
         worker_seq,
         BOARD_TRANSFORMATIONS,
+        samples_per_game,
         verbose,
         quiet)
 
@@ -191,6 +211,7 @@ cdef class GameConverter(object):
                          out_name,
                          worker_seq,
                          apply_transformations,
+                         samples_per_game,
                          ignore_errors=True,
                          verbose=False,
                          quiet=False):
@@ -216,7 +237,7 @@ cdef class GameConverter(object):
                     print(file_name)
                 n_pairs = 0
                 try:
-                    self.write_tfrecords(file_name, writer, apply_transformations)
+                    self.write_tfrecords(file_name, writer, apply_transformations, samples_per_game)
                     n_pairs += 1
                 except sgf.ParseException:
                     n_parse_error += 1
@@ -265,10 +286,17 @@ cdef class GameConverter(object):
             n_no_result))
         print('Update Speed: Avg. {:3f} us'.format(np.mean(self.update_speeds)*1000*1000))
 
-    def write_tfrecords(self, sgf_file, writer, apply_transformations):
+    def write_tfrecords(self, sgf_file, writer, apply_transformations, samples_per_game):
         """Converts a dataset to tfrecords."""
+        with open(sgf_file) as f:
+            n_moves = len(re.findall(r';[WB]\[[a-z]*?\]', f.read(), flags=re.IGNORECASE))
 
-        for state, z in self.convert_game(sgf_file):
+        if samples_per_game:
+            sample_idx = np.random.randint(1, n_moves, samples_per_game)
+
+        for i, (state, z) in enumerate(self.convert_game(sgf_file)):
+            if samples_per_game and (i not in sample_idx):
+                continue
             noop = state
             for name, op in apply_transformations.items():
                 transformed_state = op(state)
