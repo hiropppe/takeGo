@@ -1,7 +1,7 @@
 import os
 
-from bamboo.rollout.sgf2hdf5 import GameConverter as RolloutGameConverter
-from bamboo.rollout.sgf2hdf5_tree import GameConverter as TreeGameConverter
+from bamboo.train.rollout.sgf2hdf5 import GameConverter as RolloutGameConverter
+from bamboo.train.rollout.sgf2hdf5_tree import GameConverter as TreeGameConverter
 
 
 def run_game_converter(cmd_line_args=None):

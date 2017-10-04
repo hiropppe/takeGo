@@ -10,7 +10,7 @@ from collections import defaultdict
 
 from libc.stdio cimport printf
 
-from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
+from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.board cimport PASS, S_EMPTY, STRING_EMPTY_END

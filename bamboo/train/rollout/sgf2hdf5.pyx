@@ -8,13 +8,12 @@ import warnings
 import sgf
 import sys
 import traceback
-import tables
 import time
 import h5py
 
 from tqdm import tqdm
 
-from bamboo.util_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
+from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
