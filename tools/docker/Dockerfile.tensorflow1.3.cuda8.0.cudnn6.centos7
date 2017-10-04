@@ -1,0 +1,109 @@
+FROM nvidia/cuda:8.0-cudnn6-devel-centos7
+
+MAINTAINER sergei <sergei.0910@gmail.com>
+
+WORKDIR /root
+
+RUN yum -y update
+RUN yum -y groupinstall "Development Tools"
+
+RUN yum install -y \
+    which \
+    wget \
+    git \
+    vim \
+    mlocate \
+    zlib-devel \
+    bzip2-devel \
+    readline-devel \
+    sqlite-devel \
+    openssl-devel \
+    libpng-devel \
+    freetype-devel \
+    && \
+    updatedb
+
+# update system python
+RUN curl -s https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz | tar -xz -C . \
+ && cd Python-2.7.13/ \
+ && ./configure --with-threads --with-ensurepip --enable-optimizations \
+ && make \
+ && make install
+
+RUN pip --no-cache-dir install \
+        ipykernel \
+        jupyter \
+        Cython \
+        matplotlib \
+        pandas \
+        h5py \
+        sgf \
+        futures \
+        python-jsonrpc \
+        flask \
+        nose \
+        tqdm \
+        jedi \
+        flake8 \
+        autopep8 \
+        wheel \
+        && \
+    python -m ipykernel.kernelspec
+
+# Install Java8
+ENV JAVA_VERSION 8u144
+ENV JAVA_BUILD 8u144-b01
+ENV JAVA_DL_HASH 090f390dda5b47b9b721c7dfaa008135
+RUN wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" \
+    http://download.oracle.com/otn-pub/java/jdk/${JAVA_BUILD}/${JAVA_DL_HASH}/jdk-${JAVA_VERSION}-linux-x64.rpm \
+    && rpm -i jdk-${JAVA_VERSION}-linux-x64.rpm
+
+# Install Bazel for building tensorflow
+RUN wget https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel-0.4.5-installer-linux-x86_64.sh && \
+    chmod +x bazel-0.4.5-installer-linux-x86_64.sh && \
+    ./bazel-0.4.5-installer-linux-x86_64.sh --user
+
+# Copy cuDNN
+COPY cudnn/cudnn-8.0-linux-x64-v6.0.solitairetheme8 /tmp/
+
+RUN tar xzf /tmp/cudnn-8.0-linux-x64-v6.0.solitairetheme8 && \
+    cp -a cuda/include/* /usr/local/cuda/include/ && \
+    cp -a cuda/lib64/* /usr/local/cuda/lib64/
+
+# Install Tensorflow from source
+RUN git clone https://github.com/tensorflow/tensorflow && \
+    cd tensorflow && \
+    git checkout v1.3.0
+
+COPY workspace.bzl /root/tensorflow/tensorflow/
+
+RUN cd tensorflow && \
+    export PATH=$PATH:/root/bin && \
+    export PYTHON_BIN_PATH=$(which python) && \
+    export PYTHON_LIB_PATH="/usr/local/lib/python2.7/site-packages" && \
+    export TF_NEED_MKL="1" && \
+    export TF_DOWNLOAD_MKL="1" && \
+    export CC_OPT_FLAGS="-march=native" && \
+    export TF_NEED_JEMALLOC="1" && \
+    export TF_NEED_GCP="0" && \
+    export TF_NEED_HDFS="0" && \
+    export TF_NEED_OPENCL="0" && \
+    export TF_NEED_CUDA="1" && \
+    export TF_ENABLE_XLA="1" && \
+    export TF_NEED_VERBS="0" && \
+    export TF_CUDA_CLANG="0" && \
+    export TF_CUDA_VERSION="8.0" && \
+    export CUDA_TOOLKIT_PATH="/usr/local/cuda" && \
+    export TF_CUDNN_VERSION="6" && \
+    export CUDNN_INSTALL_PATH="/usr/local/cuda" && \
+    export TF_CUDA_COMPUTE_CAPABILITIES="6.1" && \
+    export GCC_HOST_COMPILER_PATH=$(which gcc) && \
+    export TF_NEED_MPI="0" && \
+    ./configure && \
+    bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 --copt=-mfma --config=cuda //tensorflow/tools/pip_package:build_pip_package && \
+    bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
+
+RUN pip install /tmp/tensorflow_pkg/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
+
+RUN git config --global user.name "hiropppe"
+RUN git config --global user.email "sergei.0910@gmail.com"
