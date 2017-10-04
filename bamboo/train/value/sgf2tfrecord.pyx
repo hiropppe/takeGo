@@ -192,7 +192,6 @@ def write_tfrecord_by_transformation(data_directory,
         worker_seq,
         apply_transformations,
         samples_per_game,
-        symmetry,
         verbose,
         quiet)
 
@@ -226,7 +225,6 @@ def write_tfrecord_by_data(data_directory,
         worker_seq,
         apply_transformations,
         samples_per_game,
-        symmetry,
         verbose,
         quiet)
 
