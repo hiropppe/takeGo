@@ -333,15 +333,7 @@ cdef class GameConverter(object):
 
     def write_tfrecords(self, sgf_file, writer, apply_transformations, samples_per_game):
         """Converts a dataset to tfrecords."""
-        with open(sgf_file) as f:
-            n_moves = len(re.findall(r';[WB]\[[a-z]*?\]', f.read(), flags=re.IGNORECASE))
-
-        if samples_per_game:
-            sample_idx = np.random.randint(1, n_moves, samples_per_game)
-
-        for i, (state, z) in enumerate(self.convert_game(sgf_file)):
-            if samples_per_game and (i not in sample_idx):
-                continue
+        for state, z in self.convert_game(sgf_file, samples_per_game):
             noop = state
             for name, op in apply_transformations.items():
                 transformed_state = op(state)
@@ -355,7 +347,7 @@ cdef class GameConverter(object):
                     serialized = example.SerializeToString()
                     writer.write(serialized)
 
-    def convert_game(self, file_name, verbose=False):
+    def convert_game(self, file_name, samples_per_game, verbose=False):
         cdef game_state_t *game
         cdef SGFMoveIterator sgf_iter
 
@@ -364,12 +356,21 @@ cdef class GameConverter(object):
         with open(file_name, 'r') as file_object:
             sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
 
+        if samples_per_game:
+            with open(file_name) as f:
+                n_moves = len(re.findall(r';[WB]\[[a-z]*?\]', f.read(), flags=re.IGNORECASE))
+            sample_idx = np.random.randint(1, n_moves, samples_per_game)
+
         game = sgf_iter.game
         for i, move in enumerate(sgf_iter):
             if move[0] != PASS:
+                if samples_per_game and (i not in sample_idx):
+                    continue
+
                 s = time.time()
                 update(self.feature, game)
                 self.update_speeds.append(time.time()-s)
+
                 if onboard_index[move[0]] >= pure_board_max:
                     continue
                 else:
