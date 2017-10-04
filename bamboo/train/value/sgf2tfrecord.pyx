@@ -102,9 +102,9 @@ def sgfs_to_tfrecord(data_directory,
                                 worker_seq,
                                 split_by,
                                 samples_per_game,
-                                symmetry=symmetry,
-                                verbose=verbose,
-                                quiet=quiet)
+                                symmetry,
+                                verbose,
+                                quiet)
     else:
         write_tfrecord_all(data_directory,
                            out_name,
@@ -260,7 +260,6 @@ cdef class GameConverter(object):
                          worker_seq,
                          apply_transformations,
                          samples_per_game,
-                         ignore_errors=True,
                          verbose=False,
                          quiet=False):
         try:

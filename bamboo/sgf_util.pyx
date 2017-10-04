@@ -49,7 +49,7 @@ cdef class SGFMoveIterator:
                   int bsize,
                   object sgf_string,
                   int too_few_moves_threshold=50,
-                  int too_many_moves_threshold=500,
+                  int too_many_moves_threshold=800,
                   bint ignore_not_legal=True,
                   bint verbose=False):
         self.bsize = bsize
