@@ -76,14 +76,22 @@ def sgfs_to_tfrecord(data_directory,
                      n_workers,
                      split_by,
                      samples_per_game,
+                     symmetry=False,
                      verbose=False,
                      quiet=False):
+    if split_by == 'transformation' and (not symmetry):
+        warnings.warn('Specify split_by transformations with no symmetry option. Change to split_by file.')
+        split_by == 'sgf'
+
     if n_workers > 1:
         print('Run {:d} workers (output {:d} files).'.format(n_workers, n_workers))
         if split_by == 'transformation':
-            print('Each worker process all sgf file but partial transformations.')
+            print('Each worker process all sgf file with partial transformations.')
         else:
-            print('Each worker process partial sgf files but all transformation.')
+            if symmetry:
+                print('Each worker process partial sgf files with all transformation.')
+            else:
+                print('Each worker process partial sgf files without transformations.')
 
         with ProcessPoolExecutor(max_workers=n_workers) as executor:
             for worker_seq in range(n_workers):
@@ -94,12 +102,14 @@ def sgfs_to_tfrecord(data_directory,
                                 worker_seq,
                                 split_by,
                                 samples_per_game,
+                                symmetry=symmetry,
                                 verbose=verbose,
                                 quiet=quiet)
     else:
         write_tfrecord_all(data_directory,
                            out_name,
                            samples_per_game,
+                           symmetry,
                            verbose,
                            quiet)
 
@@ -110,6 +120,7 @@ def sgfs_to_tfrecord_by_worker(directory,
                                worker_seq,
                                split_by,
                                samples_per_game,
+                               symmetry,
                                verbose,
                                quiet):
     if split_by == 'transformation':
@@ -118,6 +129,7 @@ def sgfs_to_tfrecord_by_worker(directory,
                 n_workers,
                 worker_seq,
                 samples_per_game,
+                symmetry,
                 verbose,
                 quiet)
     else:
@@ -126,27 +138,48 @@ def sgfs_to_tfrecord_by_worker(directory,
                 n_workers,
                 worker_seq,
                 samples_per_game,
+                symmetry,
                 verbose,
                 quiet)
 
 
-def write_tfrecord_all(data_directory, out_name, samples_per_game, verbose, quiet):
+def write_tfrecord_all(data_directory,
+        out_name,
+        samples_per_game,
+        symmetry,
+        verbose,
+        quiet):
     n_sgfs = count_all_sgfs(data_directory)
     sgf_generator = walk_all_sgfs(data_directory)
+
+    apply_transformations = {}
+    if symmetry:
+        apply_transformations = BOARD_TRANSFORMATIONS
+    else:
+        apply_transformations['noop'] = BOARD_TRANSFORMATIONS['noop']
+
     converter = GameConverter()
     converter.sgfs_to_tfrecord(sgf_generator,
         n_sgfs,
         out_name,
         None,
-        BOARD_TRANSFORMATIONS,
+        apply_transformations,
         samples_per_game,
         verbose,
         quiet)
 
 
-def write_tfrecord_by_transformation(data_directory, out_name, n_workers, worker_seq, samples_per_game, verbose, quiet):
+def write_tfrecord_by_transformation(data_directory,
+        out_name,
+        n_workers,
+        worker_seq,
+        samples_per_game,
+        symmetry,
+        verbose,
+        quiet):
     n_sgfs = count_all_sgfs(data_directory)
     sgf_generator = walk_all_sgfs(data_directory)
+
     apply_transformations = {}
     for i, (name, op) in enumerate(BOARD_TRANSFORMATIONS.items()):
         if i % n_workers == worker_seq:
@@ -159,11 +192,19 @@ def write_tfrecord_by_transformation(data_directory, out_name, n_workers, worker
         worker_seq,
         apply_transformations,
         samples_per_game,
+        symmetry,
         verbose,
         quiet)
 
 
-def write_tfrecord_by_data(data_directory, out_name, n_workers, worker_seq, samples_per_game, verbose, quiet):
+def write_tfrecord_by_data(data_directory,
+        out_name,
+        n_workers,
+        worker_seq,
+        samples_per_game,
+        symmetry,
+        verbose,
+        quiet):
     n_sgfs = count_all_sgfs(data_directory)
     if worker_seq < n_sgfs % n_workers:
         n_sgfs = int(n_sgfs/n_workers) + 1
@@ -172,13 +213,20 @@ def write_tfrecord_by_data(data_directory, out_name, n_workers, worker_seq, samp
 
     sgf_generator = walk_worker_sgfs(data_directory, n_workers, worker_seq)
 
+    apply_transformations = {}
+    if symmetry:
+        apply_transformations = BOARD_TRANSFORMATIONS
+    else:
+        apply_transformations['noop'] = BOARD_TRANSFORMATIONS['noop']
+
     converter = GameConverter()
     converter.sgfs_to_tfrecord(sgf_generator,
         n_sgfs,
         out_name,
         worker_seq,
-        BOARD_TRANSFORMATIONS,
+        apply_transformations,
         samples_per_game,
+        symmetry,
         verbose,
         quiet)
 
@@ -300,7 +348,7 @@ cdef class GameConverter(object):
             noop = state
             for name, op in apply_transformations.items():
                 transformed_state = op(state)
-                if name == 'noop' or (not np.all(transformed_state == state)):
+                if name == 'noop' or (not np.all(transformed_state == noop)):
                     d_feature = {}
                     d_feature['state'] = tf.train.Feature(float_list=tf.train.FloatList(value=state.flatten()))
                     d_feature['z'] = tf.train.Feature(float_list=tf.train.FloatList(value=[z]))
