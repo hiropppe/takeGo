@@ -51,6 +51,7 @@ cdef class SGFMoveIterator:
                   int too_few_moves_threshold=50,
                   int too_many_moves_threshold=800,
                   bint ignore_not_legal=True,
+                  bint ignore_no_result=True,
                   bint verbose=False):
         self.bsize = bsize
         self.game = allocate_game()
@@ -60,6 +61,7 @@ cdef class SGFMoveIterator:
         self.too_few_moves_threshold = too_few_moves_threshold
         self.too_many_moves_threshold = too_many_moves_threshold
         self.ignore_not_legal = ignore_not_legal
+        self.ignore_no_result = ignore_no_result
         self.verbose = verbose
 
         sgf_string = min_sgf_extract(sgf_string)
@@ -161,7 +163,8 @@ cdef class SGFMoveIterator:
             else:
                 self.winner = 0
         else:
-            raise NoResultError
+            if not self.ignore_no_result:
+                raise NoResultError
 
 
 cdef void save_gamestate_to_sgf(game_state_t *game,

@@ -18,12 +18,12 @@ from concurrent.futures import ProcessPoolExecutor
 
 from libc.stdio cimport printf
 
-from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove, NoResultError
+from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.board cimport PASS, S_BLACK, S_WHITE
 from bamboo.board cimport game_state_t, pure_board_max, onboard_index
-from bamboo.policy_feature cimport MAX_VALUE_PLANES
+from bamboo.policy_feature cimport MAX_POLICY_PLANES
 from bamboo.policy_feature cimport policy_feature_t, allocate_feature, initialize_feature, free_feature, update
 from bamboo.printer cimport print_board
 
@@ -73,15 +73,15 @@ def sgfs_to_tfrecord(data_directory,
                      out_name,
                      n_workers,
                      split_by,
-                     samples_per_game,
-                     symmetry=False,
+                     symmetry=True,
                      verbose=False,
                      quiet=False):
-    if split_by == 'transformation' and (not symmetry):
-        warnings.warn('Specify split_by transformations with no symmetry option. Change to split_by file.')
-        split_by == 'sgf'
 
     if n_workers > 1:
+        if split_by == 'transformation' and (not symmetry):
+            warnings.warn('Specify split_by transformations with no symmetry option. Change to split_by sgf.')
+            split_by == 'sgf'
+
         print('Run {:d} workers (output {:d} files).'.format(n_workers, n_workers))
         if split_by == 'transformation':
             print('Each worker process all sgf file with partial transformations.')
@@ -99,14 +99,12 @@ def sgfs_to_tfrecord(data_directory,
                                 n_workers,
                                 worker_seq,
                                 split_by,
-                                samples_per_game,
                                 symmetry,
                                 verbose,
                                 quiet)
     else:
         write_tfrecord_all(data_directory,
                            out_name,
-                           samples_per_game,
                            symmetry,
                            verbose,
                            quiet)
@@ -117,7 +115,6 @@ def sgfs_to_tfrecord_by_worker(directory,
                                n_workers,
                                worker_seq,
                                split_by,
-                               samples_per_game,
                                symmetry,
                                verbose,
                                quiet):
@@ -126,7 +123,6 @@ def sgfs_to_tfrecord_by_worker(directory,
                 out_name,
                 n_workers,
                 worker_seq,
-                samples_per_game,
                 symmetry,
                 verbose,
                 quiet)
@@ -135,7 +131,6 @@ def sgfs_to_tfrecord_by_worker(directory,
                 out_name,
                 n_workers,
                 worker_seq,
-                samples_per_game,
                 symmetry,
                 verbose,
                 quiet)
@@ -143,7 +138,6 @@ def sgfs_to_tfrecord_by_worker(directory,
 
 def write_tfrecord_all(data_directory,
         out_name,
-        samples_per_game,
         symmetry,
         verbose,
         quiet):
@@ -162,7 +156,6 @@ def write_tfrecord_all(data_directory,
         out_name,
         None,
         apply_transformations,
-        samples_per_game,
         verbose,
         quiet)
 
@@ -171,7 +164,6 @@ def write_tfrecord_by_transformation(data_directory,
         out_name,
         n_workers,
         worker_seq,
-        samples_per_game,
         symmetry,
         verbose,
         quiet):
@@ -189,7 +181,6 @@ def write_tfrecord_by_transformation(data_directory,
         out_name,
         worker_seq,
         apply_transformations,
-        samples_per_game,
         verbose,
         quiet)
 
@@ -198,7 +189,6 @@ def write_tfrecord_by_data(data_directory,
         out_name,
         n_workers,
         worker_seq,
-        samples_per_game,
         symmetry,
         verbose,
         quiet):
@@ -222,14 +212,8 @@ def write_tfrecord_by_data(data_directory,
         out_name,
         worker_seq,
         apply_transformations,
-        samples_per_game,
         verbose,
         quiet)
-
-
-def onboard_index_to_np_move(ix, size):
-    y, x = divmod(ix, size)
-    return (x, y)
 
 
 cdef class GameConverter(object):
@@ -242,7 +226,7 @@ cdef class GameConverter(object):
 
     def __cinit__(self, bsize=19):
         self.bsize = bsize
-        self.feature = allocate_feature(MAX_VALUE_PLANES)
+        self.feature = allocate_feature(MAX_POLICY_PLANES)
         self.n_features = self.feature.n_planes
         self.update_speeds = list()
 
@@ -255,7 +239,6 @@ cdef class GameConverter(object):
                          out_name,
                          worker_seq,
                          apply_transformations,
-                         samples_per_game,
                          verbose=False,
                          quiet=False):
         try:
@@ -269,7 +252,6 @@ cdef class GameConverter(object):
             n_not19 = 0
             n_too_few_move = 0
             n_too_many_move = 0
-            n_no_result = 0
 
             pbar = tqdm(total=n_sgfs)
             if worker_seq is not None:
@@ -280,7 +262,7 @@ cdef class GameConverter(object):
                     print(file_name)
                 n_pairs = 0
                 try:
-                    self.write_tfrecords(file_name, writer, apply_transformations, samples_per_game)
+                    self.write_tfrecords(file_name, writer, apply_transformations)
                     n_pairs += 1
                 except sgf.ParseException:
                     n_parse_error += 1
@@ -297,9 +279,6 @@ cdef class GameConverter(object):
                 except TooManyMove as e:
                     n_too_many_move += 1
                     warnings.warn('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, file_name))
-                except NoResultError as e:
-                    n_no_result += 1
-                    warnings.warn('NoResultError. {:s}'.format(file_name))
                 except KeyboardInterrupt:
                     break
                 finally:
@@ -318,57 +297,50 @@ cdef class GameConverter(object):
             if writer:
                 writer.close()
 
-        print('{:s}Total {:d}/{:d} (Not19 {:d} ParseErr {:d} TooFewMove {:d} TooManyMove {:d} NoResult {:d})'.format(
+        print('{:s}Total {:d}/{:d} (Not19 {:d} ParseErr {:d} TooFewMove {:d} TooManyMove {:d})'.format(
             'Wrorker:{:d} '.format(worker_seq) if worker_seq is not None else '',
             n_sgfs - n_parse_error - n_not19 - n_too_few_move - n_too_many_move,
             n_sgfs,
             n_parse_error,
             n_not19,
             n_too_few_move,
-            n_too_many_move,
-            n_no_result))
+            n_too_many_move))
         print('Update Speed: Avg. {:3f} us'.format(np.mean(self.update_speeds)*1000*1000))
 
-    def write_tfrecords(self, sgf_file, writer, apply_transformations, samples_per_game):
+    def write_tfrecords(self, sgf_file, writer, apply_transformations):
         """Converts a dataset to tfrecords."""
-        for state, z in self.convert_game(sgf_file, samples_per_game):
+        for state, action in self.convert_game(sgf_file):
             noop = state
+            onehot_action = np.zeros((self.bsize, self.bsize), dtype=np.float32)
+            onehot_action[action[0], action[1]] = 1
             for name, op in apply_transformations.items():
                 transformed_state = op(state)
+                transformed_action = op(onehot_action)
                 if name == 'noop' or (not np.all(transformed_state == noop)):
                     d_feature = {}
                     d_feature['state'] = tf.train.Feature(float_list=tf.train.FloatList(value=state.flatten()))
-                    d_feature['z'] = tf.train.Feature(float_list=tf.train.FloatList(value=[z]))
+                    d_feature['action'] = tf.train.Feature(float_list=tf.train.FloatList(value=transformed_action.flatten()))
 
                     features = tf.train.Features(feature=d_feature)
                     example = tf.train.Example(features=features)
                     serialized = example.SerializeToString()
                     writer.write(serialized)
 
-    def convert_game(self, file_name, samples_per_game, verbose=False):
+    def convert_game(self, file_name, verbose=False):
         cdef game_state_t *game
         cdef SGFMoveIterator sgf_iter
 
         initialize_feature(self.feature)
 
         with open(file_name, 'r') as file_object:
-            sgf_iter = SGFMoveIterator(self.bsize, file_object.read(), ignore_no_result=False)
-
-        if samples_per_game:
-            with open(file_name) as f:
-                n_moves = len(re.findall(r';[WB]\[[a-z]*?\]', f.read(), flags=re.IGNORECASE))
-            sample_idx = np.random.randint(1, n_moves, samples_per_game)
+            sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
 
         game = sgf_iter.game
         for i, move in enumerate(sgf_iter):
             if move[0] != PASS:
-                if samples_per_game and (i not in sample_idx):
-                    continue
-
                 s = time.time()
                 update(self.feature, game)
                 self.update_speeds.append(time.time()-s)
-
                 if onboard_index[move[0]] >= pure_board_max:
                     continue
                 else:
@@ -378,10 +350,4 @@ cdef class GameConverter(object):
                     planes = planes.transpose(1, 2, 0)
                     planes = planes.astype(np.float32)
 
-                    if sgf_iter.winner == S_BLACK:
-                        z = 1.0
-                    elif sgf_iter.winner == S_WHITE:
-                        z = -1.0
-                    else:
-                        z = 0.0
-                    yield (planes, z)
+                    yield (planes, divmod(onboard_index[move[0]], self.bsize))
