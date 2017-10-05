@@ -47,6 +47,8 @@ RUN pip --no-cache-dir install \
         flake8 \
         autopep8 \
         wheel \
+        lxml \
+        cssselect \
         && \
     python -m ipykernel.kernelspec
 
