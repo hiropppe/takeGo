@@ -81,6 +81,10 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     # Ones: A constant plane filled with 1
     F[3, :] = 1
 
+    # Player color(1): Whether current player is black (value network only)
+    if feature.n_planes == MAX_VALUE_PLANES:
+        F[48, :] = (current_color == board.S_BLACK)
+
     for i in range(361):
         if i < 288:
             ladder_checked[i] = False
@@ -194,9 +198,6 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
             # Whether a move is legal and does not fill its own eyes
             if not is_true_eye(game, pos, color, other_color, empty_diagonal_stack, empty_diagonal_top):
                 F[46, i] = 1
-            # Player color(1): Whether current player is black (value network only)
-            if feature.n_planes == MAX_VALUE_PLANES:
-                F[48, i] = (current_color == board.S_BLACK)
         else:
             if color:
                 string_id = game.string_id[pos]

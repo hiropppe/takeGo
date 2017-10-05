@@ -4,6 +4,7 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import os
+import re
 import sys
 import tensorflow as tf
 import traceback
@@ -60,7 +61,7 @@ def run_training():
         else:
             # TODO too slow
             dataset_length = 0
-            for each_data in [each_data.strip() for each_data in FLAGS.train_data.split(',')]:
+            for each_data in [each_data.strip() for each_data in re.split(r'[\s,]+', FLAGS.train_data)]:
                 dataset_length += sum(1 for _ in tf.python_io.tf_record_iterator(each_data, options=options))
 
         if FLAGS.epoch_length == 0:
@@ -72,7 +73,7 @@ def run_training():
 
         def parse_function(example_proto):
             features = {
-                "state": tf.FixedLenFeature([49*19*19], tf.float32),
+                "state": tf.FixedLenFeature([19*19*49], tf.float32),
                 "z": tf.FixedLenFeature([1], tf.float32)
             }
             parsed_features = tf.parse_single_example(example_proto, features)
@@ -110,7 +111,7 @@ def run_training():
         if FLAGS.gpu_memory_fraction:
             config.gpu_options.per_process_gpu_memory_fraction = FLAGS.gpu_memory_fraction
 
-        train_filenames = [filename.strip() for filename in FLAGS.train_data.split(',')]
+        train_filenames = [filename.strip() for filename in re.split(r'[\s,]+', FLAGS.train_data)]
         sess = tf.Session(config=config, graph=graph)
         sess.run(iterator.initializer, feed_dict={filenames: train_filenames})
         sess.run(init_op)

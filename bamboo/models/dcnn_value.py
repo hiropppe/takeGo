@@ -59,6 +59,8 @@ def get_initial_weight(layer, wb, scope_name):
             return nn_util.zero_variable(scope_name + '_b', [1])
         elif layer == 15:
             return nn_util.zero_variable(scope_name + '_b', [256])
+        elif layer == 16:
+            return nn_util.zero_variable(scope_name + '_b', [1])
 
 
 def inference(states):
@@ -97,9 +99,10 @@ def inference(states):
         layer_15 = tf.nn.relu(tf.matmul(flatten, weights) + biases)
 
     # output
-    with tf.variable_scope('output') as scope:
+    with tf.variable_scope('tanh') as scope:
         weights = get_initial_weight(16, 'w', scope.name)
-        output = tf.nn.tanh(tf.matmul(layer_15, weights))
+        biases = get_initial_weight(16, 'b', scope.name)
+        output = tf.nn.tanh(tf.matmul(layer_15, weights) + biases)
 
     return output
 
