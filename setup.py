@@ -21,6 +21,7 @@ extensions = [Extension('bamboo.board', sources=['bamboo/board.pyx'], language="
               Extension('bamboo.policy_feature', sources=["bamboo/policy_feature.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.rollout_preprocess', sources=["bamboo/rollout_preprocess.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.sgf_util', sources=["bamboo/sgf_util.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.train.policy.sgf2tfrecord', sources=["bamboo/train/policy/sgf2tfrecord.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.policy.sgf2hdf5', sources=["bamboo/train/policy/sgf2hdf5.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.policy.merge_dataset', sources=["bamboo/train/policy/merge_dataset.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.value.sgf2tfrecord', sources=["bamboo/train/value/sgf2tfrecord.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
