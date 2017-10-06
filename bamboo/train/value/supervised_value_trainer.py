@@ -93,7 +93,7 @@ def run_training():
         (state_batch, action_batch) = iterator.get_next()
 
         # define computation graph
-        outputs = value.inference(state_batch)
+        outputs = value.inference(state_batch, is_training=True)
 
         loss_op = value.loss(outputs, action_batch)
 

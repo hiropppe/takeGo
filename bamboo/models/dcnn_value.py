@@ -13,6 +13,22 @@ FILTER_WIDTH_1 = 5
 FILTER_WIDTH_2_12 = 3
 
 
+_BATCH_NORM_DECAY = 0.997
+_BATCH_NORM_EPSILON = 1e-5
+
+
+def batch_norm_relu(inputs, is_training):
+    """Performs a batch normalization followed by a ReLU."""
+    # We set fused=True for a significant performance boost. See
+    # https://www.tensorflow.org/performance/performance_guide#common_fused_ops
+    inputs = tf.layers.batch_normalization(
+        inputs=inputs, axis=3,
+        momentum=_BATCH_NORM_DECAY, epsilon=_BATCH_NORM_EPSILON, center=True,
+        scale=True, training=is_training, fused=True)
+    inputs = tf.nn.relu(inputs)
+    return inputs
+
+
 def get_initial_weight(layer, wb, scope_name):
     if wb.lower() == 'w':
         if layer == 1:
@@ -51,33 +67,36 @@ def get_initial_weight(layer, wb, scope_name):
             return nn_util.zero_variable(scope_name + '_b', [1])
 
 
-def inference(states):
+def inference(states, is_training=False):
     # convolution2d_1
     with tf.variable_scope('convolution2d_1') as scope:
         weights = get_initial_weight(1, 'w', scope.name)
-        biases = get_initial_weight(1, 'b', scope.name)
         conv = tf.nn.conv2d(states, weights, [1, 1, 1, 1], padding='SAME')
-        bias_add = tf.nn.bias_add(conv, biases)
-        conv1 = tf.nn.relu(bias_add, name=scope.name)
+        conv1 = batch_norm_relu(conv, is_training)
+        # biases = get_initial_weight(1, 'b', scope.name)
+        # bias_add = tf.nn.bias_add(conv, biases)
+        # conv1 = tf.nn.relu(bias_add, name=scope.name)
 
     # convolution2d_2-12
     convi = conv1
     for i in range(2, 13):
         with tf.variable_scope('convolution2d_' + str(i)) as scope:
             weights = get_initial_weight(i, 'w', scope.name)
-            biases = get_initial_weight(i, 'b', scope.name)
             conv = tf.nn.conv2d(convi, weights, [1, 1, 1, 1], padding='SAME')
-            bias_add = tf.nn.bias_add(conv, biases)
-            conv = tf.nn.relu(bias_add, name=scope.name)
+            conv = batch_norm_relu(conv, is_training)
+            # biases = get_initial_weight(i, 'b', scope.name)
+            # bias_add = tf.nn.bias_add(conv, biases)
+            # conv = tf.nn.relu(bias_add, name=scope.name)
         convi = conv
 
     # convolution2d_13
     with tf.variable_scope('convolution2d_13') as scope:
         weights = get_initial_weight(13, 'w', scope.name)
-        biases = get_initial_weight(13, 'b', scope.name)
         conv = tf.nn.conv2d(convi, weights, [1, 1, 1, 1], padding='SAME')
-        bias_add = tf.nn.bias_add(conv, biases)
-        layer_13 = tf.nn.relu(bias_add, name=scope.name)
+        layer_13 = batch_norm_relu(conv, is_training)
+        # biases = get_initial_weight(13, 'b', scope.name)
+        # bias_add = tf.nn.bias_add(conv, biases)
+        # layer_13 = tf.nn.relu(bias_add, name=scope.name)
 
     # Dense 14
     with tf.variable_scope('dense_14') as scope:
