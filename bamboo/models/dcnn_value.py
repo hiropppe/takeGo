@@ -6,7 +6,6 @@ import tensorflow as tf
 from . import nn_util
 
 
-BOARD_SIZE = 19
 INPUT_DEPTH = 49
 FILTER_SIZE = 192
 FILTER_WIDTH_1 = 5
@@ -73,9 +72,6 @@ def inference(states, is_training=False):
         weights = get_initial_weight(1, 'w', scope.name)
         conv = tf.nn.conv2d(states, weights, [1, 1, 1, 1], padding='SAME')
         conv1 = batch_norm_relu(conv, is_training)
-        # biases = get_initial_weight(1, 'b', scope.name)
-        # bias_add = tf.nn.bias_add(conv, biases)
-        # conv1 = tf.nn.relu(bias_add, name=scope.name)
 
     # convolution2d_2-12
     convi = conv1
@@ -84,9 +80,6 @@ def inference(states, is_training=False):
             weights = get_initial_weight(i, 'w', scope.name)
             conv = tf.nn.conv2d(convi, weights, [1, 1, 1, 1], padding='SAME')
             conv = batch_norm_relu(conv, is_training)
-            # biases = get_initial_weight(i, 'b', scope.name)
-            # bias_add = tf.nn.bias_add(conv, biases)
-            # conv = tf.nn.relu(bias_add, name=scope.name)
         convi = conv
 
     # convolution2d_13
@@ -94,13 +87,10 @@ def inference(states, is_training=False):
         weights = get_initial_weight(13, 'w', scope.name)
         conv = tf.nn.conv2d(convi, weights, [1, 1, 1, 1], padding='SAME')
         layer_13 = batch_norm_relu(conv, is_training)
-        # biases = get_initial_weight(13, 'b', scope.name)
-        # bias_add = tf.nn.bias_add(conv, biases)
-        # layer_13 = tf.nn.relu(bias_add, name=scope.name)
 
     # Dense 14
     with tf.variable_scope('dense_14') as scope:
-        flatten = tf.reshape(layer_13, [-1, BOARD_SIZE**2])
+        flatten = tf.reshape(layer_13, [-1, states.shape[2].value**2])
         weights = get_initial_weight(14, 'w', scope.name)
         biases = get_initial_weight(14, 'b', scope.name)
         layer_14 = tf.nn.relu(tf.matmul(flatten, weights) + biases)

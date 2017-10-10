@@ -9,7 +9,7 @@ import sys
 import tensorflow as tf
 import traceback
 
-from bamboo.models import dcnn_value as value
+from bamboo.models import dcnn_resnet_value as value
 
 from ..keras_utils import callbacks as cbks
 
