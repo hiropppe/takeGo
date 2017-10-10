@@ -3,6 +3,7 @@
 import argparse
 import glob
 import os
+import re
 import sgf
 import shutil
 import sys
@@ -85,7 +86,7 @@ def merge_dataset(cmd_line_args=None):
                     yield os.path.join(d, f)
 
     # get an iterator of SGF files according to command line args
-    input_dirs = [d.strip() for d in args.input_directory.split(',')]
+    input_dirs = [d.strip() for d in re.split(r'[\s,]+', args.input_directory)]
     sgf_count = _count_all_sgfs(input_dirs)
     if args.recurse:
         sgf_files = _walk_all_sgfs(input_dirs)
@@ -107,7 +108,7 @@ def merge_dataset(cmd_line_args=None):
     n_other_error = 0
 
     pbar = tqdm(total=sgf_count)
-    for i, sgf_file in enumerate(sgf_files):
+    for sgf_file in sgf_files:
         if args.verbose:
             print(sgf_file)
         try:
@@ -175,8 +176,8 @@ def merge_dataset(cmd_line_args=None):
         finally:
             pbar.update(1)
         
-    print('Finished. {:d}/{:d} (Not19 {:d} TooFewMove {:d} TooManyMove {:d} IllegalMove {:d} NoResult {:d} SameHash {:d} ParseErr {:d} Other {:d})'.format(
-        i + 1 - n_not19 - n_too_few_move - n_too_many_move - n_illegal_move - n_no_result - n_parse_error - n_other_error,
+    print('Finished. {:d}/{:d} (Not19 {:d} TooFewMove {:d} TooManyMove {:d} NoResult {:d} IllegalMove {:d} SameHash {:d} ParseErr {:d} Other {:d})'.format(
+        sgf_count - n_not19 - n_too_few_move - n_too_many_move - n_no_result - n_illegal_move - n_hash_corrision - n_parse_error - n_other_error,
         sgf_count,
         n_not19,
         n_too_few_move,
@@ -262,7 +263,7 @@ def split_dataset_by_komi(cmd_line_args=None):
     n_other_error = 0
 
     pbar = tqdm(total=sgf_count)
-    for i, sgf_file in enumerate(sgf_files):
+    for sgf_file in sgf_files:
         try:
             with open(sgf_file, 'r') as file_object:
                 sgf_iter = SGFMoveIterator(19,
@@ -321,7 +322,7 @@ def split_dataset_by_komi(cmd_line_args=None):
             pbar.update(1)
 
     print('Finished. {:d}/{:d} (Not19 {:d} TooFewMove {:d} TooManyMove {:d} NoResult {:d} IllegalMove {:d} ParseErr {:d} Other {:d})'.format(
-        i + 1 - n_not19 - n_too_few_move - n_too_many_move - n_illegal_move - n_no_result - n_parse_error - n_other_error,
+        sgf_count - n_not19 - n_too_few_move - n_too_many_move - n_no_result - n_illegal_move - n_parse_error - n_other_error,
         sgf_count,
         n_not19,
         n_too_few_move,
