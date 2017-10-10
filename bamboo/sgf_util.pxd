@@ -10,6 +10,7 @@ cdef class SGFMoveIterator:
     cdef int i 
     cdef list moves
     cdef tuple next_move
+    cdef float komi
     cdef int winner
     cdef int too_few_moves_threshold
     cdef int too_many_moves_threshold

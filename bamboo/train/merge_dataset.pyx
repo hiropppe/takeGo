@@ -14,7 +14,7 @@ from libc.stdio cimport printf
 from bamboo.board cimport game_state_t
 from bamboo.zobrist_hash cimport initialize_hash 
 from bamboo.sgf_util cimport SGFMoveIterator
-from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
+from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove, NoResultError
 
 
 def main(cmd_line_args=None):
@@ -39,6 +39,8 @@ def main(cmd_line_args=None):
                         help="Threshold of max moves ignoring. SGFs which has moves less than this are discarded")
     parser.add_argument("--recurse", "-R", default=False, action="store_true",
                         help="Set to recurse through directories searching for SGF files")
+    parser.add_argument("--ignore_no_result", default=False, action="store_true",
+                        help="Ignoring sgf without [RE] propery")
     parser.add_argument("--verbose", "-v", default=False, action="store_true",
                         help="Turn on verbose mode")
     parser.add_argument("--quiet", "-q", default=False, action="store_true",
@@ -99,6 +101,7 @@ def main(cmd_line_args=None):
     n_too_few_move = 0
     n_too_many_move = 0
     n_illegal_move = 0
+    n_no_result = 0
     n_hash_corrision = 0
     n_other_error = 0
 
@@ -108,7 +111,12 @@ def main(cmd_line_args=None):
             print(sgf_file)
         try:
             with open(sgf_file, 'r') as file_object:
-                sgf_iter = SGFMoveIterator(19, file_object.read(), args.min_move, args.max_move, False)
+                sgf_iter = SGFMoveIterator(19,
+                                           file_object.read(),
+                                           args.min_move,
+                                           args.max_move,
+                                           ignore_not_legal=False,
+                                           ignore_no_result=args.ignore_no_result)
             game = sgf_iter.game
 
             for j, move in enumerate(sgf_iter):
@@ -139,6 +147,10 @@ def main(cmd_line_args=None):
             n_too_many_move += 1
             if not args.quiet:
                 sys.stderr.write('Too many move. {:d} more than {:d}. {:s}\n'.format(e.n_moves, args.max_move, sgf_file))
+        except NoResultError as e:
+            n_no_result += 1
+            if not args.quiet:
+                sys.stderr.write('NoResult {:s}\n'.format(sgf_file))
         except IllegalMove as e:
             n_illegal_move += 1
             if not args.quiet:
@@ -162,12 +174,13 @@ def main(cmd_line_args=None):
         finally:
             pbar.update(1)
         
-    print('Finished. {:d}/{:d} (Not19 {:d} TooFewMove {:d} TooManyMove {:d} IllegalMove {:d} SameHash {:d} ParseErr {:d} Other {:d})'.format(
-        i + 1 - n_not19 - n_too_few_move - n_too_many_move - n_illegal_move - n_parse_error - n_other_error,
+    print('Finished. {:d}/{:d} (Not19 {:d} TooFewMove {:d} TooManyMove {:d} IllegalMove {:d} NoResult {:d} SameHash {:d} ParseErr {:d} Other {:d})'.format(
+        i + 1 - n_not19 - n_too_few_move - n_too_many_move - n_illegal_move - n_no_result - n_parse_error - n_other_error,
         sgf_count,
         n_not19,
         n_too_few_move,
         n_too_many_move,
+        n_no_result,
         n_illegal_move,
         n_hash_corrision,
         n_parse_error,

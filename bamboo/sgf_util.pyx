@@ -37,10 +37,11 @@ cpdef min_sgf_extract(sgf_string):
     size = ''.join(re.findall(r'SZ\[.+?\]', sgf_string, flags=re.IGNORECASE))
     player = ''.join(re.findall(r'PL\[.+?\]', sgf_string, flags=re.IGNORECASE))
     kiryoku = ''.join(re.findall(r'[BW]R\[.+?\]', sgf_string, flags=re.IGNORECASE))
+    komi = ''.join(re.findall(r'KM\[.+?\]', sgf_string, flags=re.IGNORECASE))
     result = ''.join(re.findall(r'RE\[.+?\]', sgf_string, flags=re.IGNORECASE))
     add_stone = ''.join(re.findall(r'A[BW](?:\[[a-z]+\]\s*)+', sgf_string, flags=re.IGNORECASE))
     moves = ''.join(re.findall(r';[WB]\[[a-z]*?\]', sgf_string, flags=re.IGNORECASE))
-    return '(;{:s}{:s}{:s}{:s}{:s}{:s})'.format(size, player, kiryoku, result, add_stone, moves)
+    return '(;{:s}{:s}{:s}{:s}{:s}{:s}{:s})'.format(size, player, kiryoku, komi, result, add_stone, moves)
 
 
 cdef class SGFMoveIterator:
@@ -58,6 +59,7 @@ cdef class SGFMoveIterator:
         self.moves = list()
         self.i = 0
         self.next_move = None
+        self.komi = 0.0
         self.too_few_moves_threshold = too_few_moves_threshold
         self.too_many_moves_threshold = too_many_moves_threshold
         self.ignore_not_legal = ignore_not_legal
@@ -151,6 +153,11 @@ cdef class SGFMoveIterator:
                 put_stone(self.game, _parse_sgf_move(stone), S_WHITE)
         # setup done; set player according to 'PL' property
         self.game.current_color = S_BLACK if s_player == 'B' else S_WHITE
+
+        # set komi
+        s_komi = props.get('KM')
+        if s_komi:
+            self.komi = float(s_komi[0])
 
         # set winner
         s_re = props.get('RE')
