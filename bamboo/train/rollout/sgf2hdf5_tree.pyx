@@ -75,6 +75,7 @@ cdef class GameConverter(object):
 
                 feature = &game.rollout_feature_planes[<int>game.current_color]
                 onehot_index_array = np.asarray(feature.tensor)
+
                 if onboard_index[move[0]] >= pure_board_max:
                     continue
                 else:
@@ -82,6 +83,7 @@ cdef class GameConverter(object):
 
     def sgfs_to_hdf5(self,
                      sgf_files,
+                     sgf_total,
                      hdf5_file,
                      ignore_errors=True, verbose=False, quiet=False):
         """ Save each feature onehot index in board shape matrix.
@@ -118,7 +120,10 @@ cdef class GameConverter(object):
             n_not19 = 0
             n_too_few_move = 0
             n_too_many_move = 0
+
+            pbar = tqdm(total=sgf_total)
             for file_name in tqdm(sgf_files):
+                pbar.update(1)
                 if verbose:
                     print(file_name)
                 n_pairs = 0
