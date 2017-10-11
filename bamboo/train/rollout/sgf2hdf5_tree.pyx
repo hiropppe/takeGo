@@ -41,6 +41,8 @@ cdef class GameConverter(object):
 
         read_rands(rands_file)
 
+        initialize_hash()
+
         nakade_size = initialize_nakade_hash()
         x33_size = init_x33_hash(x33_file)
         d12_size = init_d12_hash(d12_file)
@@ -60,7 +62,10 @@ cdef class GameConverter(object):
         cdef int i, j
 
         with open(file_name, 'r') as file_object:
-            sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
+            sgf_iter = SGFMoveIterator(self.bsize,
+                                       file_object.read(),
+                                       ignore_not_legal=True,
+                                       ignore_no_result=False)
         game = sgf_iter.game
 
         initialize_planes(game)
