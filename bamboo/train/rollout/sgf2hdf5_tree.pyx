@@ -183,8 +183,8 @@ cdef class GameConverter(object):
             print("finished. renaming %s to %s" % (tmp_file, hdf5_file))
 
         print('Total {:d}/{:d} (Not19 {:d} ParseErr {:d} TooFewMove {:d} TooManyMove {:d})'.format(
-            len(sgf_files) - n_parse_error - n_not19 - n_too_few_move - n_too_many_move,
-            len(sgf_files),
+            sgf_total - n_parse_error - n_not19 - n_too_few_move - n_too_many_move,
+            sgf_total,
             n_parse_error,
             n_not19,
             n_too_few_move,
