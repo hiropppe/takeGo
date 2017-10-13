@@ -3,6 +3,7 @@
 from __future__ import print_function
 from __future__ import absolute_import
 
+import numpy as np
 import os
 import re
 import sys
@@ -22,9 +23,9 @@ flags.DEFINE_string('logdir', '/tmp/logs',
                     'Directory where to save latest parameters for playout.')
 flags.DEFINE_integer('checkpoint', 100, 'Interval steps to execute checkpoint.')
 
-flags.DEFINE_integer("dataset_length", None, "")
 flags.DEFINE_integer("epoch", 10, "")
-flags.DEFINE_integer("epoch_length", 0, "")
+flags.DEFINE_integer("epoch_length", None, "")
+flags.DEFINE_integer("validation_length", None, "")
 flags.DEFINE_integer("batch_size", 32, "")
 
 flags.DEFINE_integer("num_threads", 1, "")
@@ -42,34 +43,47 @@ flags.DEFINE_boolean('verbose', True, '')
 
 FLAGS = flags.FLAGS
 
+_MOMENTUM = 0.9
+
 
 def run_training():
 
     with tf.Graph().as_default() as graph:
         global_step = tf.contrib.framework.get_or_create_global_step()
 
-        lr = tf.train.exponential_decay(
-                FLAGS.learning_rate,
-                global_step,
-                FLAGS.decay_step, FLAGS.decay)
-        grad = tf.train.GradientDescentOptimizer(lr)
+        #lr = tf.train.exponential_decay(
+        #        FLAGS.learning_rate,
+        #        global_step,
+        #        FLAGS.decay_step, FLAGS.decay)
+        #grad = tf.train.GradientDescentOptimizer(lr)
+
+        grad = tf.train.MomentumOptimizer(
+            learning_rate=FLAGS.learning_rate,
+            momentum=_MOMENTUM)
 
         # features of training data
         options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
-        if FLAGS.dataset_length:
-            dataset_length = FLAGS.dataset_length
+        if FLAGS.epoch_length:
+            epoch_length = FLAGS.epoch_length
         else:
             # TODO too slow
-            dataset_length = 0
+            epoch_length = 0
             for each_data in [each_data.strip() for each_data in re.split(r'[\s,]+', FLAGS.train_data)]:
-                dataset_length += sum(1 for _ in tf.python_io.tf_record_iterator(each_data, options=options))
+                epoch_length += sum(1 for _ in tf.python_io.tf_record_iterator(each_data, options=options))
 
-        if FLAGS.epoch_length == 0:
-            epoch_length = dataset_length
-        else:
-            epoch_length = FLAGS.epoch_length
+        train_filenames = [filename.strip() for filename in re.split(r'[\s,]+', FLAGS.train_data)]
 
         do_validation = bool(FLAGS.validation_data)
+        if do_validation:
+            if FLAGS.validation_length:
+                validation_length = FLAGS.validation_length
+            else:
+                # TODO too slow
+                validation_length = 0
+                for each_data in [each_data.strip() for each_data in re.split(r'[\s,]+', FLAGS.validation_data)]:
+                    validation_length += sum(1 for _ in tf.python_io.tf_record_iterator(each_data, options=options))
+
+            validation_filenames = [filename.strip() for filename in re.split(r'[\s,]+', FLAGS.validation_data)]
 
         def parse_function(example_proto):
             features = {
@@ -101,7 +115,7 @@ def run_training():
 
         # create a summary for our cost
         tf.summary.scalar("loss", loss_op)
-        tf.summary.scalar("learning_rate", lr)
+        #tf.summary.scalar("learning_rate", lr)
 
         # merge all summaries into a single "operation" which we can execute in a session
         summary_op = tf.summary.merge_all()
@@ -111,9 +125,7 @@ def run_training():
         if FLAGS.gpu_memory_fraction:
             config.gpu_options.per_process_gpu_memory_fraction = FLAGS.gpu_memory_fraction
 
-        train_filenames = [filename.strip() for filename in re.split(r'[\s,]+', FLAGS.train_data)]
         sess = tf.Session(config=config, graph=graph)
-        sess.run(iterator.initializer, feed_dict={filenames: train_filenames})
         sess.run(init_op)
 
         # Instantiate a SummaryWriter to output summaries and the Graph.
@@ -139,6 +151,8 @@ def run_training():
         reports = 0
         callbacks.on_train_begin()
         while epoch < FLAGS.epoch:
+            sess.run(iterator.initializer, feed_dict={filenames: train_filenames})
+
             callbacks.on_epoch_begin(epoch)
             while callbacks.callbacks[0].seen < epoch_length:
                 batch_logs = {"size": FLAGS.batch_size}
@@ -165,7 +179,18 @@ def run_training():
             checkpoint_file = os.path.join(FLAGS.logdir, 'model.ckpt')
             saver.save(sess, checkpoint_file, global_step=epoch)
 
-            callbacks.on_epoch_end(epoch)
+            epoch_logs = {}
+            if do_validation:
+                sess.run(iterator.initializer, feed_dict={filenames: validation_filenames})
+                val_losses = []
+                val_seen = 0
+                while val_seen < validation_length:
+                    val_loss = sess.run(loss_op)
+                    val_losses.append(val_loss)
+                    val_seen += FLAGS.batch_size
+                epoch_logs['val_loss'] = np.mean(val_losses)
+
+            callbacks.on_epoch_end(epoch, epoch_logs)
             epoch += 1
 
 
