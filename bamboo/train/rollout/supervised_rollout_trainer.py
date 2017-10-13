@@ -13,17 +13,23 @@ from bamboo.train.rollout.optimizer import SGD, Momentum, AdaGrad, Adam, Nestero
 # default settings
 DEFAULT_EPOCH = 10
 DEFAULT_BATCH_SIZE = 16
-DEFAULT_LEARNING_RATE = .005
-DEFAULT_DECAY = .5
+DEFAULT_LEARNING_RATE = .01
+DEFAULT_DECAY = .9
 DEFAULT_DECAY_EVERY = 10000000
 DEFAULT_MOMENTUM = .9
 DEFAULT_BETA1 = .9
 DEFAULT_BETA2 = .999
 DEFAULT_TRAIN_VAL_TEST = [.8, .0, .2]
-REPORT_SIZE = 10000
+REPORT_SIZE = 50000
 
 
 def softmax(x):
+    if x.ndim == 2:
+        x = x.T
+        x = x - np.max(x, axis=0)
+        y = np.exp(x) / np.sum(np.exp(x), axis=0)
+        return y.T
+
     x = x - np.max(x)
     return np.exp(x) / np.sum(np.exp(x))
 
