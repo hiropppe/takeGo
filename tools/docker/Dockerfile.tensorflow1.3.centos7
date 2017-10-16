@@ -23,6 +23,15 @@ RUN yum install -y \
     && \
     updatedb
 
+RUN rm -f /etc/rpm/macros.image-language-conf && \
+    sed -i '/^override_install_langs=/d' /etc/yum.conf && \
+    yum -y reinstall glibc-common && \
+    yum clean all
+
+ENV LANG="ja_JP.UTF-8" \
+    LANGUAGE="ja_JP:ja" \
+    LC_ALL="ja_JP.UTF-8"
+
 # update system python
 RUN curl -s https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz | tar -xz -C . \
  && cd Python-2.7.13/ \
