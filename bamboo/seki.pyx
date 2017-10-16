@@ -41,7 +41,7 @@ cdef void check_seki(game_state_t *game, bint *seki):
         if (is_self_atari(game, pos, S_BLACK) and
             is_self_atari(game, pos, S_WHITE)):
             seki_candidate[pos] = True
-            printf('candidate_pos=%d\n', pos)
+            #printf('candidate_pos=%d\n', pos)
 
     for i in range(MAX_STRING):
         # 連が存在しない,
@@ -52,11 +52,12 @@ cdef void check_seki(game_state_t *game, bint *seki):
         lib1 = string[i].lib[0]
         lib2 = string[i].lib[lib1]
 
+        lib1_ids = 0
+        lib2_ids = 0
         # 連の持つ呼吸点がともにセキの候補
-        if seki_candidate[lib1] and seki_candidate[lib2]:
+        if seki_candidate[lib1]:
             # 呼吸点1の周囲の連のIDを取り出す
             get_neighbor4(neighbor4, lib1)
-            lib1_ids = 0
             for j in range(4):
                 if (board[neighbor4[j]] == S_BLACK or
                     board[neighbor4[j]] == S_WHITE):
@@ -71,9 +72,9 @@ cdef void check_seki(game_state_t *game, bint *seki):
                             lib1_id[lib1_ids] = id
                             lib1_ids += 1
 
+        if seki_candidate[lib2]:
             # 呼吸点2の周囲の連のIDを取り出す
             get_neighbor4(neighbor4, lib2)
-            lib2_ids = 0
             for j in range(4):
                 if (board[neighbor4[j]] == S_BLACK or
                     board[neighbor4[j]] == S_WHITE):
@@ -89,19 +90,24 @@ cdef void check_seki(game_state_t *game, bint *seki):
                             lib2_id[lib2_ids] = id
                             lib2_ids += 1
 
-            printf('lib1=%d\n', lib1)
-            printf('lib2=%d\n', lib2)
-            printf('lib1_ids=%d, lib2_ids=%d\n', lib1_ids, lib2_ids)
-            print_input_pat3(pat3(game.pat, lib1))
-            print_input_pat3(pat3(game.pat, lib2))
+        #printf('lib1=%d\n', lib1)
+        #printf('lib2=%d\n', lib2)
+        #printf('lib1_ids=%d, lib2_ids=%d\n', lib1_ids, lib2_ids)
+        #print_input_pat3(pat3(game.pat, lib1))
+        #print_input_pat3(pat3(game.pat, lib2))
+        if seki_candidate[lib1] and seki_candidate[lib2]: 
             if lib1_ids == 1 and lib2_ids == 1:
                 seki[lib1] = seki[lib2] = True
             elif eye_condition[pat3(game.pat, lib2)] != E_NOT_EYE:
                 seki[lib1] = True
             elif eye_condition[pat3(game.pat, lib1)] != E_NOT_EYE:
                 seki[lib2] = True
-            else:
-                pass
+        elif seki_candidate[lib1]:
+            if eye_condition[pat3(game.pat, lib2)] != E_NOT_EYE:
+                seki[lib1] = True
+        elif seki_candidate[lib2]:
+            if eye_condition[pat3(game.pat, lib1)] != E_NOT_EYE:
+                seki[lib2] = True
 
             """
             if lib1_ids == 1 and lib2_ids == 1:
