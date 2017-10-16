@@ -55,6 +55,15 @@ cdef extern from "ray.h":
         S_OB
         S_MAX
 
+    ctypedef enum eye_condition_t:
+        E_NOT_EYE
+        E_COMPLETE_HALF_EYE
+        E_HALF_3_EYE
+        E_HALF_2_EYE
+        E_HALF_1_EYE
+        E_COMPLETE_ONE_EYE
+        E_MAX
+
     ctypedef struct move_t:
         int color
         int pos
@@ -106,6 +115,8 @@ cdef extern from "ray.h":
         int string_next[483]    # STRING_POS_MAX
 
         int candidates[529]     # BOARD_MAX
+
+        bint seki[529]          # BOARD_MAX
 
         int capture_num[3]      # S_OB
         int capture_pos[3][361] # S_OB, PURE_BOARD_MAX
@@ -161,12 +172,20 @@ cdef int[:, ::1] corner_neighbor
 
 cdef unsigned char territory[65536]     # PAT3_MAX
 cdef unsigned char nb4_empty[65536]     # PAT3_MAX
+cdef unsigned char eye_condition[65536] # PAT3_MAX
 
 cdef bint check_superko
 
+cdef int diagonals[529][4]
+cdef int neighbor4[529][4]
+cdef int neighbor8[529][8]
+cdef int neighbor8_in_order[529][8]
+
 cdef void fill_n_char (char *arr, int size, char v) nogil
+cdef void fill_n_unsigned_char (unsigned char *arr, int size, unsigned char v) nogil
 cdef void fill_n_short (short *arr, int size, short v) nogil
 cdef void fill_n_int (int *arr, int size, int v) nogil
+cdef void fill_n_bint (bint *arr, int size, bint v) nogil
 
 cdef void initialize_const() 
 cdef void clear_const()
@@ -211,6 +230,7 @@ cdef void init_move_distance()
 cdef void init_corner()
 cdef void initialize_neighbor()
 cdef void initialize_territory()
+cdef void initialize_eye()
 cdef int get_neighbor4_empty(game_state_t *game, int pos) nogil
 cdef bint is_legal(game_state_t *game, int pos, char color) nogil
 cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil

@@ -86,6 +86,17 @@ enum stone {
 };
 
 
+enum eye_condition_t : unsigned char {
+  E_NOT_EYE,           // 眼でない
+  E_COMPLETE_HALF_EYE, // 完全に欠け眼(8近傍に打って1眼にできない)
+  E_HALF_3_EYE,        // 欠け眼であるが, 3手で1眼にできる
+  E_HALF_2_EYE,        // 欠け眼であるが, 2手で1眼にできる
+  E_HALF_1_EYE,        // 欠け眼であるが, 1手で1眼にできる
+  E_COMPLETE_ONE_EYE,  // 完全な1眼
+  E_MAX,
+};
+
+
 // 着手を記録する構造体
 typedef struct move {
     int color;  // 着手した石の色
@@ -161,7 +172,7 @@ typedef struct {
     int string_next[STRING_POS_MAX];  // 連を構成する石のデータ構造
 
     int candidates[BOARD_MAX];  // 候補手かどうかのフラグ 
-//  bool seki[BOARD_MAX];
+    bool seki[BOARD_MAX];
   
     int capture_num[S_OB];                   // 前の着手で打ち上げた石の数
     int capture_pos[S_OB][PURE_BOARD_MAX];   // 前の着手で石を打ち上げた座標 

@@ -74,6 +74,12 @@ cdef void fill_n_int (int *arr, int size, int v) nogil:
         arr[i] = v
 
 
+cdef void fill_n_bint (bint *arr, int size, bint v) nogil:
+    cdef int i
+    for i in range(size):
+        arr[i] = v
+
+
 cdef game_state_t *allocate_game() nogil:
     cdef game_state_t *game
 
@@ -159,6 +165,7 @@ cdef void initialize_board(game_state_t *game):
 
     initialize_neighbor()
     initialize_territory()
+    initialize_eye()
 
     initialize_rollout(game)
 
@@ -642,10 +649,10 @@ cdef void get_md12(int md12[12], int pos) nogil:
 
 cdef void init_board_position():
     cdef int i, x, y, p,
-    cdef int neighbor4[4]
     cdef int n, nx, ny, n_pos, n_size
 
     global onboard_index, onboard_pos, board_x, board_y
+    global diagonals, neighbor4, neighbor8, neighbor8_in_order
 
     free(onboard_index)
     free(onboard_pos)
@@ -665,6 +672,11 @@ cdef void init_board_position():
             onboard_pos[i] = p
             board_x[p] = x
             board_y[p] = y
+
+            get_diagonals(diagonals[p], p)
+            get_neighbor4(neighbor4[p], p)
+            get_neighbor8(neighbor8[p], p)
+            get_neighbor8_in_order(neighbor8_in_order[p], p)
             i += 1
 
 
@@ -747,6 +759,169 @@ cdef void initialize_territory():
             territory[i] = S_BLACK
         elif (i & 0x2288) == 0x2288: 
             territory[i] = S_WHITE
+
+
+cdef void initialize_eye():
+    cdef unsigned int eye_pat3[16]
+    cdef unsigned int false_eye_pat3[4]
+    cdef unsigned int complete_half_eye[12]
+    cdef unsigned int half_3_eye[2]
+    cdef unsigned int half_2_eye[4]
+    cdef unsigned int half_1_eye[6]
+    cdef unsigned int complete_1_eye[5]
+
+    cdef unsigned int transp[8]
+    cdef unsigned int pat3_transp16[16]
+
+    cdef int i, j
+
+    """
+      眼のパターンはそれぞれ1か所あたり最大2ビットで表現
+        012
+        3*4
+        567
+      それぞれの番号×2ビットだけシフトさせる
+        +:空点      0
+        O:自分の石  1
+        X:相手の石 10
+        #:盤外     11
+    """
+    eye_pat3[:] = [
+      # +OO     XOO     +O+     XO+
+      # O*O     O*O     O*O     O*O
+      # OOO     OOO     OOO     OOO
+      0x5554, 0x5556, 0x5544, 0x5546,
+
+      # +OO     XOO     +O+     XO+
+      # O*O     O*O     O*O     O*O
+      # OO+     OO+     OO+     OO+
+      0x1554, 0x1556, 0x1544, 0x1546,
+
+      # +OX     XO+     +OO     OOO
+      # O*O     O*O     O*O     O*O
+      # OO+     +O+     ###     ###
+      0x1564, 0x1146, 0xFD54, 0xFD55,
+
+      # +O#     OO#     XOX     XOX
+      # O*#     O*#     O+O     O+O
+      # ###     ###     OOO     ###
+      0xFF74, 0xFF75, 0x5566, 0xFD66,
+    ]
+
+    false_eye_pat3[:] = [
+      # OOX     OOO     XOO     XO#
+      # O*O     O*O     O*O     O*#
+      # XOO     XOX     ###     ###
+      0x5965, 0x9955, 0xFD56, 0xFF76,
+    ]
+
+    complete_half_eye[:] = [
+      # XOX     OOX     XOX     XOX     XOX
+      # O*O     O*O     O*O     O*O     O*O
+      # OOO     XOO     +OO     XOO     +O+
+      0x5566, 0x5965, 0x5166, 0x5966, 0x1166,
+      # +OX     XOX     XOX     XOO     XO+
+      # O*O     O*O     O*O     O*O     O*O
+      # XO+     XO+     XOX     ###     ###
+      0x1964, 0x1966, 0x9966, 0xFD56, 0xFD46,
+      # XOX     XO#
+      # O*O     O*#
+      # ###     ###
+      0xFD66, 0xFF76
+    ]
+
+    half_3_eye[:] = [
+      # +O+     XO+
+      # O*O     O*O
+      # +O+     +O+
+      0x1144, 0x1146
+    ]
+
+    half_2_eye[:] = [
+      # +O+     XO+     +OX     +O+
+      # O*O     O*O     O*O     O*O
+      # +OO     +OO     +OO     ###
+      0x5144, 0x5146, 0x5164, 0xFD44,
+    ]
+
+    half_1_eye[:] = [
+      # +O+     XO+     OOX     OOX     +OO
+      # O*O     O*O     O*O     O*O     O*O
+      # OOO     OOO     +OO     +OO     ###
+      0x5544, 0x5564, 0x5145, 0x5165, 0xFD54,
+      # +O#
+      # O*#
+      # ###
+      0xFF74,
+    ]
+
+    complete_1_eye[:] = [
+      # OOO     +OO     XOO     OOO     OO#
+      # O*O     O*O     O*O     O*O     O*#
+      # OOO     OOO     OOO     ###     ###
+      0x5555, 0x5554, 0x5556, 0xFD55, 0xFF75,
+    ]
+
+    fill_n_unsigned_char(eye_condition, E_NOT_EYE, 0);
+
+    for i in range(12):
+        pat.pat3_transpose16(complete_half_eye[i], pat3_transp16)
+        for j in range(16):
+            eye_condition[pat3_transp16[j]] = E_COMPLETE_HALF_EYE
+
+    for i in range(2):
+        pat.pat3_transpose16(half_3_eye[i], pat3_transp16);
+        for j in range(16):
+            eye_condition[pat3_transp16[j]] = E_HALF_3_EYE;
+
+    for i in range(4):
+        pat.pat3_transpose16(half_2_eye[i], pat3_transp16);
+        for j in range(16):
+            eye_condition[pat3_transp16[j]] = E_HALF_2_EYE;
+
+    for i in range(6):
+        pat.pat3_transpose16(half_1_eye[i], pat3_transp16);
+        for j in range(16):
+            eye_condition[pat3_transp16[j]] = E_HALF_1_EYE;
+
+    for i in range(5):
+        pat.pat3_transpose16(complete_1_eye[i], pat3_transp16);
+        for j in range(16):
+            eye_condition[pat3_transp16[j]] = E_COMPLETE_ONE_EYE;
+
+    """
+    # BBB
+    # B*B
+    # BBB
+    eye[0x5555] = S_BLACK;
+
+    # WWW
+    # W*W
+    # WWW
+    eye[pat.pat3_reverse(0x5555)] = S_WHITE;
+
+    # +B+
+    # B*B
+    # +B+
+    eye[0x1144] = S_BLACK;
+
+    # +W+
+    # W*W
+    # +W+
+    eye[pat.pat3_reverse(0x1144)] = S_WHITE;
+
+    for i in range(14):
+      pat.pat3_transpose8(eye_pat3[i], transp);
+      for j in range(8):
+        eye[transp[j]] = S_BLACK;
+        eye[pat.pat3_reverse(transp[j])] = S_WHITE;
+
+    for i in range(4):
+      pat.pat3_transpose8(false_eye_pat3[i], transp);
+      for j in range(8):
+        false_eye[transp[j]] = S_BLACK;
+        false_eye[pat.pat3_reverse(transp[j])] = S_WHITE;
+    """
 
 
 cdef void initialize_const():
