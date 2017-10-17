@@ -24,6 +24,7 @@ from bamboo.board cimport onboard_pos, komi
 from bamboo.board cimport game_state_t
 from bamboo.board cimport set_board_size, set_komi, initialize_board
 from bamboo.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
+from bamboo.seki cimport check_seki
 from bamboo.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
 from bamboo.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
 from bamboo.policy_feature cimport MAX_POLICY_PLANES, MAX_VALUE_PLANES
@@ -476,9 +477,11 @@ cdef class MCTS(object):
         update_tree_planes_all(game)
         get_tree_probs(game, move_probs)
 
+        check_seki(game, game.seki)
+
         for i in range(PURE_BOARD_MAX):
             child_pos = onboard_pos[i]
-            if is_legal_not_eye(game, child_pos, color):
+            if is_legal_not_eye(game, child_pos, color) and game.seki[child_pos] == 0:
                 child_hash = game.current_hash ^ hash_bit[child_pos][<int>color]
                 child_i = search_empty_index(child_hash, other_color, child_moves)
                 # initialize new edge

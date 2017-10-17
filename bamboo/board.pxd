@@ -116,7 +116,7 @@ cdef extern from "ray.h":
 
         int candidates[529]     # BOARD_MAX
 
-        bint seki[529]          # BOARD_MAX
+        int seki[529]          # BOARD_MAX
 
         int capture_num[3]      # S_OB
         int capture_pos[3][361] # S_OB, PURE_BOARD_MAX
@@ -175,6 +175,7 @@ cdef unsigned char nb4_empty[65536]     # PAT3_MAX
 cdef unsigned char eye_condition[65536] # PAT3_MAX
 
 cdef bint check_superko
+cdef bint japanese_rule
 
 cdef int diagonals[529][4]
 cdef int neighbor4[529][4]

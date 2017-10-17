@@ -25,3 +25,18 @@ class TestSeki(unittest.TestCase):
 
     def test_seki_5(self):
         ctest.test_seki_5()
+
+    def test_seki_6(self):
+        ctest.test_seki_6()
+
+    def test_seki_7(self):
+        ctest.test_seki_7()
+
+    def test_seki_8(self):
+        ctest.test_seki_8()
+
+    def test_seki_9(self):
+        ctest.test_seki_9()
+
+    def test_bent4(self):
+        ctest.test_bent4()

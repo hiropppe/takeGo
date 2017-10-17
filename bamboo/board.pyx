@@ -23,6 +23,8 @@ from bamboo.zobrist_hash cimport HASH_PASS, HASH_BLACK, HASH_WHITE, HASH_KO
 from bamboo.zobrist_hash cimport hash_bit
 from bamboo.rollout_preprocess cimport MOVE_DISTANCE_MAX
 from bamboo.rollout_preprocess cimport initialize_rollout
+from bamboo.seki cimport check_seki
+
 
 pure_board_size = PURE_BOARD_SIZE
 pure_board_max = PURE_BOARD_MAX
@@ -48,6 +50,7 @@ max_moves = MAX_MOVES
 komi = KOMI
 
 check_superko = False
+japanese_rule = False
 
 
 cdef void fill_n_char (char *arr, int size, char v) nogil:
@@ -1141,7 +1144,7 @@ cdef bint is_superko(game_state_t *game, int pos, char color) nogil:
                     if flag:
                         continue
                 string_pos = string.origin
-                while string_pos != STRING_END:
+                while string_pos != string_end:
                     hash ^= hash_bit[string_pos][other]
                     string_pos = game.string_next[string_pos]
             check[checked] = string_id
@@ -1162,10 +1165,15 @@ cdef int calculate_score(game_state_t *game) nogil:
     cdef int color
     cdef int *scores = [0, 0, 0, 0]
 
+    if japanese_rule:
+        check_seki(game, game.seki)
+
     check_bent_four_in_the_corner(game)
 
     for i in range(pure_board_max):
         pos = onboard_pos[i]
+        if japanese_rule and game.seki[pos]:
+            continue
         color = game.board[pos]
         if color == S_EMPTY:
             color = territory[pat.pat3(game.pat, pos)]

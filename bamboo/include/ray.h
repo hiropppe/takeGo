@@ -172,7 +172,7 @@ typedef struct {
     int string_next[STRING_POS_MAX];  // 連を構成する石のデータ構造
 
     int candidates[BOARD_MAX];  // 候補手かどうかのフラグ 
-    bool seki[BOARD_MAX];
+    int seki[BOARD_MAX];
   
     int capture_num[S_OB];                   // 前の着手で打ち上げた石の数
     int capture_pos[S_OB][PURE_BOARD_MAX];   // 前の着手で石を打ち上げた座標 

@@ -8,158 +8,54 @@ cimport numpy as np
 from libc.string cimport memset
 from libc.stdio cimport printf
 
-from bamboo.board cimport S_EMPTY, S_BLACK, S_WHITE, BOARD_MAX, PURE_BOARD_MAX, MAX_STRING, E_NOT_EYE, E_COMPLETE_HALF_EYE
+from bamboo.board cimport S_EMPTY, S_BLACK, S_WHITE, BOARD_MAX, PURE_BOARD_MAX, MAX_STRING, E_NOT_EYE
 from bamboo.board cimport FLIP_COLOR, NORTH, WEST, EAST, SOUTH
-from bamboo.board cimport onboard_pos, eye_condition, pure_board_max, board_size, liberty_end
+from bamboo.board cimport onboard_pos, eye_condition, pure_board_max, board_size, liberty_end, string_end
 from bamboo.board cimport game_state_t, string_t
-from bamboo.board cimport get_neighbor4, is_true_eye
+from bamboo.board cimport get_neighbor4, is_true_eye, fill_n_int, fill_n_bint
 from bamboo.pattern cimport pat3, print_input_pat3
 
 
-cdef void check_seki(game_state_t *game, bint *seki):
-    cdef int i, j, k, pos, id
-    cdef char *board = game.board
-    cdef int *string_id = game.string_id
+cdef void check_seki(game_state_t *game, int *seki) nogil:
+    cdef int i
     cdef string_t *string = game.string
     cdef bint seki_candidate[529]
     cdef int lib1, lib2
-    cdef int lib1_id[4]
-    cdef int lib2_id[4]
-    cdef int lib1_ids, lib2_ids
-    cdef int neighbor1_lib, neighbor2_lib
-    cdef int neighbor4[4]
-    cdef int tmp_id1 = 0, tmp_id2 = 0
-    cdef bint already_checked
-    cdef int empty_diagonal_stack[200]
-    cdef int empty_diagonal_top = 0
+    cdef int string_pos
 
-    memset(seki_candidate, 0, sizeof(bint)*BOARD_MAX)
+    fill_n_int(seki, BOARD_MAX, 0)
+    fill_n_bint(seki_candidate, BOARD_MAX, 0)
 
-    # 双方が自己アタリになっている座標を抽出
     for i in range(pure_board_max):
         pos = onboard_pos[i]
         if (is_self_atari(game, pos, S_BLACK) and
             is_self_atari(game, pos, S_WHITE)):
             seki_candidate[pos] = True
-            #printf('candidate_pos=%d\n', pos)
 
     for i in range(MAX_STRING):
-        # 連が存在しない,
-        # または連の呼吸点数が2個でなければ次を調べる
         if string[i].flag == False or string[i].libs != 2:
             continue
 
         lib1 = string[i].lib[0]
         lib2 = string[i].lib[lib1]
 
-        lib1_ids = 0
-        lib2_ids = 0
-        # 連の持つ呼吸点がともにセキの候補
-        if seki_candidate[lib1]:
-            # 呼吸点1の周囲の連のIDを取り出す
-            get_neighbor4(neighbor4, lib1)
-            for j in range(4):
-                if (board[neighbor4[j]] == S_BLACK or
-                    board[neighbor4[j]] == S_WHITE):
-                    id = string_id[neighbor4[j]]
-                    if id != i:
-                        already_checked = False
-                        for k in range(lib1_ids):
-                            if lib1_id[k] == id:
-                                already_checked = True
-                                break
-                        if not already_checked:
-                            lib1_id[lib1_ids] = id
-                            lib1_ids += 1
-
-        if seki_candidate[lib2]:
-            # 呼吸点2の周囲の連のIDを取り出す
-            get_neighbor4(neighbor4, lib2)
-            for j in range(4):
-                if (board[neighbor4[j]] == S_BLACK or
-                    board[neighbor4[j]] == S_WHITE):
-                    id = string_id[neighbor4[j]]
-                    if id != i:
-                        already_checked = False
-                        for k in range(lib2_ids):
-                            if lib2_id[k] == id:
-                                already_checked = True
-                                break
-
-                        if not already_checked:
-                            lib2_id[lib2_ids] = id
-                            lib2_ids += 1
-
-        #printf('lib1=%d\n', lib1)
-        #printf('lib2=%d\n', lib2)
-        #printf('lib1_ids=%d, lib2_ids=%d\n', lib1_ids, lib2_ids)
-        #print_input_pat3(pat3(game.pat, lib1))
-        #print_input_pat3(pat3(game.pat, lib2))
         if seki_candidate[lib1] and seki_candidate[lib2]: 
-            if lib1_ids == 1 and lib2_ids == 1:
-                seki[lib1] = seki[lib2] = True
-            elif eye_condition[pat3(game.pat, lib2)] != E_NOT_EYE:
-                seki[lib1] = True
-            elif eye_condition[pat3(game.pat, lib1)] != E_NOT_EYE:
-                seki[lib2] = True
+            seki[lib1] = seki[lib2] = 1 
         elif seki_candidate[lib1]:
             if eye_condition[pat3(game.pat, lib2)] != E_NOT_EYE:
-                seki[lib1] = True
+                seki[lib1] = seki[lib2] = 1
         elif seki_candidate[lib2]:
             if eye_condition[pat3(game.pat, lib1)] != E_NOT_EYE:
-                seki[lib2] = True
+                seki[lib1] = seki[lib2] = 1
 
-            """
-            if lib1_ids == 1 and lib2_ids == 1:
-                printf('lib1=%d lib2=%d\n', lib1, lib2)
-                neighbor1_lib = string[lib1_id[0]].lib[0]
-                if (neighbor1_lib == lib1 or
-                    neighbor1_lib == lib2):
-                    neighbor1_lib = string[lib1_id[0]].lib[neighbor1_lib]
+        if seki[lib1]:
+            string_pos = string[i].origin
+            while string_pos != string_end:
+                seki[string_pos] = 1
+                string_pos = game.string_next[string_pos]
 
-                neighbor2_lib = string[lib2_id[0]].lib[0]
-                if (neighbor2_lib == lib1 or
-                    neighbor2_lib == lib2):
-                    neighbor2_lib = string[lib2_id[0]].lib[neighbor2_lib]
 
-                if neighbor1_lib == neighbor2_lib:
-                    #print_input_pat3(pat3(game.pat, neighbor1_lib))
-                    #print eye_condition[pat3(game.pat, neighbor1_lib)], E_NOT_EYE
-                    #if eye_condition[pat3(game.pat, neighbor1_lib)] != E_NOT_EYE:
-                    #    seki[lib1] = seki[lib2] = True
-                    #    seki[neighbor1_lib] = True
-                    seki[lib1] = seki[lib2] = True
-                    seki[neighbor1_lib] = True
-                elif (eye_condition[pat3(game.pat, neighbor1_lib)] == E_COMPLETE_HALF_EYE and
-                      eye_condition[pat3(game.pat, neighbor2_lib)] == E_COMPLETE_HALF_EYE):
-                    tmp_id1 = 0
-                    tmp_id2 = 0
-                    get_neighbor4(neighbor4, neighbor1_lib)
-                    for j in range(4):
-                        if (board[neighbor4[j]] == S_BLACK or
-                            board[neighbor4[j]] == S_WHITE):
-                            id = string_id[neighbor4[j]]
-                            if (id != lib1_id[0] and
-                                id != lib2_id[0] and
-                                id != tmp_id1):
-                                tmp_id1 = id
-                    
-                    get_neighbor4(neighbor4, neighbor2_lib)
-                    for j in range(4):
-                        if (board[neighbor4[j]] == S_BLACK or
-                            board[neighbor4[j]] == S_WHITE):
-                            id = string_id[neighbor4[j]]      
-                            if (id != lib1_id[0] and
-                                id != lib2_id[0] and
-                                id != tmp_id2):
-                                tmp_id2 = id;
-
-                    if tmp_id1 == tmp_id2:
-                        seki[lib1] = seki[lib2] = True
-                        seki[neighbor1_lib] = seki[neighbor2_lib] = True
-            """
-
-cdef bint is_self_atari(game_state_t *game, int pos, int color):
+cdef bint is_self_atari(game_state_t *game, int pos, int color) nogil:
     cdef char *board = game.board
     cdef string_t *string = game.string
     cdef int *string_id = game.string_id

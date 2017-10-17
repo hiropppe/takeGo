@@ -11,7 +11,7 @@ from bamboo.board cimport game_state_t
 from bamboo.board cimport allocate_game, free_game, put_stone
 from bamboo.parseboard cimport parse
 
-from bamboo.seki cimport is_self_atari, check_seki
+from bamboo.seki cimport check_seki
 
 
 def setup():
@@ -20,9 +20,9 @@ def setup():
 
 def test_seki_0():
     cdef game_state_t *game = allocate_game()
-    cdef bint seki[529]
+    cdef int seki[529]
 
-    memset(seki, 0, sizeof(bint)*529)
+    memset(seki, 0, sizeof(int)*529)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . . . .|"
@@ -40,14 +40,14 @@ def test_seki_0():
     eq_(True, seki[moves['a']])
     eq_(True, seki[moves['b']])
 
-    eq_(2, np.asarray(seki).sum())
+    eq_(12, np.asarray(seki).sum())
 
 
 def test_seki_1():
     cdef game_state_t *game = allocate_game()
-    cdef bint seki[529]
+    cdef int seki[529]
 
-    memset(seki, 0, sizeof(bint)*529)
+    memset(seki, 0, sizeof(int)*529)
 
     (moves, pure_moves) = parse(game,
                               ". . B W a B W . .|"
@@ -65,18 +65,18 @@ def test_seki_1():
     eq_(True, seki[moves['a']])
     eq_(True, seki[moves['b']])
 
-    eq_(2, np.asarray(seki).sum())
+    eq_(9, np.asarray(seki).sum())
 
 
 def test_seki_2():
     cdef game_state_t *game = allocate_game()
-    cdef bint seki[529]
+    cdef int seki[529]
 
-    memset(seki, 0, sizeof(bint)*529)
+    memset(seki, 0, sizeof(int)*529)
 
     (moves, pure_moves) = parse(game,
-                              ". . . W W B B W .|"
-                              ". . . W B . B a W|"
+                              ". . . W W B B W a|"
+                              ". . . W B b B c W|"
                               ". . . W B B B B B|"
                               ". . . W W W W W W|"
                               ". . . . . . . . .|"
@@ -88,23 +88,25 @@ def test_seki_2():
     check_seki(game, seki)
 
     eq_(True, seki[moves['a']])
+    eq_(True, seki[moves['b']])
+    eq_(True, seki[moves['c']])
 
-    eq_(1, np.asarray(seki).sum())
+    eq_(14, np.asarray(seki).sum())
 
 
 def test_seki_3():
     cdef game_state_t *game = allocate_game()
-    cdef bint seki[529]
+    cdef int seki[529]
 
-    memset(seki, 0, sizeof(bint)*529)
+    memset(seki, 0, sizeof(int)*529)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . . . .|"
                               ". . . . . . . . .|"
                               ". . W W W B B B .|"
                               ". W W B B W W W B|"
-                              ". W B B B W . W B|"
-                              "W B . B a W W B .|"
+                              ". W B B B W a W B|"
+                              "W B b B c W W B .|"
                               "W B B B W W B B .|"
                               ". W W W B B B . .|"
                               ". . . . . . . . .|")
@@ -112,20 +114,22 @@ def test_seki_3():
     check_seki(game, seki)
 
     eq_(True, seki[moves['a']])
+    eq_(True, seki[moves['b']])
+    eq_(True, seki[moves['c']])
 
-    eq_(1, np.asarray(seki).sum())
+    eq_(22, np.asarray(seki).sum())
 
 
 def test_seki_4():
     cdef game_state_t *game = allocate_game()
-    cdef bint seki[529]
+    cdef int seki[529]
 
-    memset(seki, 0, sizeof(bint)*529)
+    memset(seki, 0, sizeof(int)*529)
 
     (moves, pure_moves) = parse(game,
-                              "W . W B B B W . .|"
-                              "W W W B . B W . .|"
-                              "a B B B B W W . .|"
+                              "W a W B B B W . .|"
+                              "W W W B b B W . .|"
+                              "c B B B B W W . .|"
                               "B B B W W W . . .|"
                               "W W W W . . . . .|"
                               ". . . . . . . . .|"
@@ -136,22 +140,24 @@ def test_seki_4():
     check_seki(game, seki)
 
     eq_(True, seki[moves['a']])
+    eq_(True, seki[moves['b']])
+    eq_(True, seki[moves['c']])
 
-    eq_(1, np.asarray(seki).sum())
+    eq_(20, np.asarray(seki).sum())
 
 
 def test_seki_5():
     cdef game_state_t *game = allocate_game()
-    cdef bint seki[529]
+    cdef int seki[529]
 
-    memset(seki, 0, sizeof(bint)*529)
+    memset(seki, 0, sizeof(int)*529)
 
     (moves, pure_moves) = parse(game,
-                              ". . W B . B W B .|"
+                              ". . W B a B W B .|"
                               ". . W B B W W B .|"
-                              ". . W B a W W B .|"
+                              ". . W B b W W B .|"
                               ". . W B B W W B .|"
-                              ". . W B W . W B .|"
+                              ". . W B W c W B .|"
                               ". . W B B W W B .|"
                               ". . W W B B B W .|"
                               ". . . . W W W W .|"
@@ -160,6 +166,136 @@ def test_seki_5():
     check_seki(game, seki)
 
     eq_(True, seki[moves['a']])
+    eq_(True, seki[moves['b']])
+    eq_(True, seki[moves['c']])
 
-    eq_(1, np.asarray(seki).sum())
+    eq_(25, np.asarray(seki).sum())
 
+
+def test_seki_6():
+    cdef game_state_t *game = allocate_game()
+    cdef int seki[529]
+
+    memset(seki, 0, sizeof(int)*529)
+
+    (moves, pure_moves) = parse(game,
+                              "W a B b B W . . .|"
+                              "c W B B B W . . .|"
+                              "B B W W W W . . .|"
+                              "d B W . . . . . .|"
+                              "B B W . . . . . .|"
+                              "W W W . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|")
+
+    check_seki(game, seki)
+
+    eq_(True, seki[moves['a']])
+    eq_(True, seki[moves['b']])
+    eq_(True, seki[moves['c']])
+    eq_(True, seki[moves['d']])
+
+    eq_(16, np.asarray(seki).sum())
+
+
+def test_seki_7():
+    cdef game_state_t *game = allocate_game()
+    cdef int seki[529]
+
+    memset(seki, 0, sizeof(int)*529)
+
+    (moves, pure_moves) = parse(game,
+                              "a B B b W B . . .|"
+                              "B W W W W B . . .|"
+                              "c W B B B B . . .|"
+                              "W W B . . . . . .|"
+                              "B B B . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|")
+
+    check_seki(game, seki)
+
+    eq_(True, seki[moves['a']])
+    eq_(True, seki[moves['b']])
+    eq_(True, seki[moves['c']])
+
+    eq_(14, np.asarray(seki).sum())
+
+
+def test_seki_8():
+    cdef game_state_t *game = allocate_game()
+    cdef int seki[529]
+
+    memset(seki, 0, sizeof(int)*529)
+
+    (moves, pure_moves) = parse(game,
+                              "a B c B W . . . .|"
+                              "W W B B W . . . .|"
+                              "b B B W W . . . .|"
+                              "B B W W . . . . .|"
+                              "W W W . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|")
+
+    check_seki(game, seki)
+
+    eq_(True, seki[moves['a']])
+    eq_(True, seki[moves['b']])
+    eq_(True, seki[moves['c']])
+
+    eq_(13, np.asarray(seki).sum())
+
+
+def test_seki_9():
+    cdef game_state_t *game = allocate_game()
+    cdef int seki[529]
+
+    memset(seki, 0, sizeof(int)*529)
+
+    (moves, pure_moves) = parse(game,
+                              "W B a W W B . . .|"
+                              "W b B W W B . . .|"
+                              "W W W W W B . . .|"
+                              "B B B B B B . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|")
+
+    check_seki(game, seki)
+
+    eq_(True, seki[moves['a']])
+    eq_(True, seki[moves['b']])
+
+    eq_(15, np.asarray(seki).sum())
+
+
+def test_bent4():
+    cdef game_state_t *game = allocate_game()
+    cdef int seki[529]
+
+    memset(seki, 0, sizeof(int)*529)
+
+    (moves, pure_moves) = parse(game,
+                              "W a B W . . . . .|"
+                              "W B B W . . . . .|"
+                              "W b B W . . . . .|"
+                              "B B B W . . . . .|"
+                              "W W W W . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|"
+                              ". . . . . . . . .|")
+
+    check_seki(game, seki)
+
+    eq_(True, seki[moves['a']])
+    eq_(True, seki[moves['b']])
+
+    eq_(12, np.asarray(seki).sum())
