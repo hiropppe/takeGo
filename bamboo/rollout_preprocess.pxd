@@ -43,7 +43,9 @@ cdef int nonres_d12_start
 cdef double rollout_weights[100000]
 cdef double tree_weights[100000]
 
-cpdef void initialize_const(int nakade_size, int x33_size, int d12_size, int nonres_d12_size)
+cdef bint use_pos_aware_d12 = False
+
+cpdef void initialize_const(int nakade_size, int x33_size, int d12_size, int nonres_d12_size, bint pos_aware_d12=?)
 cpdef void set_rollout_parameter(object weights_hdf5) 
 cpdef void set_tree_parameter(object weights_hdf5)
 

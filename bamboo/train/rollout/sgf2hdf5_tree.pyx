@@ -22,7 +22,7 @@ from bamboo.board cimport game_state_t, rollout_feature_t, pure_board_size, pure
 from bamboo.printer cimport print_board
 from bamboo.zobrist_hash cimport initialize_hash
 from bamboo.nakade cimport initialize_nakade_hash
-from bamboo.local_pattern cimport read_rands, init_x33_hash, init_d12_hash, init_nonres_d12_hash
+from bamboo.local_pattern cimport read_rands, init_x33_hash, init_d12_hash, init_d12_move_hash, init_nonres_d12_hash
 from bamboo.local_pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout_preprocess cimport tree_feature_size
 from bamboo.rollout_preprocess cimport initialize_const, initialize_planes, update_planes, update_tree_planes_all 
@@ -34,7 +34,13 @@ cdef class GameConverter(object):
         int bsize
         list update_speeds
 
-    def __cinit__(self, bsize=19, rands_file=None, x33_file=None, d12_file=None, nonres_d12_file=None):
+    def __cinit__(self,
+                  bsize=19,
+                  rands_file=None,
+                  x33_csv=None,
+                  d12_csv=None,
+                  d12_resp_csv=None,
+                  pos_aware_d12=False):
         cdef int nakade_size, x33_size, d12_size
 
         self.bsize = bsize
@@ -44,13 +50,16 @@ cdef class GameConverter(object):
         initialize_hash()
 
         nakade_size = initialize_nakade_hash()
-        x33_size = init_x33_hash(x33_file)
-        d12_size = init_d12_hash(d12_file)
-        nonres_d12_size = init_nonres_d12_hash(nonres_d12_file)
+        x33_size = init_x33_hash(x33_csv)
+        if pos_aware_d12:
+            d12_size = init_d12_move_hash(d12_csv)
+        else:
+            d12_size = init_d12_hash(d12_csv)
+        nonres_d12_size = init_nonres_d12_hash(d12_csv)
 
         self.update_speeds = list()
 
-        initialize_const(nakade_size, x33_size, d12_size, nonres_d12_size)
+        initialize_const(nakade_size, x33_size, d12_size, nonres_d12_size, pos_aware_d12)
 
     def __dealloc__(self):
         pass
@@ -64,8 +73,8 @@ cdef class GameConverter(object):
         with open(file_name, 'r') as file_object:
             sgf_iter = SGFMoveIterator(self.bsize,
                                        file_object.read(),
-                                       ignore_not_legal=True,
-                                       ignore_no_result=False)
+                                       ignore_not_legal=False,
+                                       ignore_no_result=True)
         game = sgf_iter.game
 
         initialize_planes(game)
@@ -144,7 +153,8 @@ cdef class GameConverter(object):
                         next_idx += 1
                 except sgf.ParseException:
                     n_parse_error += 1
-                    warnings.warn('ParseException. {:s}'.format(file_name))
+                    if not quiet:
+                        warnings.warn('ParseException. {:s}'.format(file_name))
                     if verbose:
                         err, msg, _ = sys.exc_info()
                         sys.stderr.write("{} {}\n".format(err, msg))
@@ -153,10 +163,12 @@ cdef class GameConverter(object):
                     n_not19 += 1
                 except TooFewMove as e:
                     n_too_few_move += 1
-                    warnings.warn('Too few move. {:d} less than 50. {:s}'.format(e.n_moves, file_name))
+                    if not quiet:
+                        warnings.warn('Too few move. {:d} less than 50. {:s}'.format(e.n_moves, file_name))
                 except TooManyMove as e:
                     n_too_many_move += 1
-                    warnings.warn('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, file_name))
+                    if not quiet:
+                        warnings.warn('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, file_name))
                 except KeyboardInterrupt:
                     break
                 finally:
@@ -170,7 +182,7 @@ cdef class GameConverter(object):
                     elif verbose:
                         print("\t-no usable data-")
         except Exception as e:
-            print("sgfs_to_onehot_index_array failed")
+            print("sgfs2hdf5 failed")
             err, msg, _ = sys.exc_info()
             sys.stderr.write("{} {}\n".format(err, msg))
             sys.stderr.write(traceback.format_exc())

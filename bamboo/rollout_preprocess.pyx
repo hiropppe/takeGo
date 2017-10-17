@@ -21,20 +21,22 @@ from bamboo.board cimport is_legal, is_legal_not_eye, get_neighbor4, get_neighbo
 
 from bamboo.nakade cimport NOT_NAKADE, get_nakade_index, get_nakade_id, get_nakade_pos
 from bamboo.local_pattern cimport x33_hash, x33_hashmap
-from bamboo.local_pattern cimport d12_hash, d12_hashmap, d12_pos_mt
+from bamboo.local_pattern cimport d12_hash, d12_move_hash, d12_pos_mt, d12_hashmap
 from bamboo.local_pattern cimport nonres_d12_hash, nonres_d12_hashmap
 
 
 cpdef void initialize_const(int nakade_feature_size,
                             int x33_feature_size,
                             int d12_feature_size,
-                            int p_nonres_d12_size):
+                            int p_nonres_d12_size,
+                            bint pos_aware_d12=False):
     global rollout_feature_size
     global response_size, save_atari_size, neighbor_size, nakade_size, x33_size, d12_size
     global response_start, save_atari_start, neighbor_start, nakade_start, x33_start, d12_start
     global tree_feature_size
     global self_atari_size, last_move_distance_size, nonres_d12_size
     global self_atari_start, last_move_distance_start, nonres_d12_start
+    global use_pos_aware_d12
 
     response_size = 1
     save_atari_size = 1
@@ -58,6 +60,8 @@ cpdef void initialize_const(int nakade_feature_size,
 
     rollout_feature_size = d12_start + d12_size
     tree_feature_size = nonres_d12_start + nonres_d12_size
+
+    use_pos_aware_d12 = pos_aware_d12
 
 
 cdef void initialize_rollout(game_state_t *game) nogil:
@@ -274,25 +278,45 @@ cdef void update_d12(rollout_feature_t *feature, game_state_t *game, int prev_po
         feature.tensor[F_RESPONSE_PAT][pos] = -1
 
     feature.prev_d12_num = 0
-    hash = d12_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
-    for i in range(n_empty_val):
-        positional_hash = hash ^ d12_pos_mt[1 << empty_ix[i]] 
-        each_empty_pos = empty_pos[i]
-        if d12_hashmap.find(positional_hash) == d12_hashmap.end():
-            empty_onboard_ix = onboard_index[each_empty_pos]
-            feature.tensor[F_RESPONSE][empty_onboard_ix] = -1 
-            feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = -1
-        else:
-            pat_ix = d12_start + d12_hashmap[positional_hash]
-            empty_onboard_ix = onboard_index[each_empty_pos]
-            # set response(?) and response pattern
-            feature.tensor[F_RESPONSE][empty_onboard_ix] = response_start
-            feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = pat_ix
-            # memorize previous d12 position
-            feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
-            feature.prev_d12_num += 1
+    if use_pos_aware_d12:
+        hash = d12_move_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
+        for i in range(n_empty_val):
+            positional_hash = hash ^ d12_pos_mt[1 << empty_ix[i]] 
+            each_empty_pos = empty_pos[i]
+            if d12_hashmap.find(positional_hash) == d12_hashmap.end():
+                empty_onboard_ix = onboard_index[each_empty_pos]
+                feature.tensor[F_RESPONSE][empty_onboard_ix] = -1 
+                feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = -1
+            else:
+                pat_ix = d12_start + d12_hashmap[positional_hash]
+                empty_onboard_ix = onboard_index[each_empty_pos]
+                # set response(?) and response pattern
+                feature.tensor[F_RESPONSE][empty_onboard_ix] = response_start
+                feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = pat_ix
+                # memorize previous d12 position
+                feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
+                feature.prev_d12_num += 1
 
-        memorize_updated(feature, each_empty_pos)
+            memorize_updated(feature, each_empty_pos)
+    else:
+        hash = d12_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
+        for i in range(n_empty_val):
+            each_empty_pos = empty_pos[i]
+            if d12_hashmap.find(hash) == d12_hashmap.end():
+                empty_onboard_ix = onboard_index[each_empty_pos]
+                feature.tensor[F_RESPONSE][empty_onboard_ix] = -1 
+                feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = -1
+            else:
+                pat_ix = d12_start + d12_hashmap[hash]
+                empty_onboard_ix = onboard_index[each_empty_pos]
+                # set response(?) and response pattern
+                feature.tensor[F_RESPONSE][empty_onboard_ix] = response_start
+                feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = pat_ix
+                # memorize previous d12 position
+                feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
+                feature.prev_d12_num += 1
+
+            memorize_updated(feature, each_empty_pos)
 
 
 cdef void update_3x3(rollout_feature_t *feature, game_state_t *game, int pos, int color) nogil:

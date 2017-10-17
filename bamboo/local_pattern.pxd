@@ -20,10 +20,12 @@ cpdef void read_rands(object mt_file)
 cpdef void write_rands(object mt_file, int n=?)
 
 cpdef int init_d12_hash(object d12_csv)
+cpdef int init_d12_move_hash(object d12_csv)
 cpdef int init_x33_hash(object x33_csv)
 cpdef int init_nonres_d12_hash(object nonres_d12_csv)
 
 cpdef void put_d12_hash(unsigned long long bits, int id)
+cpdef void put_d12_move_hash(unsigned long long bits, int id)
 cpdef void put_x33_hash(unsigned long long bits, int id)
 cpdef void put_nonres_d12_hash(unsigned long long bits, int id)
 
@@ -49,6 +51,29 @@ cpdef unsigned long long d12_transp(unsigned long long pat)
 cpdef void print_d12(unsigned long long pat, bint show_bits=?, bint show_board=?)
 cpdef void print_d12_trans8(unsigned long long pat, bint show_bits=?, bint show_board=?)
 cpdef void print_d12_trans16(unsigned long long pat, bint show_bits=?, bint show_board=?)
+
+# 12 diamond move pattern
+cdef unsigned long long d12_move_hash(game_state_t *game, int pos, int color,
+                                 int empty_ix[12], int empty_pos[12], int *n_empty) nogil except? -1
+cdef unsigned long long d12_move_bits(game_state_t *game, int pos, int color, 
+                                 int empty_ix[12], int empty_pos[12], int *n_empty) nogil except? -1
+cpdef unsigned long long d12_move_hash_from_bits(unsigned long long bits) except? -1
+
+cpdef unsigned long long d12_move_trans8_min(unsigned long long pat)
+cpdef unsigned long long d12_move_trans16_min(unsigned long long pat)
+
+cdef void d12_move_trans8(unsigned long long pat, unsigned long long *trans)
+cdef void d12_move_trans16(unsigned long long pat, unsigned long long *trans)
+
+cpdef unsigned long long d12_move_rev(unsigned long long pat)
+cpdef unsigned long long d12_move_rot90(unsigned long long pat)
+cpdef unsigned long long d12_move_fliplr(unsigned long long pat)
+cpdef unsigned long long d12_move_flipud(unsigned long long pat)
+cpdef unsigned long long d12_move_transp(unsigned long long pat)
+
+cpdef void print_d12_move(unsigned long long pat, bint show_bits=?, bint show_board=?)
+cpdef void print_d12_move_trans8(unsigned long long pat, bint show_bits=?, bint show_board=?)
+cpdef void print_d12_move_trans16(unsigned long long pat, bint show_bits=?, bint show_board=?)
 
 # 3x3 pattern
 cdef unsigned long long x33_hash(game_state_t *game, int pos, int color) nogil except? -1

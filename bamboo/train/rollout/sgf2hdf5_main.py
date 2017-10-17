@@ -20,14 +20,16 @@ def run_game_converter(cmd_line_args=None):
                         help="Choice policy to generate feature (Default: rollout)")
     parser.add_argument("--size", "-s", type=int, default=19,
                         help="Size of the game board. SGFs not matching this are discarded with a warning")
-    parser.add_argument("--mt-rands-file", "-mt", required=True, type=str, default=None,
+    parser.add_argument("--mt_rands_file", "-mt", required=True, type=str, default=None,
                         help="Mersenne twister random number file. Default: None")
-    parser.add_argument("--x33-file", "-x33", default=None,
-                        help="3x3 pattern file. Default: None")
-    parser.add_argument("--d12-file", "-d12", default=None,
-                        help="12 point diamond pattern file. Default:None")
-    parser.add_argument("--nonres-d12-file", "-nd12", default=None,
+    parser.add_argument("--x33_csv", "-x33", required=True, default=None,
+                        help="Non-response 3x3 pattern file. Default: None")
+    parser.add_argument("--d12_csv", "-d12", default=None,
                         help="Non-response 12 point diamond pattern file. Default:None")
+    parser.add_argument("--d12_resp_csv", "-rd12", default=None,
+                        help="Response 12 point diamond pattern file. Default:None")
+    parser.add_argument("--d12_respos_csv", "-rpd12", default=None,
+                        help="Response 12 point diamond pattern file (Include response move bits). Default:None")
     parser.add_argument("--recurse", "-R", default=False, action="store_true",
                         help="Set to recurse through directories searching for SGF files")
     parser.add_argument("--verbose", "-v", default=False, action="store_true",
@@ -40,17 +42,29 @@ def run_game_converter(cmd_line_args=None):
     else:
         args = parser.parse_args(cmd_line_args)
 
+    # which is better ?
+    if args.d12_resp_csv:
+        d12_resp_csv = args.d12_resp_csv
+        pos_aware_d12 = False
+    elif args.d12_respos_csv:
+        d12_resp_csv = args.d12_respos_csv
+        pos_aware_d12 = True
+    else:
+        raise ValueError('--d12_resp_csv or --d12_respos_csv required.')
+
     if args.policy == 'rollout':
         converter = RolloutGameConverter(args.size,
                                          args.mt_rands_file,
-                                         args.x33_file,
-                                         args.d12_file)
+                                         args.x33_csv,
+                                         d12_resp_csv,
+                                         pos_aware_d12)
     else:
         converter = TreeGameConverter(args.size,
                                       args.mt_rands_file,
-                                      args.x33_file,
-                                      args.d12_file,
-                                      args.nonres_d12_file)
+                                      args.x33_csv,
+                                      args.d12_csv,
+                                      d12_resp_csv,
+                                      pos_aware_d12)
 
     def _is_sgf(fname):
         return fname.strip()[-4:] == ".sgf"
