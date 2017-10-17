@@ -19,7 +19,7 @@ DEFAULT_DECAY_EVERY = 10000000
 DEFAULT_MOMENTUM = .9
 DEFAULT_BETA1 = .9
 DEFAULT_BETA2 = .999
-DEFAULT_TRAIN_VAL_TEST = [.8, .0, .2]
+DEFAULT_TRAIN_VAL_TEST = [.9, .0, .1]
 REPORT_SIZE = 50000
 
 
@@ -63,8 +63,12 @@ def start_training(args):
     n_test = (int)(n_total*args.train_val_test[-1])
     n_train = n_total - n_test
 
-    rgen = np.random.RandomState(1)
-    params = {'W': rgen.normal(loc=0.0, scale=0.01, size=feature_size)}
+    if args.weights is None:
+        rgen = np.random.RandomState(1)
+        params = {'W': rgen.normal(loc=0.0, scale=0.01, size=feature_size)}
+    else:
+        with h5.File(args.weights) as weights_h5:
+            params = {'W': weights_h5['W'].value}
 
     if args.optimizer == 'sgd':
         optimizer = SGD(lr=args.learning_rate, decay_every=args.decay_every, decay_rate=args.decay)
@@ -240,7 +244,7 @@ def handle_arguments(cmd_line_args=None):
                         help="Hyper parameter of Adam. Default: " + str(DEFAULT_BETA2))
     parser.add_argument("--decay-every", "-de", type=int, default=None,
                         help="Batch size of decay learning rate. Default: None")
-    parser.add_argument("--weights", default=None,
+    parser.add_argument("--weights", "-w", default=None,
                         help="Name of a .h5 weights file (in the output directory) to load to resume training")
     parser.add_argument("--train-val-test", nargs=3, type=float, default=DEFAULT_TRAIN_VAL_TEST,
                         help="Fraction of data to use for training/val/test. Must sum to 1. Default: " + str(DEFAULT_TRAIN_VAL_TEST))
