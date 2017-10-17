@@ -4,20 +4,21 @@
 
 import numpy as np
 import os
+
+from tensorflow.contrib.keras.python import keras
+from tensorflow.contrib.keras.python.keras import backend as K
+
+from bamboo.models.keras_dcnn_policy import CNNPolicy
+from bamboo.gtp import gtp
+
 cimport numpy as np
 
-from bamboo.models import policy
-
 from libc.stdio cimport printf
-
-from nose.tools import ok_, eq_
 
 from bamboo.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS, RESIGN
 from bamboo.board cimport FLIP_COLOR, CORRECT_X, CORRECT_Y
 from bamboo.board cimport game_state_t, onboard_pos
 from bamboo.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi, set_superko 
-from bamboo.printer cimport print_board
-from bamboo.parseboard cimport parse
 
 from bamboo.zobrist_hash cimport uct_hash_size
 from bamboo.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
@@ -25,11 +26,12 @@ from bamboo.tree_search cimport tree_node_t, PyMCTS
 
 from bamboo.rollout_preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter, set_tree_parameter
 from bamboo.local_pattern cimport read_rands, init_d12_hash, init_x33_hash, init_nonres_d12_hash
+from bamboo.nakade cimport initialize_nakade_hash
+from bamboo.printer cimport print_board
+from bamboo.parseboard cimport parse
 
-from bamboo.gtp import gtp
 
-
-def self_play(time_limit=60.0, playout_limit=10000, n_games=1, n_threads=1):
+def self_play(time_limit=5.0, playout_limit=10000, n_games=1, n_threads=2):
     cdef game_state_t *game
     cdef PyMCTS mcts
     cdef tree_node_t *node
@@ -37,45 +39,47 @@ def self_play(time_limit=60.0, playout_limit=10000, n_games=1, n_threads=1):
     cdef int pos
     cdef int i
 
-    import tensorflow as tf
-    from keras.backend.tensorflow_backend import set_session
-    # config = tf.ConfigProto(device_count={"GPU": 0})
-    config = tf.ConfigProto()
-    config.gpu_options.per_process_gpu_memory_fraction = 0.2
-    set_session(tf.Session(config=config))
+    # Limit the GPU memory usage
+    if K.backend() == 'tensorflow':
+        import tensorflow as tf
+        config = tf.ConfigProto()
+        config.gpu_options.per_process_gpu_memory_fraction = 0.2
+        keras.backend.set_session(tf.Session(config=config))
 
     d = os.path.dirname(os.path.abspath(__file__))
     # supervised policy
-    model = os.path.join(d, '../../params/policy/policy.json')
-    weights = os.path.join(d, '../../params/policy/weights.00088.hdf5')
+    model = os.path.join(d, '../params/policy/policy.json')
+    weights = os.path.join(d, '../params/policy/kihuu_best.hdf5')
     # rollout policy
-    rollout_weights = os.path.join(d, '../../params/rollout/rollout_weights.hdf5')
+    rollout_weights = os.path.join(d, '../params/rollout/rollout_weights.hdf5')
     # tree policy
-    tree_weights = os.path.join(d, '../../params/rollout/tree_weights.hdf5')
+    tree_weights = os.path.join(d, '../params/rollout/tree_weights.hdf5')
     # pattern hash for rollout
-    rands_txt = os.path.join(d, '../../params/rollout/mt_rands.txt')
-    d12_csv = os.path.join(d, '../../params/rollout/d12.csv')
-    x33_csv = os.path.join(d, '../../params/rollout/x33.csv')
-    tree_d12_csv = os.path.join(d, '../../params/rollout/tree_d12.csv')
+    rands_txt = os.path.join(d, '../params/rollout/mt_rands.txt')
+    d12_csv = os.path.join(d, '../params/rollout/d12.csv')
+    x33_csv = os.path.join(d, '../params/rollout/x33.csv')
+    tree_d12_csv = os.path.join(d, '../params/rollout/tree_d12.csv')
 
     set_hash_size(2**20)
     initialize_hash()
+    initialize_nakade_hash()
 
     read_rands(rands_txt)
     x33_size = init_x33_hash(x33_csv)
     d12_size = init_d12_hash(d12_csv)
     tree_d12_size = init_nonres_d12_hash(tree_d12_csv)
 
-    initialize_const(0, x33_size, d12_size, tree_d12_size)
+    initialize_const(8, x33_size, d12_size, tree_d12_size)
 
-    sl_policy = policy.CNNPolicy.load_model(model)
-    sl_policy.model.load_weights(weights)
+    sl_policy = CNNPolicy(init_network=True)
+    model = sl_policy.model
+    model.load_weights(weights)
 
     set_rollout_parameter(rollout_weights)
     set_tree_parameter(tree_weights)
 
     set_board_size(19)
-    set_superko(True)
+    set_superko(False)
 
     mcts = PyMCTS(sl_policy,
                   time_limit=time_limit,
