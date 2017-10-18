@@ -58,7 +58,7 @@ def test_add_liberty_to_isolated_one():
     origin = board.POS(4, 4, board.board_size)
     string = __initialize_string(game, origin, board.S_BLACK) 
 
-    board.get_neighbor4(neighbor4, origin)
+    neighbor4 = board.neighbor4_pos[origin]
 
     board.add_liberty(string, neighbor4[0], 0)
     ok_(string.lib[0] == neighbor4[0])
@@ -90,7 +90,7 @@ def test_remove_liberty_of_isolated_one():
     board.make_string(game, pos, board.S_BLACK)
     string = &game.string[1]
 
-    board.get_neighbor4(neighbor4, pos)
+    neighbor4 = board.neighbor4_pos[pos]
     north = neighbor4[0]
     west  = neighbor4[1]
     east  = neighbor4[2]
@@ -147,7 +147,7 @@ def test_add_neighbor_to_isolated_one():
     pos = board.POS(4, 4, board.board_size)
     board.make_string(game, pos, board.S_BLACK)
 
-    board.get_neighbor4(neighbor, pos)
+    neighbor4 = board.neighbor4_pos[pos]
     south = neighbor[0]
 
     string = __initialize_string(game, south, board.S_WHITE)

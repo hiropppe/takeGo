@@ -177,10 +177,11 @@ cdef unsigned char eye_condition[65536] # PAT3_MAX
 cdef bint check_superko
 cdef bint japanese_rule
 
-cdef int diagonals[529][4]
-cdef int neighbor4[529][4]
-cdef int neighbor8[529][8]
-cdef int neighbor8_in_order[529][8]
+cdef int diagonal_pos[529][4]
+cdef int neighbor4_pos[529][4]
+cdef int neighbor8_pos[529][8]
+cdef int neighbor8_seq_pos[529][8]
+cdef int md2_pos[529][12]
 
 cdef void fill_n_char (char *arr, int size, char v) nogil
 cdef void fill_n_unsigned_char (unsigned char *arr, int size, unsigned char v) nogil
@@ -223,7 +224,7 @@ cdef void get_neighbor4(int neighbor4[4], int pos) nogil
 cdef void get_neighbor8(int neighbor8[8], int pos) nogil
 cdef void get_neighbor8_in_order(int neighbor8[8], int pos) nogil
 
-cdef void get_md12(int md12[12], int pos) nogil
+cdef void get_md2(int md2[12], int pos) nogil
 
 cdef void init_board_position()
 cdef void init_line_number()
@@ -232,7 +233,6 @@ cdef void init_corner()
 cdef void initialize_neighbor()
 cdef void initialize_territory()
 cdef void initialize_eye()
-cdef int get_neighbor4_empty(game_state_t *game, int pos) nogil
 cdef bint is_legal(game_state_t *game, int pos, char color) nogil
 cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil
 cdef bint is_suicide(game_state_t *game, int pos, char color) nogil

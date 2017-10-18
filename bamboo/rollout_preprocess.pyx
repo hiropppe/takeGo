@@ -17,7 +17,8 @@ from bamboo.board cimport PURE_BOARD_SIZE, BOARD_MAX, PURE_BOARD_MAX, S_EMPTY, S
 from bamboo.board cimport FLIP_COLOR, POS, Y, DIS, NORTH, WEST, EAST, SOUTH
 from bamboo.board cimport game_state_t, rollout_feature_t, pure_board_max
 from bamboo.board cimport board_size, onboard_index, onboard_pos, board_x, board_y, move_dis, liberty_end
-from bamboo.board cimport is_legal, is_legal_not_eye, get_neighbor4, get_neighbor8, get_neighbor8_in_order, get_md12
+from bamboo.board cimport neighbor4_pos, neighbor8_pos, neighbor8_seq_pos
+from bamboo.board cimport is_legal, is_legal_not_eye
 
 from bamboo.nakade cimport NOT_NAKADE, get_nakade_index, get_nakade_id, get_nakade_pos
 from bamboo.local_pattern cimport x33_hash, x33_hashmap
@@ -29,7 +30,7 @@ cpdef void initialize_const(int nakade_feature_size,
                             int x33_feature_size,
                             int d12_feature_size,
                             int p_nonres_d12_size,
-                            bint pos_aware_d12=False):
+                            bint pos_aware_d12=True):
     global rollout_feature_size
     global response_size, save_atari_size, neighbor_size, nakade_size, x33_size, d12_size
     global response_start, save_atari_start, neighbor_start, nakade_start, x33_start, d12_start
@@ -173,7 +174,6 @@ cdef void update_save_atari(rollout_feature_t *feature, game_state_t *game, stri
     """ Save atari 1 Move saves stone(s) from capture
     """
     cdef int last_lib
-    cdef int neighbor4[4]
     cdef int neighbor_pos
     cdef string_t *neighbor_string
     cdef int libs_after_move
@@ -185,9 +185,8 @@ cdef void update_save_atari(rollout_feature_t *feature, game_state_t *game, stri
     libs_after_move = 0
     if string.libs == 1 and string.color == game.current_color:
         last_lib = string.lib[0]
-        get_neighbor4(neighbor4, last_lib)
         for i in range(4):
-            neighbor_pos = neighbor4[i]
+            neighbor_pos = neighbor4_pos[last_lib][i]
             neighbor_string = &game.string[game.string_id[neighbor_pos]]
             if neighbor_string.flag:
                 if neighbor_string.libs > 1 and neighbor_string.color == game.current_color:
@@ -207,7 +206,6 @@ cdef void update_save_atari(rollout_feature_t *feature, game_state_t *game, stri
 cdef void update_neighbor(rollout_feature_t *feature, game_state_t *game, int pos) nogil:
     """ Move is 8-connected to previous move
     """
-    cdef int neighbor8[8]
     cdef int neighbor_pos, empty_neighbor_ix
     cdef int i
 
@@ -216,11 +214,9 @@ cdef void update_neighbor(rollout_feature_t *feature, game_state_t *game, int po
     for i in range(feature.prev_neighbor8_num):
         feature.tensor[F_NEIGHBOR][feature.prev_neighbor8[i]] = -1
 
-    get_neighbor8_in_order(neighbor8, pos)
-
     feature.prev_neighbor8_num = 0
     for i in range(8):
-        neighbor_pos = neighbor8[i]
+        neighbor_pos = neighbor8_seq_pos[pos][i]
         if game.board[neighbor_pos] == S_EMPTY:
             empty_neighbor_ix = onboard_index[neighbor_pos]
             feature.tensor[F_NEIGHBOR][empty_neighbor_ix] = neighbor_start + i

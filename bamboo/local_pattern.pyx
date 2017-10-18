@@ -9,7 +9,7 @@ from libcpp.string cimport string as cppstring
 
 from bamboo.board cimport MIN
 from bamboo.board cimport S_EMPTY, S_BLACK, S_WHITE, S_OB
-from bamboo.board cimport game_state_t, string_t, get_neighbor8_in_order, get_md12
+from bamboo.board cimport game_state_t, string_t, neighbor8_seq_pos, md2_pos 
 from bamboo.zobrist_hash cimport mt
 from bamboo.printer cimport print_board
 
@@ -164,7 +164,6 @@ cdef unsigned long long d12_hash(game_state_t *game, int pos, int color,
         Add candidate move by hash ^= d12_pos_mt[1 << i]
         i is candidate(empty) position index in 12 diamond 
     """
-    cdef int md12[12]
     cdef int md_pos, md_color
     cdef string_t *string
     cdef unsigned long long hash = 0
@@ -172,14 +171,12 @@ cdef unsigned long long d12_hash(game_state_t *game, int pos, int color,
 
     n_empty[0] = 0
 
-    get_md12(md12, pos)
-
     string = &game.string[game.string_id[pos]]
     hash ^= color_mt[0][color]
     hash ^= liberty_mt[0][MIN(string.libs, 3)]
 
     for i in range(1, 13):
-        md_pos = md12[i-1]
+        md_pos = md2_pos[pos][i-1]
         md_color = game.board[md_pos]
         hash ^= color_mt[i][md_color]
         string = &game.string[game.string_id[md_pos]]
@@ -214,7 +211,6 @@ cdef unsigned long long d12_bits(game_state_t *game, int pos, int color,
         Add candidate move by bits | (1 << i).
         i is candidate(empty) position index in 12 diamond 
     """
-    cdef int md12[12]
     cdef int md_pos, md_color
     cdef string_t *string
     cdef unsigned long long color_pat = 0
@@ -223,14 +219,12 @@ cdef unsigned long long d12_bits(game_state_t *game, int pos, int color,
 
     n_empty[0] = 0
 
-    get_md12(md12, pos)
-
     color_pat |= color
     string = &game.string[game.string_id[pos]]
     lib_pat |= MIN(string.libs, 3)
 
     for i in range(12):
-        md_pos = md12[i]
+        md_pos = md2_pos[pos][i]
         md_color = game.board[md_pos]
         color_pat |= (md_color << (i+1)*2)
         string = &game.string[game.string_id[md_pos]]
@@ -442,7 +436,6 @@ cdef unsigned long long d12_move_hash(game_state_t *game, int pos, int color,
         Add candidate move by hash ^= d12_pos_mt[1 << i]
         i is candidate(empty) position index in 12 diamond 
     """
-    cdef int md12[12]
     cdef int md_pos, md_color
     cdef string_t *string
     cdef unsigned long long hash = 0
@@ -450,14 +443,12 @@ cdef unsigned long long d12_move_hash(game_state_t *game, int pos, int color,
 
     n_empty[0] = 0
 
-    get_md12(md12, pos)
-
     string = &game.string[game.string_id[pos]]
     hash ^= color_mt[0][color]
     hash ^= liberty_mt[0][MIN(string.libs, 3)]
 
     for i in range(1, 13):
-        md_pos = md12[i-1]
+        md_pos = md2_pos[pos][i-1]
         md_color = game.board[md_pos]
         hash ^= color_mt[i][md_color]
         string = &game.string[game.string_id[md_pos]]
@@ -492,7 +483,6 @@ cdef unsigned long long d12_move_bits(game_state_t *game, int pos, int color,
         Add candidate move by bits | (1 << i).
         i is candidate(empty) position index in 12 diamond 
     """
-    cdef int md12[12]
     cdef int md_pos, md_color
     cdef string_t *string
     cdef unsigned long long color_pat = 0
@@ -501,14 +491,12 @@ cdef unsigned long long d12_move_bits(game_state_t *game, int pos, int color,
 
     n_empty[0] = 0
 
-    get_md12(md12, pos)
-
     color_pat |= color
     string = &game.string[game.string_id[pos]]
     lib_pat |= MIN(string.libs, 3)
 
     for i in range(12):
-        md_pos = md12[i]
+        md_pos = md2_pos[pos][i]
         md_color = game.board[md_pos]
         color_pat |= (md_color << (i+1)*2)
         string = &game.string[game.string_id[md_pos]]
@@ -739,16 +727,13 @@ cpdef void print_d12_move_trans16(unsigned long long pat, bint show_bits=True, b
 """ 3x3 pattern functions
 """
 cdef unsigned long long x33_hash(game_state_t *game, int pos, int color) nogil except? -1:
-    cdef int neighbor8[8]
     cdef int neighbor_pos
     cdef string_t *string
     cdef unsigned long long hash = 0
     cdef int i
 
-    get_neighbor8_in_order(neighbor8, pos)
-
     for i in range(8):
-        neighbor_pos = neighbor8[i]
+        neighbor_pos = neighbor8_seq_pos[pos][i]
         hash ^= color_mt[i][game.board[neighbor_pos]]
         string = &game.string[game.string_id[neighbor_pos]]
         if string.flag:
@@ -769,17 +754,14 @@ cpdef unsigned long long x33_hash_from_bits(unsigned long long bits) except? -1:
 
 
 cdef unsigned long long x33_bits(game_state_t *game, int pos, int color) nogil except? -1:
-    cdef int neighbor8[8]
     cdef int neighbor_pos
     cdef string_t *string
     cdef unsigned long long color_pat = 0 
     cdef int lib_pat = 0
     cdef int i
 
-    get_neighbor8_in_order(neighbor8, pos)
-
     for i in range(8):
-        neighbor_pos = neighbor8[i]
+        neighbor_pos = neighbor8_seq_pos[pos][i]
         color_pat |= (game.board[neighbor_pos] << i*2)
         string = &game.string[game.string_id[neighbor_pos]]
         if string.flag:
@@ -943,16 +925,13 @@ cpdef void print_x33_trans16(unsigned long long pat, bint show_bits=True, bint s
 """ Non-response 12 diamond(MD2) Pattern functions
 """
 cdef unsigned long long nonres_d12_hash(game_state_t *game, int pos, int color) nogil except? -1:
-    cdef int md12[12]
     cdef int md_pos
     cdef string_t *string
     cdef unsigned long long hash = 0
     cdef int i
 
-    get_md12(md12, pos)
-
     for i in range(12):
-        md_pos = md12[i]
+        md_pos = md2_pos[pos][i]
         hash ^= color_mt[i][game.board[md_pos]]
         string = &game.string[game.string_id[md_pos]]
         if string.flag:
@@ -964,17 +943,14 @@ cdef unsigned long long nonres_d12_hash(game_state_t *game, int pos, int color) 
 
 
 cdef unsigned long long nonres_d12_bits(game_state_t *game, int pos, int color) nogil except? -1:
-    cdef int md12[12]
     cdef int md_pos
     cdef string_t *string
     cdef unsigned long long color_pat = 0
     cdef int lib_pat = 0
     cdef int i
 
-    get_md12(md12, pos)
-
     for i in range(12):
-        md_pos = md12[i]
+        md_pos = md2_pos[pos][i]
         color_pat |= (game.board[md_pos] << i*2)
         string = &game.string[game.string_id[md_pos]]
         if string.flag:

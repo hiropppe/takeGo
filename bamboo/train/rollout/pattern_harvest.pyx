@@ -16,7 +16,7 @@ from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.board cimport PASS, S_EMPTY, STRING_EMPTY_END
 from bamboo.board cimport DIS, DX, DY
 from bamboo.board cimport game_state_t, string_t 
-from bamboo.board cimport onboard_index, get_md12, board_x, board_y, move_dis
+from bamboo.board cimport onboard_index, board_x, board_y, move_dis
 from bamboo.printer cimport print_board
 from bamboo.local_pattern cimport x33_bits, x33_trans8_min, x33_trans16_min, print_x33
 from bamboo.local_pattern cimport d12_bits, d12_trans8_min, d12_trans16_min, print_d12

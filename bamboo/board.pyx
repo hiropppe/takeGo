@@ -186,7 +186,6 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
     cdef int connection = 0
     cdef int connect[4]
     cdef int prisoner = 0
-    cdef int neighbor8[8]
     cdef int neighbor_pos, neighbor_string_id
     cdef string_t *neighbor_string
     cdef int i
@@ -215,10 +214,8 @@ cdef bint put_stone(game_state_t *game, int pos, char color) nogil:
 
     pat.update_md2_stone(game.pat, pos, color)
 
-    get_neighbor8(neighbor8, pos)
-
     for i in range(8):
-        neighbor_pos = neighbor8[i]
+        neighbor_pos = neighbor8_pos[pos][i]
         neighbor_string_id = game.string_id[neighbor_pos]
         neighbor_string = &game.string[neighbor_string_id]
         if i < 4:
@@ -331,7 +328,6 @@ cdef void add_stone(game_state_t *game, int pos, char color, int string_id) nogi
     cdef int lib_add = 0
     cdef int empty_add = 0
     cdef int other = FLIP_COLOR(color)
-    cdef int neighbor8[8]
     cdef int neighbor_pos, neighbor_string_id
     cdef int i
 
@@ -341,10 +337,8 @@ cdef void add_stone(game_state_t *game, int pos, char color, int string_id) nogi
 
     add_stone_to_string(game, add_string, pos, 0)
 
-    get_neighbor8(neighbor8, pos)
-
     for i in range(8):
-        neighbor_pos = neighbor8[i]
+        neighbor_pos = neighbor8_pos[pos][i]
         if i < 4:
             if game.board[neighbor_pos] == S_EMPTY:
                 lib_add = add_liberty(add_string, neighbor_pos, lib_add)
@@ -389,7 +383,6 @@ cdef void make_string(game_state_t *game, int pos, char color) nogil:
     cdef int lib_add = 0
     cdef int empty_add = 0
     cdef int other = FLIP_COLOR(color)
-    cdef int neighbor8[8]
     cdef int neighbor_pos
     cdef int neighbor_string_id
     cdef int i
@@ -416,10 +409,8 @@ cdef void make_string(game_state_t *game, int pos, char color) nogil:
     game.string_id[pos] = string_id
     game.string_next[pos] = string_end
 
-    get_neighbor8(neighbor8, pos)
-
     for i in range(8):
-        neighbor_pos = neighbor8[i]
+        neighbor_pos = neighbor8_pos[pos][i]
         if i < 4:
             if game.board[neighbor_pos] == S_EMPTY:
                 lib_add = add_liberty(new_string, neighbor_pos, lib_add)
@@ -635,19 +626,19 @@ cdef void get_neighbor8_in_order(int neighbor8[8], int pos) nogil:
     neighbor8[7] = SOUTH_EAST(pos, board_size)
 
 
-cdef void get_md12(int md12[12], int pos) nogil:
-    md12[0] = pos + pat.NN
-    md12[1] = pos + pat.NW
-    md12[2] = pos + pat.N
-    md12[3] = pos + pat.NE
-    md12[4] = pos + pat.WW
-    md12[5] = pos + pat.W
-    md12[6] = pos + pat.E
-    md12[7] = pos + pat.EE
-    md12[8] = pos + pat.SW
-    md12[9] = pos + pat.S
-    md12[10] = pos + pat.SE
-    md12[11] = pos + pat.SS
+cdef void get_md2(int md2[12], int pos) nogil:
+    md2[0] = pos + pat.NN
+    md2[1] = pos + pat.NW
+    md2[2] = pos + pat.N
+    md2[3] = pos + pat.NE
+    md2[4] = pos + pat.WW
+    md2[5] = pos + pat.W
+    md2[6] = pos + pat.E
+    md2[7] = pos + pat.EE
+    md2[8] = pos + pat.SW
+    md2[9] = pos + pat.S
+    md2[10] = pos + pat.SE
+    md2[11] = pos + pat.SS
 
 
 cdef void init_board_position():
@@ -655,7 +646,7 @@ cdef void init_board_position():
     cdef int n, nx, ny, n_pos, n_size
 
     global onboard_index, onboard_pos, board_x, board_y
-    global diagonals, neighbor4, neighbor8, neighbor8_in_order
+    global diagonal_pos, neighbor4_pos, neighbor8_pos, neighbor8_seq_pos
 
     free(onboard_index)
     free(onboard_pos)
@@ -676,10 +667,47 @@ cdef void init_board_position():
             board_x[p] = x
             board_y[p] = y
 
-            get_diagonals(diagonals[p], p)
-            get_neighbor4(neighbor4[p], p)
-            get_neighbor8(neighbor8[p], p)
-            get_neighbor8_in_order(neighbor8_in_order[p], p)
+            diagonal_pos[p][0] = NORTH_WEST(p, board_size)
+            diagonal_pos[p][1] = NORTH_EAST(p, board_size)
+            diagonal_pos[p][2] = SOUTH_WEST(p, board_size)
+            diagonal_pos[p][3] = SOUTH_EAST(p, board_size)
+
+            neighbor4_pos[p][0] = NORTH(p, board_size)
+            neighbor4_pos[p][1] = WEST(p)
+            neighbor4_pos[p][2] = EAST(p)
+            neighbor4_pos[p][3] = SOUTH(p, board_size)
+
+            neighbor8_pos[p][0] = NORTH(p, board_size)
+            neighbor8_pos[p][1] = WEST(p)
+            neighbor8_pos[p][2] = EAST(p)
+            neighbor8_pos[p][3] = SOUTH(p, board_size)
+            neighbor8_pos[p][4] = NORTH_WEST(p, board_size)
+            neighbor8_pos[p][5] = NORTH_EAST(p, board_size)
+            neighbor8_pos[p][6] = SOUTH_WEST(p, board_size)
+            neighbor8_pos[p][7] = SOUTH_EAST(p, board_size)
+
+            neighbor8_seq_pos[p][0] = NORTH_WEST(p, board_size)
+            neighbor8_seq_pos[p][1] = NORTH(p, board_size)
+            neighbor8_seq_pos[p][2] = NORTH_EAST(p, board_size)
+            neighbor8_seq_pos[p][3] = WEST(p)
+            neighbor8_seq_pos[p][4] = EAST(p)
+            neighbor8_seq_pos[p][5] = SOUTH_WEST(p, board_size)
+            neighbor8_seq_pos[p][6] = SOUTH(p, board_size)
+            neighbor8_seq_pos[p][7] = SOUTH_EAST(p, board_size)
+
+            md2_pos[p][0] = p + pat.NN
+            md2_pos[p][1] = p + pat.NW
+            md2_pos[p][2] = p + pat.N
+            md2_pos[p][3] = p + pat.NE
+            md2_pos[p][4] = p + pat.WW
+            md2_pos[p][5] = p + pat.W
+            md2_pos[p][6] = p + pat.E
+            md2_pos[p][7] = p + pat.EE
+            md2_pos[p][8] = p + pat.SW
+            md2_pos[p][9] = p + pat.S
+            md2_pos[p][10] = p + pat.SE
+            md2_pos[p][11] = p + pat.SS
+
             i += 1
 
 
@@ -995,10 +1023,6 @@ cdef void set_superko(bint check):
     check_superko = check
 
 
-cdef int get_neighbor4_empty(game_state_t *game, int pos) nogil:
-    return nb4_empty[pat.pat3(game.pat, pos)]
-
-
 cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
     if pos == PASS:
         return True
@@ -1053,8 +1077,6 @@ cdef bint is_true_eye(game_state_t *game,
                       int empty_diagonal_top) nogil:
     cdef int allowable_bad_diagonal
     cdef int num_bad_diagonal
-    cdef int neighbor4[4]
-    cdef int diagonals[4]
     cdef int dpos, dcolor
     cdef int i, j
     cdef bint found
@@ -1065,18 +1087,15 @@ cdef bint is_true_eye(game_state_t *game,
     if nb4_empty[pat.pat3(game.pat, pos)] != 0:
         return False
 
-    get_neighbor4(neighbor4, pos)
     for i in range(4):
-        if game.board[neighbor4[i]] == other_color:
+        if game.board[neighbor4_pos[pos][i]] == other_color:
             return False
 
     if board_dis_x[pos] == 1 or board_dis_y[pos] == 1:
         allowable_bad_diagonal = 0
 
-    get_diagonals(diagonals, pos)
-
     for i in range(4):
-        dpos = diagonals[i]
+        dpos = diagonal_pos[pos][i]
         dcolor = game.board[dpos]
         if dcolor == other_color:
             num_bad_diagonal += 1
@@ -1101,14 +1120,11 @@ cdef bint is_true_eye(game_state_t *game,
 
 
 cdef bint is_suicide(game_state_t *game, int pos, char color) nogil:
-    cdef int neighbor4[4]
     cdef int other = FLIP_COLOR(color)
     cdef int i, neighbor_pos, neighbor_id
 
-    get_neighbor4(neighbor4, pos)
-
     for i in range(4):
-        neighbor_pos = neighbor4[i]
+        neighbor_pos = neighbor4_pos[pos][i]
         neighbor_id = game.string_id[neighbor_pos]
         if (game.board[neighbor_pos] == other and
             game.string[neighbor_id].libs == 1):
@@ -1122,7 +1138,6 @@ cdef bint is_suicide(game_state_t *game, int pos, char color) nogil:
 
 cdef bint is_superko(game_state_t *game, int pos, char color) nogil:
     cdef int other = FLIP_COLOR(color)
-    cdef int neighbor4[4]
     cdef int check[4]
     cdef int checked = 0
     cdef int string_id, string_pos
@@ -1130,11 +1145,9 @@ cdef bint is_superko(game_state_t *game, int pos, char color) nogil:
     cdef bint flag
     cdef int i, j
 
-    get_neighbor4(neighbor4, pos)
-
     for i in range(4):
-        if game.board[neighbor4[i]] == other:
-            string_id = game.string_id[neighbor4[i]]
+        if game.board[neighbor4_pos[pos][i]] == other:
+            string_id = game.string_id[neighbor4_pos[pos][i]]
             string = game.string[string_id]
             if string.flag and string.libs == 1:
                 flag = False

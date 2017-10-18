@@ -12,7 +12,7 @@ from bamboo.board cimport S_EMPTY, S_BLACK, S_WHITE, BOARD_MAX, PURE_BOARD_MAX, 
 from bamboo.board cimport FLIP_COLOR, NORTH, WEST, EAST, SOUTH
 from bamboo.board cimport onboard_pos, eye_condition, pure_board_max, board_size, liberty_end, string_end
 from bamboo.board cimport game_state_t, string_t
-from bamboo.board cimport get_neighbor4, is_true_eye, fill_n_int, fill_n_bint
+from bamboo.board cimport is_true_eye, fill_n_int, fill_n_bint
 from bamboo.pattern cimport pat3, print_input_pat3
 
 
