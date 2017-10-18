@@ -61,6 +61,8 @@ def harvest_3x3_pattern(file_name, verbose=False, quiet=False):
                             freq_dict[pat] += 1
                             if move and move[0] == center:
                                 move_dict[pat] += 1
+                            else:
+                                move_dict[pat] += 0
                         center = string.empty[center]
                 updated_string_num[0] = 0
     except IllegalMove:
@@ -112,15 +114,15 @@ def harvest_12diamond_pattern(file_name, verbose=False, quiet=False):
             if game.moves > 0 and game.record[game.moves - 1].pos != PASS:
                 prev_pos = game.record[game.moves - 1].pos
                 prev_color = game.record[game.moves - 1].color
-
                 bits = d12_bits(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
-
                 freq_dict[bits] += 1
                 for j in range(n_empty_val):
                     if move and move[0] == empty_pos[j]:
                         response = True
                 if response:
                     move_dict[bits] += 1
+                else:
+                    move_dict[bits] += 0
     except IllegalMove:
         if not quiet:
             warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
@@ -176,6 +178,8 @@ def harvest_12diamond_move_pattern(file_name, verbose=False, quiet=False):
                     freq_dict[positional_bits] += 1
                     if move and move[0] == empty_pos[j]:
                         move_dict[positional_bits] += 1
+                    else:
+                        move_dict[positional_bits] += 0
     except IllegalMove:
         if not quiet:
             warnings.warn('IllegalMove {:d}[{:d}] at {:d} in {:s}\n'.format(move[1], move[0], i, file_name))
@@ -236,6 +240,8 @@ def harvest_nonres_12diamond_pattern(file_name, verbose=False, quiet=False):
                             freq_dict[pat] += 1
                             if move and move[0] == center:
                                 move_dict[pat] += 1
+                            else:
+                                move_dict[pat] += 0
                         center = string.empty[center]
                 updated_string_num[0] = 0
     except IllegalMove:
