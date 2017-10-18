@@ -73,7 +73,7 @@ cdef class GameConverter(object):
         with open(file_name, 'r') as file_object:
             sgf_iter = SGFMoveIterator(self.bsize,
                                        file_object.read(),
-                                       ignore_not_legal=False,
+                                       ignore_not_legal=True,
                                        ignore_no_result=True)
         game = sgf_iter.game
 
