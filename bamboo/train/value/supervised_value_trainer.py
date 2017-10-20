@@ -73,6 +73,7 @@ def run_training():
             for each_data in [each_data.strip() for each_data in re.split(r'[\s,]+', FLAGS.train_data)]:
                 epoch_length += sum(1 for _ in tf.python_io.tf_record_iterator(each_data, options=options))
 
+        print('Epoch length: {:d}'.format(epoch_length))
         train_filenames = [filename.strip() for filename in re.split(r'[\s,]+', FLAGS.train_data)]
 
         do_validation = bool(FLAGS.validation_data)
@@ -84,7 +85,7 @@ def run_training():
                 validation_length = 0
                 for each_data in [each_data.strip() for each_data in re.split(r'[\s,]+', FLAGS.validation_data)]:
                     validation_length += sum(1 for _ in tf.python_io.tf_record_iterator(each_data, options=options))
-
+            print('Validation length: {:d}'.format(validation_length))
             validation_filenames = [filename.strip() for filename in re.split(r'[\s,]+', FLAGS.validation_data)]
 
         def parse_function(example_proto):
