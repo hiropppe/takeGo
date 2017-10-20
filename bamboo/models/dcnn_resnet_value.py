@@ -6,7 +6,7 @@ import tensorflow as tf
 from .resnet import conv2d_fixed_padding, block_layer, building_block, batch_norm_relu
 
 
-def inference(states, data_format='channels_last', is_training=False):
+def inference(states, data_format='channels_first', is_training=False):
     with tf.variable_scope('initial_conv') as scope:
         inputs = conv2d_fixed_padding(
             inputs=states, filters=64, kernel_size=5, strides=1,

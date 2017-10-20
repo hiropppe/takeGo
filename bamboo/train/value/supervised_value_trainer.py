@@ -51,15 +51,17 @@ def run_training():
     with tf.Graph().as_default() as graph:
         global_step = tf.contrib.framework.get_or_create_global_step()
 
-        #lr = tf.train.exponential_decay(
-        #        FLAGS.learning_rate,
-        #        global_step,
-        #        FLAGS.decay_step, FLAGS.decay)
-        #grad = tf.train.GradientDescentOptimizer(lr)
+        lr = tf.train.exponential_decay(
+                FLAGS.learning_rate,
+                global_step,
+                FLAGS.decay_step, FLAGS.decay)
+        grad = tf.train.GradientDescentOptimizer(lr)
 
+        """
         grad = tf.train.MomentumOptimizer(
             learning_rate=FLAGS.learning_rate,
             momentum=_MOMENTUM)
+        """
 
         # features of training data
         options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
@@ -87,12 +89,12 @@ def run_training():
 
         def parse_function(example_proto):
             features = {
-                "state": tf.FixedLenFeature([19*19*49], tf.float32),
+                "state": tf.FixedLenFeature([49*19*19], tf.float32),
                 "z": tf.FixedLenFeature([1], tf.float32)
             }
             parsed_features = tf.parse_single_example(example_proto, features)
             state = parsed_features['state']
-            state = tf.reshape(state, (19, 19, 49))
+            state = tf.reshape(state, (49, 19, 19))
             z = parsed_features['z']
             return state, z
 
@@ -115,7 +117,7 @@ def run_training():
 
         # create a summary for our cost
         tf.summary.scalar("loss", loss_op)
-        #tf.summary.scalar("learning_rate", lr)
+        tf.summary.scalar("learning_rate", lr)
 
         # merge all summaries into a single "operation" which we can execute in a session
         summary_op = tf.summary.merge_all()
