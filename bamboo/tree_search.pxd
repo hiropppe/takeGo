@@ -48,6 +48,12 @@ ctypedef struct tree_node_t:
     openmp.omp_lock_t lock
 
 
+ctypedef struct lgr2_seed_t:
+    int prev_pos
+    int prev2_pos
+    int pos
+
+
 cdef class MCTS:
     cdef game_state_t *game
     cdef char player_color
@@ -73,6 +79,7 @@ cdef class MCTS:
     cdef openmp.omp_lock_t expand_lock
     cdef openmp.omp_lock_t policy_queue_lock
     cdef int n_threads_playout[100]
+    cdef int lgr2[3][529][529]
     cdef bint debug
 
     cdef int genmove(self, game_state_t *game) nogil
@@ -99,7 +106,7 @@ cdef class MCTS:
 
     cdef void evaluate_and_backup(self, tree_node_t *node, game_state_t *game) nogil
 
-    cdef void rollout(self, game_state_t *game) nogil
+    cdef int rollout(self, game_state_t *game) nogil
 
     cdef void backup(self, tree_node_t *node, int winner) nogil
 

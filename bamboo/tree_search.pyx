@@ -13,17 +13,20 @@ from libc.math cimport sqrt as csqrt
 from libc.time cimport clock as cclock
 from libcpp.queue cimport queue as cppqueue
 from libcpp.string cimport string as cppstring
+from libcpp.vector cimport vector as cppvector
 from posix.time cimport gettimeofday, timeval, timezone
 
 from cython import cdivision
 from cython.parallel import prange
+from cython.operator cimport dereference as deref, preincrement as inc
 
-from bamboo.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS, RESIGN
+from bamboo.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS, RESIGN
 from bamboo.board cimport FLIP_COLOR
 from bamboo.board cimport onboard_pos, komi
 from bamboo.board cimport game_state_t
 from bamboo.board cimport set_board_size, set_komi, initialize_board
 from bamboo.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
+from bamboo.board cimport use_lgrf2
 from bamboo.seki cimport check_seki
 from bamboo.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
 from bamboo.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
@@ -46,7 +49,7 @@ cdef class MCTS(object):
                   double time_limit=5.0,
                   int playout_limit=10000,
                   int n_threads=1):
-        cdef int i
+        cdef int i, j, k
         cdef tree_node_t *node
 
         self.game = NULL
@@ -89,6 +92,11 @@ cdef class MCTS(object):
         self.debug = False
 
         initialize_feature(self.policy_feature) 
+
+        for i in range(2):
+            for j in range(BOARD_MAX):
+                for k in range(BOARD_MAX):
+                    self.lgr2[i+1][j][k] = PASS
 
         for i in range(n_threads):
             self.n_threads_playout[i] = 0
@@ -523,46 +531,82 @@ cdef class MCTS(object):
     cdef void evaluate_and_backup(self,
                                   tree_node_t *node,
                                   game_state_t *game) nogil:
-        cdef double score
         cdef int winner
 
-        self.rollout(game)
+        winner = self.rollout(game)
+
+        self.backup(node, winner)
+
+    cdef int rollout(self, game_state_t *game) nogil:
+        cdef int winner, looser
+        cdef double score
+        cdef int color, other_color
+        cdef int pos
+        cdef int pass_count = 0
+        cdef int moves_remain = MAX_MOVES - game.moves
+        cdef lgr2_seed_t lgr2_seed
+        cdef cppvector[lgr2_seed_t] lgr2_rollout[3]
+        cdef cppvector[lgr2_seed_t].iterator it
+
+        color = game.current_color
+        other_color = FLIP_COLOR(game.current_color)
+        while moves_remain and pass_count < 2:
+            pos = PASS
+            if use_lgrf2 and game.moves > 1:
+                lgr2_seed.prev_pos = game.record[game.moves-1].pos
+                lgr2_seed.prev2_pos = game.record[game.moves-2].pos
+                pos = self.lgr2[color][lgr2_seed.prev_pos][lgr2_seed.prev2_pos]
+
+            if pos == PASS or is_legal_not_eye(game, pos, color) == False:
+                while True:
+                    pos = choice_rollout_move(game)
+                    if is_legal_not_eye(game, pos, color):
+                        break
+                    else:
+                        set_illegal(game, pos)
+
+            put_stone(game, pos, color)
+            game.current_color = other_color
+
+            update_rollout(game)
+
+            if use_lgrf2 and game.moves > 2:
+                lgr2_seed.pos = pos
+                if (lgr2_seed.prev_pos != PASS and
+                    lgr2_seed.prev2_pos != PASS and
+                    lgr2_seed.pos != PASS):
+                    lgr2_rollout[color].push_back(lgr2_seed)
+
+            other_color = color 
+            color = game.current_color
+
+            pass_count = pass_count + 1 if pos == PASS else 0
+            moves_remain -= 1
 
         score = <double>calculate_score(game)
 
         if score - komi > 0:
             winner = <int>S_BLACK
+            looser = <int>S_WHITE
         else:
             winner = <int>S_WHITE
+            looser = <int>S_BLACK
 
-        self.backup(node, winner)
+        if use_lgrf2:
+            it = lgr2_rollout[winner].begin()
+            while it != lgr2_rollout[winner].end():
+                lgr2_seed = deref(it)
+                self.lgr2[winner][lgr2_seed.prev_pos][lgr2_seed.prev2_pos] = lgr2_seed.pos
+                inc(it)
 
-    cdef void rollout(self, game_state_t *game) nogil:
-        cdef int color
-        cdef int pos
-        cdef int pass_count = 0
-        cdef int moves_remain = MAX_MOVES - game.moves
+            it = lgr2_rollout[looser].begin()
+            while it != lgr2_rollout[looser].end():
+                lgr2_seed = deref(it)
+                self.lgr2[looser][lgr2_seed.prev_pos][lgr2_seed.prev2_pos] = PASS
+                inc(it)
 
-        if moves_remain < 0:
-            return
+        return winner
 
-        color = game.current_color
-        while moves_remain and pass_count < 2:
-            while True:
-                pos = choice_rollout_move(game)
-                if is_legal_not_eye(game, pos, color):
-                    break
-                else:
-                    set_illegal(game, pos)
-
-            put_stone(game, pos, color)
-            game.current_color = FLIP_COLOR(color)
-            update_rollout(game)
-
-            color = game.current_color
-
-            pass_count = pass_count + 1 if pos == PASS else 0
-            moves_remain -= 1
 
     cdef void backup(self, tree_node_t *edge_node, int winner) nogil:
         cdef tree_node_t *node

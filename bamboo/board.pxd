@@ -176,6 +176,7 @@ cdef unsigned char eye_condition[65536] # PAT3_MAX
 
 cdef bint check_superko
 cdef bint japanese_rule
+cdef bint use_lgrf2
 
 cdef int diagonal_pos[529][4]
 cdef int neighbor4_pos[529][4]

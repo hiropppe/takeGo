@@ -51,6 +51,7 @@ komi = KOMI
 
 check_superko = False
 japanese_rule = False
+use_lgrf2 = True 
 
 
 cdef void fill_n_char (char *arr, int size, char v) nogil:
