@@ -118,7 +118,7 @@ def run_training():
 
         # create a summary for our cost
         tf.summary.scalar("loss", loss_op)
-        tf.summary.scalar("learning_rate", lr)
+        # tf.summary.scalar("learning_rate", lr)
 
         # merge all summaries into a single "operation" which we can execute in a session
         summary_op = tf.summary.merge_all()
