@@ -35,7 +35,7 @@ flags.DEFINE_float("learning_rate", 3e-3, "Learning rate.")
 flags.DEFINE_float("decay", .5, "")
 flags.DEFINE_integer("decay_step", 80000000, "")
 
-flags.DEFINE_float('gpu_memory_fraction', 0.2,
+flags.DEFINE_float('gpu_memory_fraction', 0.3,
                    'config.per_process_gpu_memory_fraction for training session')
 flags.DEFINE_boolean('log_device_placement', False, '')
 
@@ -110,7 +110,7 @@ def run_training():
         (state_batch, action_batch) = iterator.get_next()
 
         # define computation graph
-        outputs = value.inference(state_batch, is_training=True)
+        outputs = value.inference_agz(state_batch, is_training=True)
 
         loss_op = value.loss(outputs, action_batch)
 

@@ -58,7 +58,7 @@ def conv2d_fixed_padding(inputs, filters, kernel_size, strides, data_format):
 
 
 def building_block(inputs, filters, is_training, projection_shortcut, strides,
-                   data_format):
+                   data_format, bn_first=True):
     """Standard building block for residual networks with BN before convolutions.
 
     Args:
@@ -77,23 +77,50 @@ def building_block(inputs, filters, is_training, projection_shortcut, strides,
         The output tensor of the block.
     """
     shortcut = inputs
-    inputs = batch_norm_relu(inputs, is_training, data_format)
 
-    # The projection shortcut should come after the first batch norm and ReLU
-    # since it performs a 1x1 convolution.
-    if projection_shortcut is not None:
-        shortcut = projection_shortcut(inputs)
+    if bn_first:
+        inputs = batch_norm_relu(inputs, is_training, data_format)
 
-    inputs = conv2d_fixed_padding(
-        inputs=inputs, filters=filters, kernel_size=3, strides=strides,
-        data_format=data_format)
+        # The projection shortcut should come after the first batch norm and ReLU
+        # since it performs a 1x1 convolution.
+        if projection_shortcut is not None:
+            shortcut = projection_shortcut(inputs)
 
-    inputs = batch_norm_relu(inputs, is_training, data_format)
-    inputs = conv2d_fixed_padding(
-        inputs=inputs, filters=filters, kernel_size=3, strides=1,
-        data_format=data_format)
+        inputs = conv2d_fixed_padding(
+            inputs=inputs, filters=filters, kernel_size=3, strides=strides,
+            data_format=data_format)
 
-    return inputs + shortcut
+        inputs = batch_norm_relu(inputs, is_training, data_format)
+
+        inputs = conv2d_fixed_padding(
+            inputs=inputs, filters=filters, kernel_size=3, strides=1,
+            data_format=data_format)
+
+        return inputs + shortcut
+    else:
+        # The projection shortcut should come after the first batch norm and ReLU
+        # since it performs a 1x1 convolution.
+        if projection_shortcut is not None:
+            shortcut = projection_shortcut(inputs)
+
+        inputs = conv2d_fixed_padding(
+            inputs=inputs, filters=filters, kernel_size=3, strides=strides,
+            data_format=data_format)
+
+        inputs = batch_norm_relu(inputs, is_training, data_format)
+
+        inputs = conv2d_fixed_padding(
+            inputs=inputs, filters=filters, kernel_size=3, strides=1,
+            data_format=data_format)
+
+        inputs = tf.layers.batch_normalization(
+            inputs=inputs, axis=1 if data_format == 'channels_first' else 3,
+            momentum=_BATCH_NORM_DECAY, epsilon=_BATCH_NORM_EPSILON, center=True,
+            scale=True, training=is_training, fused=True)
+
+        inputs = inputs + shortcut
+
+        return tf.nn.relu(inputs)
 
 
 def bottleneck_block(inputs, filters, is_training, projection_shortcut,
@@ -142,7 +169,7 @@ def bottleneck_block(inputs, filters, is_training, projection_shortcut,
 
 
 def block_layer(inputs, filters, block_fn, blocks, strides, is_training, name,
-                data_format):
+                data_format, bn_first=True):
     """Creates one layer of blocks for the ResNet model.
 
     Args:
@@ -162,6 +189,7 @@ def block_layer(inputs, filters, block_fn, blocks, strides, is_training, name,
     Returns:
         The output tensor of the block layer.
     """
+    filters_in = inputs.shape[1].value if data_format == 'channels_first' else inputs.shape[3].value
     # Bottleneck blocks end with 4x the number of filters as they start with
     filters_out = 4 * filters if block_fn is bottleneck_block else filters
 
@@ -170,11 +198,16 @@ def block_layer(inputs, filters, block_fn, blocks, strides, is_training, name,
             inputs=inputs, filters=filters_out, kernel_size=1, strides=strides,
             data_format=data_format)
 
-    # Only the first block per block_layer uses projection_shortcut and strides
-    inputs = block_fn(inputs, filters, is_training, projection_shortcut, strides,
-                      data_format)
+    if filters_in == filters_out:
+        inputs = block_fn(inputs, filters, is_training, None, 1,
+                          data_format, bn_first=bn_first)
+    else:
+        # Only the first block per block_layer uses projection_shortcut and strides
+        inputs = block_fn(inputs, filters, is_training, projection_shortcut, strides,
+                          data_format, bn_first=bn_first)
 
     for _ in range(1, blocks):
-        inputs = block_fn(inputs, filters, is_training, None, 1, data_format)
+        inputs = block_fn(inputs, filters, is_training, None, 1,
+                          data_format, bn_first=bn_first)
 
     return tf.identity(inputs, name)

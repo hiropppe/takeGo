@@ -53,6 +53,35 @@ def inference(states, data_format='channels_first', is_training=False):
     return inputs
 
 
+def inference_agz(states, data_format='channels_first', is_training=False):
+    with tf.variable_scope('conv_block') as scope:
+        inputs = conv2d_fixed_padding(
+            inputs=states, filters=256, kernel_size=3, strides=1,
+            data_format=data_format)
+        inputs = batch_norm_relu(inputs, is_training, data_format)
+        inputs = tf.identity(inputs, name=scope.name)
+
+    with tf.variable_scope('residual_block') as scope:
+        inputs = block_layer(
+            inputs=inputs, filters=256, block_fn=building_block, blocks=19,
+            strides=1, is_training=is_training, name=scope.name,
+            data_format=data_format, bn_first=False)
+
+    with tf.variable_scope('value_block') as scope:
+        inputs = conv2d_fixed_padding(
+            inputs=inputs, filters=1, kernel_size=1, strides=1,
+            data_format=data_format)
+        inputs = batch_norm_relu(inputs, is_training, data_format)
+        inputs = tf.reshape(inputs, [-1, 361])
+        inputs = tf.layers.dense(inputs=inputs, units=256)
+        inputs = tf.nn.relu(inputs)
+        inputs = tf.layers.dense(inputs=inputs, units=1)
+        inputs = tf.nn.tanh(inputs)
+        inputs = tf.identity(inputs, name=scope.name)
+
+    return inputs
+
+
 def loss(output, z):
     loss_op = tf.losses.mean_squared_error(z, output)
     return loss_op
