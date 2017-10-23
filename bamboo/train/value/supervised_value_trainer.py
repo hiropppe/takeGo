@@ -51,17 +51,17 @@ def run_training():
     with tf.Graph().as_default() as graph:
         global_step = tf.contrib.framework.get_or_create_global_step()
 
+        """
         lr = tf.train.exponential_decay(
                 FLAGS.learning_rate,
                 global_step,
                 FLAGS.decay_step, FLAGS.decay)
         grad = tf.train.GradientDescentOptimizer(lr)
-
         """
+
         grad = tf.train.MomentumOptimizer(
             learning_rate=FLAGS.learning_rate,
             momentum=_MOMENTUM)
-        """
 
         # features of training data
         options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
