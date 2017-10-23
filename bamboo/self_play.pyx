@@ -25,7 +25,7 @@ from bamboo.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_
 from bamboo.tree_search cimport tree_node_t, PyMCTS
 
 from bamboo.rollout_preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter, set_tree_parameter
-from bamboo.local_pattern cimport read_rands, init_d12_hash, init_x33_hash, init_nonres_d12_hash
+from bamboo.local_pattern cimport read_rands, init_d12_rsp_hash, init_x33_hash, init_d12_hash
 from bamboo.nakade cimport initialize_nakade_hash
 from bamboo.printer cimport print_board
 from bamboo.parseboard cimport parse
@@ -66,8 +66,8 @@ def self_play(time_limit=5.0, playout_limit=10000, n_games=1, n_threads=2):
 
     read_rands(rands_txt)
     x33_size = init_x33_hash(x33_csv)
-    d12_size = init_d12_hash(d12_csv)
-    tree_d12_size = init_nonres_d12_hash(tree_d12_csv)
+    d12_size = init_d12_rsp_hash(d12_csv)
+    tree_d12_size = init_d12_hash(tree_d12_csv)
 
     initialize_const(8, x33_size, d12_size, tree_d12_size)
 

@@ -5,7 +5,7 @@ import threading
 
 from bamboo.zobrist_hash import set_hash_size, initialize_hash, initialize_uct_hash
 from bamboo.models.keras_dcnn_policy import CNNPolicy
-from bamboo.local_pattern import read_rands, init_d12_hash, init_x33_hash, init_nonres_d12_hash
+from bamboo.local_pattern import read_rands, init_d12_rsp_hash, init_x33_hash, init_d12_hash
 from bamboo.rollout_preprocess import initialize_const, set_rollout_parameter, set_tree_parameter
 from bamboo.tree_search import PyMCTS
 from bamboo.mcts_server import set_mcts, MCTSRequestHandler
@@ -16,31 +16,31 @@ if __name__ == "__main__":
 
     import argparse
     parser = argparse.ArgumentParser(description='Run GTP')
-    parser.add_argument("--policy-weights", "-W", type=str, required=True,
+    parser.add_argument("--policy_weights", "-W", type=str, required=True,
                         help="Policy network weights (hdf5)")
-    parser.add_argument("--rollout-weights", "-Wr", type=str, required=True,
+    parser.add_argument("--rollout_weights", "-Wr", type=str, required=True,
                         help="Rollout policy network weights (hdf5)")
-    parser.add_argument("--tree-weights", "-Wt", type=str, required=True,
+    parser.add_argument("--tree_weights", "-Wt", type=str, required=True,
                         help="Tree policy network weights (hdf5)")
-    parser.add_argument("--mt-rands-file", "-mt", type=str, required=True,
+    parser.add_argument("--mt_rands_file", "-mt", type=str, required=True,
                         help="Mersenne twister random number file")
-    parser.add_argument("--x33-pattern", "-x33", type=str, required=True,
+    parser.add_argument("--x33_csv", "-x33", type=str, required=True,
                         help="Non-response 3x3 pattern file")
-    parser.add_argument("--d12-pattern", "-d12", type=str, required=True,
+    parser.add_argument("--d12_rsp_csv", "-rd12", type=str, required=True,
                         help="Response 12 point diamond(MD2) pattern file")
-    parser.add_argument("--tree-d12-pattern", "-td12", type=str, required=True,
+    parser.add_argument("--d12_csv", "-d12", type=str, required=True,
                         help="Non-response 12 point diamond(MD2) pattern file")
-    parser.add_argument("--policy-temp", type=float, default=0.67,
+    parser.add_argument("--policy_temp", type=float, default=0.67,
                         help="Distribution temperature of players using policies (Default: 0.67)")
     parser.add_argument("--threads", "-t", type=int, default=1,
                         help="Number of search threads (Default: 1)")
-    parser.add_argument("--node-hash-size", "-n", type=int, default=1048576,
+    parser.add_argument("--node_hash_size", "-n", type=int, default=1048576,
                         help="MCT node hash size (Default: 2**20)")
     parser.add_argument("--host", type=str, default='localhost',
                         help="MCTS RPC server host")
     parser.add_argument("--port", "-p", type=int, default=6000,
                         help="MCTS RPC server port")
-    parser.add_argument("--read-ahead", "-r", default=False, action="store_true",
+    parser.add_argument("--read_ahead", "-r", default=False, action="store_true",
                         help="Enable read-ahead pondering")
     parser.add_argument("--verbose", "-v", default=False, action="store_true",
                         help="Turn on verbose mode")
@@ -64,11 +64,11 @@ if __name__ == "__main__":
 
     # init rollout policy
     read_rands(args.mt_rands_file)
-    x33_size = init_x33_hash(args.x33_pattern)
-    d12_size = init_d12_hash(args.d12_pattern)
-    tree_d12_size = init_nonres_d12_hash(args.tree_d12_pattern)
+    x33_size = init_x33_hash(args.x33_csv)
+    d12_rsp_size = init_d12_rsp_hash(args.d12_rsp_csv)
+    d12_size = init_d12_hash(args.d12_csv)
 
-    initialize_const(0, x33_size, d12_size, tree_d12_size)
+    initialize_const(0, x33_size, d12_rsp_size, d12_size)
     set_rollout_parameter(args.rollout_weights)
     set_tree_parameter(args.tree_weights)
 

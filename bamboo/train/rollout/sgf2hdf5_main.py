@@ -26,9 +26,9 @@ def run_game_converter(cmd_line_args=None):
                         help="Non-response 3x3 pattern file. Default: None")
     parser.add_argument("--d12_csv", "-d12", default=None,
                         help="Non-response 12 point diamond pattern file. Default:None")
-    parser.add_argument("--d12_resp_csv", "-rd12", default=None,
+    parser.add_argument("--d12_rsp_csv", "-rd12", default=None,
                         help="Response 12 point diamond pattern file. Default:None")
-    parser.add_argument("--d12_respos_csv", "-rpd12", default=None,
+    parser.add_argument("--d12_rspos_csv", "-rpd12", default=None,
                         help="Response 12 point diamond pattern file (Include response move bits). Default:None")
     parser.add_argument("--recurse", "-R", default=False, action="store_true",
                         help="Set to recurse through directories searching for SGF files")
@@ -43,27 +43,27 @@ def run_game_converter(cmd_line_args=None):
         args = parser.parse_args(cmd_line_args)
 
     # which is better ?
-    if args.d12_resp_csv:
-        d12_resp_csv = args.d12_resp_csv
+    if args.d12_rsp_csv:
+        d12_rsp_csv = args.d12_rsp_csv
         pos_aware_d12 = False
-    elif args.d12_respos_csv:
-        d12_resp_csv = args.d12_respos_csv
+    elif args.d12_rspos_csv:
+        d12_rsp_csv = args.d12_rspos_csv
         pos_aware_d12 = True
     else:
-        raise ValueError('--d12_resp_csv or --d12_respos_csv required.')
+        raise ValueError('--d12_rsp_csv or --d12_rspos_csv required.')
 
     if args.policy == 'rollout':
         converter = RolloutGameConverter(args.size,
                                          args.mt_rands_file,
                                          args.x33_csv,
-                                         d12_resp_csv,
+                                         d12_rsp_csv,
                                          pos_aware_d12)
     else:
         converter = TreeGameConverter(args.size,
                                       args.mt_rands_file,
                                       args.x33_csv,
+                                      d12_rsp_csv,
                                       args.d12_csv,
-                                      d12_resp_csv,
                                       pos_aware_d12)
 
     def _is_sgf(fname):

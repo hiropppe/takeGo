@@ -22,21 +22,21 @@ from bamboo.board cimport is_legal, is_legal_not_eye
 
 from bamboo.nakade cimport NOT_NAKADE, get_nakade_index, get_nakade_id, get_nakade_pos
 from bamboo.local_pattern cimport x33_hash, x33_hashmap
-from bamboo.local_pattern cimport d12_hash, d12_move_hash, d12_pos_mt, d12_hashmap
-from bamboo.local_pattern cimport nonres_d12_hash, nonres_d12_hashmap
+from bamboo.local_pattern cimport d12_rsp_hash, d12_rspos_hash, d12_pos_mt, d12_rsp_hashmap
+from bamboo.local_pattern cimport d12_hash, d12_hashmap
 
 
 cpdef void initialize_const(int nakade_feature_size,
                             int x33_feature_size,
+                            int d12_rsp_feature_size,
                             int d12_feature_size,
-                            int p_nonres_d12_size,
                             bint pos_aware_d12=True):
     global rollout_feature_size
     global response_size, save_atari_size, neighbor_size, nakade_size, x33_size, d12_size
-    global response_start, save_atari_start, neighbor_start, nakade_start, x33_start, d12_start
+    global response_start, save_atari_start, neighbor_start, nakade_start, x33_start, d12_rsp_start
     global tree_feature_size
-    global self_atari_size, last_move_distance_size, nonres_d12_size
-    global self_atari_start, last_move_distance_start, nonres_d12_start
+    global self_atari_size, last_move_distance_size, d12_size
+    global self_atari_start, last_move_distance_start, d12_start
     global use_pos_aware_d12
 
     response_size = 1
@@ -44,23 +44,23 @@ cpdef void initialize_const(int nakade_feature_size,
     neighbor_size = 8
     nakade_size = nakade_feature_size
     x33_size = x33_feature_size
-    d12_size = d12_feature_size
+    d12_rsp_size = d12_rsp_feature_size
     self_atari_size = 1
     last_move_distance_size = 34
-    nonres_d12_size = p_nonres_d12_size
+    d12_size = d12_feature_size
 
     response_start = 0
     save_atari_start = response_start + response_size
     neighbor_start = save_atari_start + save_atari_size
     nakade_start = neighbor_start + neighbor_size
     x33_start = nakade_start + nakade_size
-    d12_start = x33_start + x33_size
-    self_atari_start = d12_start + d12_size
+    d12_rsp_start = x33_start + x33_size
+    self_atari_start = d12_rsp_start + d12_rsp_size
     last_move_distance_start = self_atari_start + self_atari_size
-    nonres_d12_start = last_move_distance_start + last_move_distance_size
+    d12_start = last_move_distance_start + last_move_distance_size
 
-    rollout_feature_size = d12_start + d12_size
-    tree_feature_size = nonres_d12_start + nonres_d12_size
+    rollout_feature_size = d12_rsp_start + d12_rsp_size
+    tree_feature_size = d12_start + d12_size
 
     use_pos_aware_d12 = pos_aware_d12
 
@@ -149,11 +149,11 @@ cdef void update_planes(game_state_t *game) nogil:
     if prev_pos == PASS:
         clear_neighbor(current_feature)
         clear_nakade(current_feature)
-        clear_d12(current_feature)
+        clear_d12_rsp(current_feature)
     else:
         update_neighbor(current_feature, game, prev_pos)
         update_nakade(current_feature, game, prev_color)
-        update_d12(current_feature, game, prev_pos, prev_color)
+        update_d12_rsp(current_feature, game, prev_pos, prev_color)
 
     updated_string_num = game.updated_string_num[current_color]
     updated_string_id = game.updated_string_id[current_color]
@@ -252,7 +252,7 @@ cdef void update_nakade(rollout_feature_t *feature, game_state_t *game, int prev
         memorize_updated(feature, nakade_pos)
 
 
-cdef void update_d12(rollout_feature_t *feature, game_state_t *game, int prev_pos, int prev_color) nogil:
+cdef void update_d12_rsp(rollout_feature_t *feature, game_state_t *game, int prev_pos, int prev_color) nogil:
     """ Move matches 12-point diamond pattern near previous move
     """
     cdef int i, pos
@@ -265,49 +265,49 @@ cdef void update_d12(rollout_feature_t *feature, game_state_t *game, int prev_po
     cdef int pax_ix
     cdef int empty_onboard_ix
 
-    global response_start, d12_start
+    global response_start, d12_rsp_start
 
     # clear previous d12 positions
     for i in range(feature.prev_d12_num):
         pos = feature.prev_d12[i]
         feature.tensor[F_RESPONSE][pos] = -1
-        feature.tensor[F_RESPONSE_PAT][pos] = -1
+        feature.tensor[F_D12_RSP_PAT][pos] = -1
 
     feature.prev_d12_num = 0
     if use_pos_aware_d12:
-        hash = d12_move_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
+        hash = d12_rspos_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
         for i in range(n_empty_val):
             positional_hash = hash ^ d12_pos_mt[1 << empty_ix[i]] 
             each_empty_pos = empty_pos[i]
-            if d12_hashmap.find(positional_hash) == d12_hashmap.end():
+            if d12_rsp_hashmap.find(positional_hash) == d12_rsp_hashmap.end():
                 empty_onboard_ix = onboard_index[each_empty_pos]
                 feature.tensor[F_RESPONSE][empty_onboard_ix] = -1 
-                feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = -1
+                feature.tensor[F_D12_RSP_PAT][empty_onboard_ix] = -1
             else:
-                pat_ix = d12_start + d12_hashmap[positional_hash]
+                pat_ix = d12_rsp_start + d12_rsp_hashmap[positional_hash]
                 empty_onboard_ix = onboard_index[each_empty_pos]
                 # set response(?) and response pattern
                 feature.tensor[F_RESPONSE][empty_onboard_ix] = response_start
-                feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = pat_ix
+                feature.tensor[F_D12_RSP_PAT][empty_onboard_ix] = pat_ix
                 # memorize previous d12 position
                 feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
                 feature.prev_d12_num += 1
 
             memorize_updated(feature, each_empty_pos)
     else:
-        hash = d12_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
+        hash = d12_rsp_hash(game, prev_pos, prev_color, empty_ix, empty_pos, n_empty)
         for i in range(n_empty_val):
             each_empty_pos = empty_pos[i]
-            if d12_hashmap.find(hash) == d12_hashmap.end():
+            if d12_rsp_hashmap.find(hash) == d12_rsp_hashmap.end():
                 empty_onboard_ix = onboard_index[each_empty_pos]
                 feature.tensor[F_RESPONSE][empty_onboard_ix] = -1 
-                feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = -1
+                feature.tensor[F_D12_RSP_PAT][empty_onboard_ix] = -1
             else:
-                pat_ix = d12_start + d12_hashmap[hash]
+                pat_ix = d12_rsp_start + d12_rsp_hashmap[hash]
                 empty_onboard_ix = onboard_index[each_empty_pos]
                 # set response(?) and response pattern
                 feature.tensor[F_RESPONSE][empty_onboard_ix] = response_start
-                feature.tensor[F_RESPONSE_PAT][empty_onboard_ix] = pat_ix
+                feature.tensor[F_D12_RSP_PAT][empty_onboard_ix] = pat_ix
                 # memorize previous d12 position
                 feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
                 feature.prev_d12_num += 1
@@ -325,10 +325,10 @@ cdef void update_3x3(rollout_feature_t *feature, game_state_t *game, int pos, in
 
     hash = x33_hash(game, pos, color)
     if x33_hashmap.find(hash) == x33_hashmap.end():
-        feature.tensor[F_NON_RESPONSE_PAT][onboard_index[pos]] = -1
+        feature.tensor[F_X33_PAT][onboard_index[pos]] = -1
     else:
         pat_ix = x33_start + x33_hashmap[hash]
-        feature.tensor[F_NON_RESPONSE_PAT][onboard_index[pos]] = pat_ix
+        feature.tensor[F_X33_PAT][onboard_index[pos]] = pat_ix
 
     memorize_updated(feature, pos)
 
@@ -342,13 +342,13 @@ cdef void clear_neighbor(rollout_feature_t *feature) nogil:
         memorize_updated(feature, onboard_pos[pos])
 
 
-cdef void clear_d12(rollout_feature_t *feature) nogil:
+cdef void clear_d12_rsp(rollout_feature_t *feature) nogil:
     cdef int i, pos
 
     for i in range(feature.prev_d12_num):
         pos = feature.prev_d12[i]
         feature.tensor[F_RESPONSE][pos] = -1
-        feature.tensor[F_RESPONSE_PAT][pos] = -1
+        feature.tensor[F_D12_RSP_PAT][pos] = -1
         memorize_updated(feature, onboard_pos[pos])
 
 
@@ -363,8 +363,8 @@ cdef void clear_onehot_index(rollout_feature_t *feature, int pos) nogil:
         feature.tensor[F_RESPONSE][onboard_index[pos]] = -1
         feature.tensor[F_SAVE_ATARI][onboard_index[pos]] = -1
         feature.tensor[F_NAKADE][onboard_index[pos]] = -1
-        feature.tensor[F_RESPONSE_PAT][onboard_index[pos]] = -1
-        feature.tensor[F_NON_RESPONSE_PAT][onboard_index[pos]] = -1
+        feature.tensor[F_D12_RSP_PAT][onboard_index[pos]] = -1
+        feature.tensor[F_X33_PAT][onboard_index[pos]] = -1
 
 
 cdef void clear_updated_string_cache(game_state_t *game) nogil:
@@ -524,11 +524,11 @@ cdef void update_tree_planes_all(game_state_t *game) nogil:
         if is_legal_not_eye(game, pos, current_color):
             update_self_atari(current_feature, game, pos, current_color)
             update_last_move_distance(current_feature, game, pos)
-            update_non_response_d12(current_feature, game, pos, current_color) 
+            update_d12(current_feature, game, pos, current_color) 
         else:
             current_feature.tensor[F_SELF_ATARI][i] = -1
             current_feature.tensor[F_LAST_MOVE_DISTANCE][i] = -1
-            current_feature.tensor[F_NON_RESPONSE_D12_PAT][i] = -1
+            current_feature.tensor[F_D12_PAT][i] = -1
 
 
 cdef void get_tree_probs(game_state_t *game, double probs[361]) nogil:
@@ -738,20 +738,20 @@ cdef void update_last_move_distance(rollout_feature_t *feature, game_state_t *ga
         feature.tensor[F_LAST_MOVE_DISTANCE][onboard_index[pos]] = last_move_distance_start + prev_dis + prev2_dis
 
 
-cdef void update_non_response_d12(rollout_feature_t *feature, game_state_t *game, int pos, int color) nogil:
+cdef void update_d12(rollout_feature_t *feature, game_state_t *game, int pos, int color) nogil:
     """ Move matches 12-point diamond pattern centred around move 
     """
     cdef unsigned long long hash
     cdef int pat_ix
 
-    global nonres_d12_start
+    global d12_start
 
-    hash = nonres_d12_hash(game, pos, color)
-    if nonres_d12_hashmap.find(hash) == nonres_d12_hashmap.end():
-        feature.tensor[F_NON_RESPONSE_D12_PAT][onboard_index[pos]] = -1
+    hash = d12_hash(game, pos, color)
+    if d12_hashmap.find(hash) == d12_hashmap.end():
+        feature.tensor[F_D12_PAT][onboard_index[pos]] = -1
     else:
-        pat_ix = nonres_d12_start + nonres_d12_hashmap[hash]
-        feature.tensor[F_NON_RESPONSE_D12_PAT][onboard_index[pos]] = pat_ix
+        pat_ix = d12_start + d12_hashmap[hash]
+        feature.tensor[F_D12_PAT][onboard_index[pos]] = pat_ix
 
 
 cdef void set_debug(bint dbg) nogil:

@@ -18,8 +18,8 @@ class TestRolloutPreprocess(unittest.TestCase):
     def test_update_last_move_distance(self):
         ctest.test_update_last_move_distance()
 
-    def test_update_nonres_12diamond(self):
-        ctest.test_update_nonres_12diamond()
+    def test_update_12diamond(self):
+        ctest.test_update_12diamond()
 
     def test_update_save_atari(self):
         ctest.test_update_save_atari()
@@ -54,11 +54,11 @@ class TestRolloutPreprocess(unittest.TestCase):
     def test_update_nakade_6(self):
         ctest.test_update_nakade_6()
 
-    def test_update_12diamond_0(self):
-        ctest.test_update_12diamond_0()
+    def test_update_12diamond_rspos_0(self):
+        ctest.test_update_12diamond_rspos_0()
 
-    def test_update_12diamond_after_pass_0(self):
-        ctest.test_update_12diamond_after_pass_0()
+    def test_update_12diamond_rspos_after_pass_0(self):
+        ctest.test_update_12diamond_rspos_after_pass_0()
 
     def test_update_3x3_0(self):
         ctest.test_update_3x3_0()

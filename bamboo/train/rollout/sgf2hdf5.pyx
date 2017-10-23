@@ -21,7 +21,7 @@ from bamboo.board cimport game_state_t, rollout_feature_t, pure_board_size, pure
 from bamboo.printer cimport print_board
 from bamboo.zobrist_hash cimport initialize_hash
 from bamboo.nakade cimport initialize_nakade_hash
-from bamboo.local_pattern cimport read_rands, init_x33_hash, init_d12_hash, init_d12_move_hash
+from bamboo.local_pattern cimport read_rands, init_x33_hash, init_d12_rsp_hash, init_d12_rspos_hash
 from bamboo.local_pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout_preprocess cimport rollout_feature_size
 from bamboo.rollout_preprocess cimport initialize_const, initialize_planes, update_planes 
@@ -37,9 +37,9 @@ cdef class GameConverter(object):
                   bsize=19,
                   rands_file=None,
                   x33_csv=None,
-                  d12_resp_csv=None,
+                  d12_rsp_csv=None,
                   pos_aware_d12=False):
-        cdef int x33_size, d12_size
+        cdef int x33_size, d12_rsp_size
 
         self.bsize = bsize
 
@@ -50,13 +50,13 @@ cdef class GameConverter(object):
         nakade_size = initialize_nakade_hash()
         x33_size = init_x33_hash(x33_csv)
         if pos_aware_d12:
-            d12_size = init_d12_move_hash(d12_resp_csv)
+            d12_rsp_size = init_d12_rspos_hash(d12_rsp_csv)
         else:
-            d12_size = init_d12_hash(d12_resp_csv)
+            d12_rsp_size = init_d12_rsp_hash(d12_rsp_csv)
 
         self.update_speeds = list()
 
-        initialize_const(nakade_size, x33_size, d12_size, 0, pos_aware_d12)
+        initialize_const(nakade_size, x33_size, d12_rsp_size, 0, pos_aware_d12)
 
     def __dealloc__(self):
         pass

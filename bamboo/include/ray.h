@@ -125,11 +125,11 @@ enum rollout_feature_e {
     F_SAVE_ATARI,
     F_NEIGHBOR,
     F_NAKADE,
-    F_RESPONSE_PAT,
-    F_NON_RESPONSE_PAT,
+    F_D12_RSP_PAT,
+    F_X33_PAT,
     F_SELF_ATARI,
     F_LAST_MOVE_DISTANCE,
-    F_NON_RESPONSE_D12_PAT,
+    F_D12_PAT,
     F_MAX
 };
 

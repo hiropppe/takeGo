@@ -16,37 +16,37 @@ from bamboo.zobrist_hash cimport initialize_hash
 from bamboo.printer cimport print_board
 from bamboo.parseboard cimport parse
 
-from bamboo.rollout_preprocess cimport F_RESPONSE, F_SAVE_ATARI, F_NEIGHBOR, F_NAKADE, F_RESPONSE_PAT, F_NON_RESPONSE_PAT
-from bamboo.rollout_preprocess cimport response_start, save_atari_start, neighbor_start, nakade_start, d12_start, x33_start
-from bamboo.rollout_preprocess cimport F_SELF_ATARI, F_LAST_MOVE_DISTANCE, F_NON_RESPONSE_D12_PAT
-from bamboo.rollout_preprocess cimport self_atari_start, last_move_distance_start, nonres_d12_start
+from bamboo.rollout_preprocess cimport F_RESPONSE, F_SAVE_ATARI, F_NEIGHBOR, F_NAKADE, F_D12_RSP_PAT, F_X33_PAT
+from bamboo.rollout_preprocess cimport response_start, save_atari_start, neighbor_start, nakade_start, d12_rsp_start, x33_start
+from bamboo.rollout_preprocess cimport F_SELF_ATARI, F_LAST_MOVE_DISTANCE, F_D12_PAT
+from bamboo.rollout_preprocess cimport self_atari_start, last_move_distance_start, d12_start
 from bamboo.rollout_preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_tree_planes_all, memorize_updated, choice_rollout_move, set_illegal, norm_probs 
-from bamboo.local_pattern cimport initialize_rands, put_x33_hash, put_d12_move_hash, put_nonres_d12_hash
+from bamboo.local_pattern cimport initialize_rands, put_x33_hash, put_d12_rspos_hash, put_d12_hash
 from bamboo.local_pattern import print_x33
 from bamboo.nakade cimport initialize_nakade_hash
 
 
 cdef int nakade_size = 8
 cdef int x33_size = 100
+cdef int d12_rsp_size = 100
 cdef int d12_size = 100
-cdef int nonres_d12_size = 100
 
 
 def setup():
-    initialize_const(nakade_size, x33_size, d12_size, nonres_d12_size, True)
+    initialize_const(nakade_size, x33_size, d12_rsp_size, d12_size, True)
     initialize_rands()
     initialize_hash()
 
-    put_12diamond_test_patterns()
+    put_12diamond_rspos_test_patterns()
     put_3x3_test_patterns()
-    put_nonres_12diamond_test_patterns()
+    put_12diamond_test_patterns()
 
 
 def teardown():
     pass
 
 
-def put_12diamond_test_patterns():
+def put_12diamond_rspos_test_patterns():
     """
     Pattern 0:
       *       0
@@ -55,14 +55,14 @@ def put_12diamond_test_patterns():
      +++     000
       *       0
     """
-    put_d12_move_hash(0b0100000000000000000000000011000000000001, 0)
-    put_d12_move_hash(0b0100000000000000000000000011000000010000, 0)
-    put_d12_move_hash(0b0100000000000000000000000011000010000000, 0)
-    put_d12_move_hash(0b0100000000000000000000000011100000000000, 0)
-    put_d12_move_hash(0b1000000000000000000000000011000000000001, 0)
-    put_d12_move_hash(0b1000000000000000000000000011000000010000, 0)
-    put_d12_move_hash(0b1000000000000000000000000011000010000000, 0)
-    put_d12_move_hash(0b1000000000000000000000000011100000000000, 0)
+    put_d12_rspos_hash(0b0100000000000000000000000011000000000001, 0)
+    put_d12_rspos_hash(0b0100000000000000000000000011000000010000, 0)
+    put_d12_rspos_hash(0b0100000000000000000000000011000010000000, 0)
+    put_d12_rspos_hash(0b0100000000000000000000000011100000000000, 0)
+    put_d12_rspos_hash(0b1000000000000000000000000011000000000001, 0)
+    put_d12_rspos_hash(0b1000000000000000000000000011000000010000, 0)
+    put_d12_rspos_hash(0b1000000000000000000000000011000010000000, 0)
+    put_d12_rspos_hash(0b1000000000000000000000000011100000000000, 0)
 
     """
     Pattern 1:
@@ -72,14 +72,14 @@ def put_12diamond_test_patterns():
      *+*     000
       +       0
     """
-    put_d12_move_hash(0b0100000000000000000000000011000000000010, 1)
-    put_d12_move_hash(0b0100000000000000000000000011000000001000, 1)
-    put_d12_move_hash(0b0100000000000000000000000011000100000000, 1)
-    put_d12_move_hash(0b0100000000000000000000000011010000000000, 1)
-    put_d12_move_hash(0b1000000000000000000000000011000000000010, 1)
-    put_d12_move_hash(0b1000000000000000000000000011000000001000, 1)
-    put_d12_move_hash(0b1000000000000000000000000011000100000000, 1)
-    put_d12_move_hash(0b1000000000000000000000000011010000000000, 1)
+    put_d12_rspos_hash(0b0100000000000000000000000011000000000010, 1)
+    put_d12_rspos_hash(0b0100000000000000000000000011000000001000, 1)
+    put_d12_rspos_hash(0b0100000000000000000000000011000100000000, 1)
+    put_d12_rspos_hash(0b0100000000000000000000000011010000000000, 1)
+    put_d12_rspos_hash(0b1000000000000000000000000011000000000010, 1)
+    put_d12_rspos_hash(0b1000000000000000000000000011000000001000, 1)
+    put_d12_rspos_hash(0b1000000000000000000000000011000100000000, 1)
+    put_d12_rspos_hash(0b1000000000000000000000000011010000000000, 1)
 
     """
     Pattern 2:
@@ -89,14 +89,14 @@ def put_12diamond_test_patterns():
      +*+     000
       +       0
     """
-    put_d12_move_hash(0b0100000000000000000000000011000000000100, 2)
-    put_d12_move_hash(0b0100000000000000000000000011000000100000, 2)
-    put_d12_move_hash(0b0100000000000000000000000011000001000000, 2)
-    put_d12_move_hash(0b0100000000000000000000000011001000000000, 2)
-    put_d12_move_hash(0b1000000000000000000000000011000000000100, 2)
-    put_d12_move_hash(0b1000000000000000000000000011000000100000, 2)
-    put_d12_move_hash(0b1000000000000000000000000011000001000000, 2)
-    put_d12_move_hash(0b1000000000000000000000000011001000000000, 2)
+    put_d12_rspos_hash(0b0100000000000000000000000011000000000100, 2)
+    put_d12_rspos_hash(0b0100000000000000000000000011000000100000, 2)
+    put_d12_rspos_hash(0b0100000000000000000000000011000001000000, 2)
+    put_d12_rspos_hash(0b0100000000000000000000000011001000000000, 2)
+    put_d12_rspos_hash(0b1000000000000000000000000011000000000100, 2)
+    put_d12_rspos_hash(0b1000000000000000000000000011000000100000, 2)
+    put_d12_rspos_hash(0b1000000000000000000000000011000001000000, 2)
+    put_d12_rspos_hash(0b1000000000000000000000000011001000000000, 2)
 
     """
     Pattern 3-13:
@@ -106,17 +106,17 @@ def put_12diamond_test_patterns():
      +++     000
       *       0
     """
-    put_d12_move_hash(0b10000100000000000000000000110011100000000000, 3)
-    put_d12_move_hash(0b10000100000000000000000000110011010000000000, 4)
-    put_d12_move_hash(0b10000100000000000000000000110011001000000000, 5)
-    put_d12_move_hash(0b10000100000000000000000000110011000100000000, 6)
-    put_d12_move_hash(0b10000100000000000000000000110011000010000000, 7)
-    put_d12_move_hash(0b10000100000000000000000000110011000001000000, 8)
-    put_d12_move_hash(0b10000100000000000000000000110011000000100000, 9)
-    put_d12_move_hash(0b10000100000000000000000000110011000000010000, 10)
-    put_d12_move_hash(0b10000100000000000000000000110011000000001000, 11)
-    put_d12_move_hash(0b10000100000000000000000000110011000000000100, 12)
-    put_d12_move_hash(0b10000100000000000000000000110011000000000001, 13)
+    put_d12_rspos_hash(0b10000100000000000000000000110011100000000000, 3)
+    put_d12_rspos_hash(0b10000100000000000000000000110011010000000000, 4)
+    put_d12_rspos_hash(0b10000100000000000000000000110011001000000000, 5)
+    put_d12_rspos_hash(0b10000100000000000000000000110011000100000000, 6)
+    put_d12_rspos_hash(0b10000100000000000000000000110011000010000000, 7)
+    put_d12_rspos_hash(0b10000100000000000000000000110011000001000000, 8)
+    put_d12_rspos_hash(0b10000100000000000000000000110011000000100000, 9)
+    put_d12_rspos_hash(0b10000100000000000000000000110011000000010000, 10)
+    put_d12_rspos_hash(0b10000100000000000000000000110011000000001000, 11)
+    put_d12_rspos_hash(0b10000100000000000000000000110011000000000100, 12)
+    put_d12_rspos_hash(0b10000100000000000000000000110011000000000001, 13)
 
     """
     Pattern 14-22:
@@ -126,15 +126,15 @@ def put_12diamond_test_patterns():
      ++*     000
       B       3
     """
-    put_d12_move_hash(0b0100000000010000001000001011000000001100000011000011010000000000, 14)
-    put_d12_move_hash(0b0100000000010000001000001011000000001100000011000011001000000000, 15)
-    put_d12_move_hash(0b0100000000010000001000001011000000001100000011000011000100000000, 16)
-    put_d12_move_hash(0b0100000000010000001000001011000000001100000011000011000010000000, 17)
-    put_d12_move_hash(0b0100000000010000001000001011000000001100000011000011000000100000, 18)
-    put_d12_move_hash(0b0100000000010000001000001011000000001100000011000011000000010000, 19)
-    put_d12_move_hash(0b0100000000010000001000001011000000001100000011000011000000001000, 20)
-    put_d12_move_hash(0b0100000000010000001000001011000000001100000011000011000000000010, 21)
-    put_d12_move_hash(0b0100000000010000001000001011000000001100000011000011000000000001, 22)
+    put_d12_rspos_hash(0b0100000000010000001000001011000000001100000011000011010000000000, 14)
+    put_d12_rspos_hash(0b0100000000010000001000001011000000001100000011000011001000000000, 15)
+    put_d12_rspos_hash(0b0100000000010000001000001011000000001100000011000011000100000000, 16)
+    put_d12_rspos_hash(0b0100000000010000001000001011000000001100000011000011000010000000, 17)
+    put_d12_rspos_hash(0b0100000000010000001000001011000000001100000011000011000000100000, 18)
+    put_d12_rspos_hash(0b0100000000010000001000001011000000001100000011000011000000010000, 19)
+    put_d12_rspos_hash(0b0100000000010000001000001011000000001100000011000011000000001000, 20)
+    put_d12_rspos_hash(0b0100000000010000001000001011000000001100000011000011000000000010, 21)
+    put_d12_rspos_hash(0b0100000000010000001000001011000000001100000011000011000000000001, 22)
 
     """
     Pattern 23-31:
@@ -144,15 +144,15 @@ def put_12diamond_test_patterns():
      WB+     330
       +       0
     """
-    put_d12_move_hash(0b011000001000000000000100001111000011000000000011100000000000, 23)
-    put_d12_move_hash(0b011000001000000000000100001111000011000000000011010000000000, 24)
-    put_d12_move_hash(0b011000001000000000000100001111000011000000000011000010000000, 25)
-    put_d12_move_hash(0b011000001000000000000100001111000011000000000011000001000000, 26)
-    put_d12_move_hash(0b011000001000000000000100001111000011000000000011000000010000, 27)
-    put_d12_move_hash(0b011000001000000000000100001111000011000000000011000000001000, 28)
-    put_d12_move_hash(0b011000001000000000000100001111000011000000000011000000000100, 29)
-    put_d12_move_hash(0b011000001000000000000100001111000011000000000011000000000010, 30)
-    put_d12_move_hash(0b011000001000000000000100001111000011000000000011000000000001, 31)
+    put_d12_rspos_hash(0b011000001000000000000100001111000011000000000011100000000000, 23)
+    put_d12_rspos_hash(0b011000001000000000000100001111000011000000000011010000000000, 24)
+    put_d12_rspos_hash(0b011000001000000000000100001111000011000000000011000010000000, 25)
+    put_d12_rspos_hash(0b011000001000000000000100001111000011000000000011000001000000, 26)
+    put_d12_rspos_hash(0b011000001000000000000100001111000011000000000011000000010000, 27)
+    put_d12_rspos_hash(0b011000001000000000000100001111000011000000000011000000001000, 28)
+    put_d12_rspos_hash(0b011000001000000000000100001111000011000000000011000000000100, 29)
+    put_d12_rspos_hash(0b011000001000000000000100001111000011000000000011000000000010, 30)
+    put_d12_rspos_hash(0b011000001000000000000100001111000011000000000011000000000001, 31)
 
 
 def put_3x3_test_patterns():
@@ -378,7 +378,7 @@ def put_3x3_test_patterns():
     put_x33_hash(0b1000010000000000110011000000000010, 10)
 
 
-def put_nonres_12diamond_test_patterns():
+def put_12diamond_test_patterns():
     """
     Pattern 0:
       +       0
@@ -387,14 +387,14 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       +       0
     """
-    put_nonres_d12_hash(0b00000000000000000001000000000000000000000011000010, 0)
-    put_nonres_d12_hash(0b00000000000001000000000000000000000011000000000010, 0)
-    put_nonres_d12_hash(0b00000000000100000000000000000000001100000000000010, 0)
-    put_nonres_d12_hash(0b00000100000000000000000000001100000000000000000010, 0)
-    put_nonres_d12_hash(0b00000000000000000010000000000000000000000011000001, 0)
-    put_nonres_d12_hash(0b00000000000010000000000000000000000011000000000001, 0)
-    put_nonres_d12_hash(0b00000000001000000000000000000000001100000000000001, 0)
-    put_nonres_d12_hash(0b00001000000000000000000000001100000000000000000001, 0)
+    put_d12_hash(0b00000000000000000001000000000000000000000011000010, 0)
+    put_d12_hash(0b00000000000001000000000000000000000011000000000010, 0)
+    put_d12_hash(0b00000000000100000000000000000000001100000000000010, 0)
+    put_d12_hash(0b00000100000000000000000000001100000000000000000010, 0)
+    put_d12_hash(0b00000000000000000010000000000000000000000011000001, 0)
+    put_d12_hash(0b00000000000010000000000000000000000011000000000001, 0)
+    put_d12_hash(0b00000000001000000000000000000000001100000000000001, 0)
+    put_d12_hash(0b00001000000000000000000000001100000000000000000001, 0)
 
     """
     Pattern 1:
@@ -404,14 +404,14 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       +       0
     """
-    put_nonres_d12_hash(0b00000000000000000000010000000000000000000000110010, 1)
-    put_nonres_d12_hash(0b00000000000000000100000000000000000000001100000010, 1)
-    put_nonres_d12_hash(0b00000001000000000000000000000011000000000000000010, 1)
-    put_nonres_d12_hash(0b00010000000000000000000000110000000000000000000010, 1)
-    put_nonres_d12_hash(0b00000000000000000000100000000000000000000000110001, 1)
-    put_nonres_d12_hash(0b00000000000000001000000000000000000000001100000001, 1)
-    put_nonres_d12_hash(0b00000010000000000000000000000011000000000000000001, 1)
-    put_nonres_d12_hash(0b00100000000000000000000000110000000000000000000001, 1)
+    put_d12_hash(0b00000000000000000000010000000000000000000000110010, 1)
+    put_d12_hash(0b00000000000000000100000000000000000000001100000010, 1)
+    put_d12_hash(0b00000001000000000000000000000011000000000000000010, 1)
+    put_d12_hash(0b00010000000000000000000000110000000000000000000010, 1)
+    put_d12_hash(0b00000000000000000000100000000000000000000000110001, 1)
+    put_d12_hash(0b00000000000000001000000000000000000000001100000001, 1)
+    put_d12_hash(0b00000010000000000000000000000011000000000000000001, 1)
+    put_d12_hash(0b00100000000000000000000000110000000000000000000001, 1)
 
     """
     Pattern 2:
@@ -421,14 +421,14 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       +       0
     """
-    put_nonres_d12_hash(0b00000000000000000001000000000000000000000011000001, 2)
-    put_nonres_d12_hash(0b00000000000001000000000000000000000011000000000001, 2)
-    put_nonres_d12_hash(0b00000000000100000000000000000000001100000000000001, 2)
-    put_nonres_d12_hash(0b00000100000000000000000000001100000000000000000001, 2)
-    put_nonres_d12_hash(0b00000000000000000010000000000000000000000011000010, 2)
-    put_nonres_d12_hash(0b00000000000010000000000000000000000011000000000010, 2)
-    put_nonres_d12_hash(0b00000000001000000000000000000000001100000000000010, 2)
-    put_nonres_d12_hash(0b00001000000000000000000000001100000000000000000010, 2)
+    put_d12_hash(0b00000000000000000001000000000000000000000011000001, 2)
+    put_d12_hash(0b00000000000001000000000000000000000011000000000001, 2)
+    put_d12_hash(0b00000000000100000000000000000000001100000000000001, 2)
+    put_d12_hash(0b00000100000000000000000000001100000000000000000001, 2)
+    put_d12_hash(0b00000000000000000010000000000000000000000011000010, 2)
+    put_d12_hash(0b00000000000010000000000000000000000011000000000010, 2)
+    put_d12_hash(0b00000000001000000000000000000000001100000000000010, 2)
+    put_d12_hash(0b00001000000000000000000000001100000000000000000010, 2)
 
     """
     Pattern 3:
@@ -438,14 +438,14 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       +       0
     """
-    put_nonres_d12_hash(0b00000000000000000000010000000000000000000000110001, 3)
-    put_nonres_d12_hash(0b00000000000000000100000000000000000000001100000001, 3)
-    put_nonres_d12_hash(0b00000001000000000000000000000011000000000000000001, 3)
-    put_nonres_d12_hash(0b00010000000000000000000000110000000000000000000001, 3)
-    put_nonres_d12_hash(0b00000000000000000000100000000000000000000000110010, 3)
-    put_nonres_d12_hash(0b00000000000000001000000000000000000000001100000010, 3)
-    put_nonres_d12_hash(0b00000010000000000000000000000011000000000000000010, 3)
-    put_nonres_d12_hash(0b00100000000000000000000000110000000000000000000010, 3)
+    put_d12_hash(0b00000000000000000000010000000000000000000000110001, 3)
+    put_d12_hash(0b00000000000000000100000000000000000000001100000001, 3)
+    put_d12_hash(0b00000001000000000000000000000011000000000000000001, 3)
+    put_d12_hash(0b00010000000000000000000000110000000000000000000001, 3)
+    put_d12_hash(0b00000000000000000000100000000000000000000000110010, 3)
+    put_d12_hash(0b00000000000000001000000000000000000000001100000010, 3)
+    put_d12_hash(0b00000010000000000000000000000011000000000000000010, 3)
+    put_d12_hash(0b00100000000000000000000000110000000000000000000010, 3)
 
     """
     Pattern 4:
@@ -455,14 +455,14 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       +       0
     """
-    put_nonres_d12_hash(0b00000000000000000000000100000000000000000000001110, 4)
-    put_nonres_d12_hash(0b00000000000000010000000000000000000000110000000010, 4)
-    put_nonres_d12_hash(0b00000000010000000000000000000000110000000000000010, 4)
-    put_nonres_d12_hash(0b01000000000000000000000011000000000000000000000010, 4)
-    put_nonres_d12_hash(0b00000000000000000000001000000000000000000000001101, 4)
-    put_nonres_d12_hash(0b00000000000000100000000000000000000000110000000001, 4)
-    put_nonres_d12_hash(0b00000000100000000000000000000000110000000000000001, 4)
-    put_nonres_d12_hash(0b10000000000000000000000011000000000000000000000001, 4)
+    put_d12_hash(0b00000000000000000000000100000000000000000000001110, 4)
+    put_d12_hash(0b00000000000000010000000000000000000000110000000010, 4)
+    put_d12_hash(0b00000000010000000000000000000000110000000000000010, 4)
+    put_d12_hash(0b01000000000000000000000011000000000000000000000010, 4)
+    put_d12_hash(0b00000000000000000000001000000000000000000000001101, 4)
+    put_d12_hash(0b00000000000000100000000000000000000000110000000001, 4)
+    put_d12_hash(0b00000000100000000000000000000000110000000000000001, 4)
+    put_d12_hash(0b10000000000000000000000011000000000000000000000001, 4)
 
     """
     Pattern 5:
@@ -472,14 +472,14 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       +       0
     """
-    put_nonres_d12_hash(0b00000000000000000000000100000000000000000000001101, 5)
-    put_nonres_d12_hash(0b00000000000000010000000000000000000000110000000001, 5)
-    put_nonres_d12_hash(0b00000000010000000000000000000000110000000000000001, 5)
-    put_nonres_d12_hash(0b01000000000000000000000011000000000000000000000001, 5)
-    put_nonres_d12_hash(0b00000000000000000000001000000000000000000000001110, 5)
-    put_nonres_d12_hash(0b00000000000000100000000000000000000000110000000010, 5)
-    put_nonres_d12_hash(0b00000000100000000000000000000000110000000000000010, 5)
-    put_nonres_d12_hash(0b10000000000000000000000011000000000000000000000010, 5)
+    put_d12_hash(0b00000000000000000000000100000000000000000000001101, 5)
+    put_d12_hash(0b00000000000000010000000000000000000000110000000001, 5)
+    put_d12_hash(0b00000000010000000000000000000000110000000000000001, 5)
+    put_d12_hash(0b01000000000000000000000011000000000000000000000001, 5)
+    put_d12_hash(0b00000000000000000000001000000000000000000000001110, 5)
+    put_d12_hash(0b00000000000000100000000000000000000000110000000010, 5)
+    put_d12_hash(0b00000000100000000000000000000000110000000000000010, 5)
+    put_d12_hash(0b10000000000000000000000011000000000000000000000010, 5)
 
     """
     Pattern 6:
@@ -489,14 +489,14 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       #       0
     """
-    put_nonres_d12_hash(0b11000000000000000000000100000000000000000000001110, 6)
-    put_nonres_d12_hash(0b00000000110000010000000000000000000000110000000010, 6)
-    put_nonres_d12_hash(0b00000000010000110000000000000000110000000000000010, 6)
-    put_nonres_d12_hash(0b01000000000000000000001111000000000000000000000010, 6)
-    put_nonres_d12_hash(0b11000000000000000000001000000000000000000000001101, 6)
-    put_nonres_d12_hash(0b00000000110000100000000000000000000000110000000001, 6)
-    put_nonres_d12_hash(0b00000000100000110000000000000000110000000000000001, 6)
-    put_nonres_d12_hash(0b10000000000000000000001111000000000000000000000001, 6)
+    put_d12_hash(0b11000000000000000000000100000000000000000000001110, 6)
+    put_d12_hash(0b00000000110000010000000000000000000000110000000010, 6)
+    put_d12_hash(0b00000000010000110000000000000000110000000000000010, 6)
+    put_d12_hash(0b01000000000000000000001111000000000000000000000010, 6)
+    put_d12_hash(0b11000000000000000000001000000000000000000000001101, 6)
+    put_d12_hash(0b00000000110000100000000000000000000000110000000001, 6)
+    put_d12_hash(0b00000000100000110000000000000000110000000000000001, 6)
+    put_d12_hash(0b10000000000000000000001111000000000000000000000001, 6)
 
     """
     Pattern 7:
@@ -506,14 +506,14 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       #       0
     """
-    put_nonres_d12_hash(0b11000000000000000000000100000000000000000000001101, 7)
-    put_nonres_d12_hash(0b00000000110000010000000000000000000000110000000001, 7)
-    put_nonres_d12_hash(0b00000000010000110000000000000000110000000000000001, 7)
-    put_nonres_d12_hash(0b01000000000000000000001111000000000000000000000001, 7)
-    put_nonres_d12_hash(0b11000000000000000000001000000000000000000000001110, 7)
-    put_nonres_d12_hash(0b00000000110000100000000000000000000000110000000010, 7)
-    put_nonres_d12_hash(0b00000000100000110000000000000000110000000000000010, 7)
-    put_nonres_d12_hash(0b10000000000000000000001111000000000000000000000010, 7)
+    put_d12_hash(0b11000000000000000000000100000000000000000000001101, 7)
+    put_d12_hash(0b00000000110000010000000000000000000000110000000001, 7)
+    put_d12_hash(0b00000000010000110000000000000000110000000000000001, 7)
+    put_d12_hash(0b01000000000000000000001111000000000000000000000001, 7)
+    put_d12_hash(0b11000000000000000000001000000000000000000000001110, 7)
+    put_d12_hash(0b00000000110000100000000000000000000000110000000010, 7)
+    put_d12_hash(0b00000000100000110000000000000000110000000000000010, 7)
+    put_d12_hash(0b10000000000000000000001111000000000000000000000010, 7)
 
     """
     Pattern 8:
@@ -523,9 +523,9 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       #       0
     """
-    put_nonres_d12_hash(0b11000000000000000100000000000000000000001100000010, 8)
-    put_nonres_d12_hash(0b11000000000000000000010000000000000000000000110010, 8)
-    put_nonres_d12_hash(0b00000000110000000000010000000000000000000000110010, 8)
+    put_d12_hash(0b11000000000000000100000000000000000000001100000010, 8)
+    put_d12_hash(0b11000000000000000000010000000000000000000000110010, 8)
+    put_d12_hash(0b00000000110000000000010000000000000000000000110010, 8)
 
     """
     Pattern 9:
@@ -535,8 +535,8 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       #       0
     """
-    put_nonres_d12_hash(0b11000000000000000001000000000000000000000011000010, 9)
-    put_nonres_d12_hash(0b00000000110001000000000000000000000011000000000010, 9)
+    put_d12_hash(0b11000000000000000001000000000000000000000011000010, 9)
+    put_d12_hash(0b00000000110001000000000000000000000011000000000010, 9)
 
     """
     Pattern 10:
@@ -546,8 +546,8 @@ def put_nonres_12diamond_test_patterns():
      ###     000
       #       0
     """
-    put_nonres_d12_hash(0b11111111000000000000000100000000000000000000001110, 10)
-    put_nonres_d12_hash(0b00110000111100011100000000000000000000110000000010, 10)
+    put_d12_hash(0b11111111000000000000000100000000000000000000001110, 10)
+    put_d12_hash(0b00110000111100011100000000000000000000110000000010, 10)
 
     """
     Pattern 11:
@@ -557,7 +557,7 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       B       3
     """
-    put_nonres_d12_hash(0b01000000000000000010000011000000000000000011000001, 11)
+    put_d12_hash(0b01000000000000000010000011000000000000000011000001, 11)
 
     """
     Pattern 12:
@@ -567,7 +567,7 @@ def put_nonres_12diamond_test_patterns():
      +B+     030
       +       0
     """
-    put_nonres_d12_hash(0b00000100000000000000001000001100000000000000001101, 12)
+    put_d12_hash(0b00000100000000000000001000001100000000000000001101, 12)
 
     """
     Pattern 13:
@@ -577,7 +577,7 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       #       0
     """
-    put_nonres_d12_hash(0b11000000000000000001000000000000000000000011000001, 13)
+    put_d12_hash(0b11000000000000000001000000000000000000000011000001, 13)
 
     """
     Pattern 14:
@@ -587,8 +587,8 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       #       0
     """
-    put_nonres_d12_hash(0b11000000000000000000010000000000000000000000110001, 14)
-    put_nonres_d12_hash(0b11000000000000000100000000000000000000001100000001, 14)
+    put_d12_hash(0b11000000000000000000010000000000000000000000110001, 14)
+    put_d12_hash(0b11000000000000000100000000000000000000001100000001, 14)
 
     """
     Pattern 15:
@@ -598,7 +598,7 @@ def put_nonres_12diamond_test_patterns():
      ###     000
       #       0
     """
-    put_nonres_d12_hash(0b11111111000000000000000100000000000000000000001101, 15)
+    put_d12_hash(0b11111111000000000000000100000000000000000000001101, 15)
 
     """
     Pattern 16:
@@ -608,7 +608,7 @@ def put_nonres_12diamond_test_patterns():
      W++     300
       B       3
     """
-    put_nonres_d12_hash(0b01000010000000000000000011000011000000000000000010, 16)
+    put_d12_hash(0b01000010000000000000000011000011000000000000000010, 16)
 
     """
     Pattern 17:
@@ -618,7 +618,7 @@ def put_nonres_12diamond_test_patterns():
      +B+     030
       +       0
     """
-    put_nonres_d12_hash(0b00000100000010000000000000001100000011000000000010, 17)
+    put_d12_hash(0b00000100000010000000000000001100000011000000000010, 17)
 
     """
     Pattern 18:
@@ -628,7 +628,7 @@ def put_nonres_12diamond_test_patterns():
      B++     300
       +       0
     """
-    put_nonres_d12_hash(0b00000001110000100000000000000011000000110000000010, 18)
+    put_d12_hash(0b00000001110000100000000000000011000000110000000010, 18)
 
     """
     Pattern 19:
@@ -638,7 +638,7 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       +       0
     """
-    put_nonres_d12_hash(0b00000000010000001000000000000000110000001100000010, 19)
+    put_d12_hash(0b00000000010000001000000000000000110000001100000010, 19)
 
     """
     Pattern 20:
@@ -648,7 +648,7 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       B       0
     """
-    put_nonres_d12_hash(0b01000000000100000010000011000000001100000011000010, 20)
+    put_d12_hash(0b01000000000100000010000011000000001100000011000010, 20)
 
     """
     Pattern 21:
@@ -658,7 +658,7 @@ def put_nonres_12diamond_test_patterns():
      +B+     030
       +       0
     """
-    put_nonres_d12_hash(0b00000100000000000100001000001100000000001100001110, 21)
+    put_d12_hash(0b00000100000000000100001000001100000000001100001110, 21)
 
     """
     Pattern 22:
@@ -668,7 +668,7 @@ def put_nonres_12diamond_test_patterns():
      B++     300
       +       0
     """
-    put_nonres_d12_hash(0b00000001000000000001000000000011000000000011000010, 22)
+    put_d12_hash(0b00000001000000000001000000000011000000000011000010, 22)
 
     """
     Pattern 23:
@@ -678,7 +678,7 @@ def put_nonres_12diamond_test_patterns():
      +++     000
       +       0
     """
-    put_nonres_d12_hash(0b00000000000001000000000100000000000011000000001110, 23)
+    put_d12_hash(0b00000000000001000000000100000000000011000000001110, 23)
 
 
 def test_update_nakade_3_0():
@@ -1464,7 +1464,7 @@ def test_update_last_move_distance():
 
     free_game(game)
 
-def test_update_nonres_12diamond():
+def test_update_12diamond():
     cdef game_state_t *game = allocate_game()
     cdef rollout_feature_t *black
     cdef rollout_feature_t *white
@@ -1490,82 +1490,82 @@ def test_update_nonres_12diamond():
     game.current_color = FLIP_COLOR(game.current_color)
     update_tree_planes_all(game)
 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size*2], nonres_d12_start + 4) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size-1], nonres_d12_start + 1) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size],   nonres_d12_start) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size+1], nonres_d12_start + 1) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-2], nonres_d12_start + 4) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-1], nonres_d12_start) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+1], nonres_d12_start) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+2], nonres_d12_start + 6) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size-1], nonres_d12_start + 8) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size],   nonres_d12_start + 9) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size+1], nonres_d12_start + 8) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size*2], nonres_d12_start + 10) 
-    eq_(number_of_active_positions(white, F_NON_RESPONSE_D12_PAT), 12)
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']-pure_board_size*2], d12_start + 4) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']-pure_board_size-1], d12_start + 1) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']-pure_board_size],   d12_start) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']-pure_board_size+1], d12_start + 1) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']-2], d12_start + 4) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']-1], d12_start) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+1], d12_start) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+2], d12_start + 6) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+pure_board_size-1], d12_start + 8) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+pure_board_size],   d12_start + 9) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+pure_board_size+1], d12_start + 8) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+pure_board_size*2], d12_start + 10) 
+    eq_(number_of_active_positions(white, F_D12_PAT), 12)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_tree_planes_all(game)
 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size*2], nonres_d12_start + 6) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size-1], nonres_d12_start + 1) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size], nonres_d12_start) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size+1], nonres_d12_start + 1) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-2], nonres_d12_start + 4) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-1], nonres_d12_start) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+1], nonres_d12_start) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+2], nonres_d12_start + 6) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+pure_board_size-1], nonres_d12_start + 1) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+pure_board_size], nonres_d12_start + 11) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+pure_board_size+1], nonres_d12_start + 1) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-pure_board_size*2], d12_start + 6) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-pure_board_size-1], d12_start + 1) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-pure_board_size], d12_start) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-pure_board_size+1], d12_start + 1) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-2], d12_start + 4) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-1], d12_start) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']+1], d12_start) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']+2], d12_start + 6) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']+pure_board_size-1], d12_start + 1) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']+pure_board_size], d12_start + 11) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']+pure_board_size+1], d12_start + 1) 
 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size-1], nonres_d12_start + 3) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size], nonres_d12_start + 12) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size+1], nonres_d12_start + 3) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-2], nonres_d12_start + 5) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-1], nonres_d12_start + 2) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+1], nonres_d12_start + 2) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+2], nonres_d12_start + 7) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size-1], nonres_d12_start + 14) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size], nonres_d12_start + 13) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size+1], nonres_d12_start + 14) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size*2], nonres_d12_start + 15) 
-    eq_(number_of_active_positions(black, F_NON_RESPONSE_D12_PAT), 22)
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']-pure_board_size-1], d12_start + 3) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']-pure_board_size], d12_start + 12) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']-pure_board_size+1], d12_start + 3) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']-2], d12_start + 5) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']-1], d12_start + 2) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']+1], d12_start + 2) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']+2], d12_start + 7) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']+pure_board_size-1], d12_start + 14) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']+pure_board_size], d12_start + 13) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']+pure_board_size+1], d12_start + 14) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['a']+pure_board_size*2], d12_start + 15) 
+    eq_(number_of_active_positions(black, F_D12_PAT), 22)
 
     # put B[c]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_tree_planes_all(game)
 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size*2], nonres_d12_start + 16) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size], nonres_d12_start + 17) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size+1], nonres_d12_start + 18) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-2], nonres_d12_start + 19) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-1], nonres_d12_start + 20) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+1], nonres_d12_start + 9) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+2], nonres_d12_start + 10) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size-1], nonres_d12_start + 21) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size], nonres_d12_start + 22) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size+1], nonres_d12_start + 8) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size*2], nonres_d12_start + 23) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']-pure_board_size*2], d12_start + 16) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']-pure_board_size], d12_start + 17) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']-pure_board_size+1], d12_start + 18) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']-2], d12_start + 19) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']-1], d12_start + 20) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']+1], d12_start + 9) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']+2], d12_start + 10) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']+pure_board_size-1], d12_start + 21) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']+pure_board_size], d12_start + 22) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']+pure_board_size+1], d12_start + 8) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['c']+pure_board_size*2], d12_start + 23) 
     
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size*2], nonres_d12_start + 7) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size-1], nonres_d12_start + 3) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size], nonres_d12_start + 2) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-2], nonres_d12_start + 5) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-1], nonres_d12_start + 2) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['b']-pure_board_size*2], d12_start + 7) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['b']-pure_board_size-1], d12_start + 3) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['b']-pure_board_size], d12_start + 2) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['b']-2], d12_start + 5) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['b']-1], d12_start + 2) 
 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-pure_board_size-1], nonres_d12_start + 1) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-2], nonres_d12_start + 4) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']-1], nonres_d12_start) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+2], nonres_d12_start + 6) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size-1], nonres_d12_start + 8) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size],   nonres_d12_start + 9) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size+1], nonres_d12_start + 8) 
-    eq_(white.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['a']+pure_board_size*2], nonres_d12_start + 10) 
-    eq_(number_of_active_positions(white, F_NON_RESPONSE_D12_PAT), 24)
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']-pure_board_size-1], d12_start + 1) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']-2], d12_start + 4) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']-1], d12_start) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+2], d12_start + 6) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+pure_board_size-1], d12_start + 8) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+pure_board_size],   d12_start + 9) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+pure_board_size+1], d12_start + 8) 
+    eq_(white.tensor[F_D12_PAT][pure_moves['a']+pure_board_size*2], d12_start + 10) 
+    eq_(number_of_active_positions(white, F_D12_PAT), 24)
 
     """
     # put W[d]
@@ -1573,25 +1573,25 @@ def test_update_nonres_12diamond():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['c']
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size], nonres_d12_start + 6) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-pure_board_size+1], nonres_d12_start + 2) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']-1], -1) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+1], nonres_d12_start + 3) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size-1], nonres_d12_start + 7) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size], nonres_d12_start + 8) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['c']+pure_board_size+1], nonres_d12_start + 2) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['c']-pure_board_size], d12_start + 6) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['c']-pure_board_size+1], d12_start + 2) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['c']-1], -1) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['c']+1], d12_start + 3) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['c']+pure_board_size-1], d12_start + 7) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['c']+pure_board_size], d12_start + 8) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['c']+pure_board_size+1], d12_start + 2) 
     # updated around move['d']
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size-1], nonres_d12_start) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size], nonres_d12_start + 1) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-pure_board_size+1], nonres_d12_start) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']-1], nonres_d12_start + 9) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['b']+1], nonres_d12_start + 6) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['d']-1], nonres_d12_start + 9) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['d']+pure_board_size-1], nonres_d12_start + 10) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['d']+pure_board_size], nonres_d12_start + 7) 
-    eq_(black.tensor[F_NON_RESPONSE_D12_PAT][pure_moves['d']+pure_board_size+1], nonres_d12_start + 8) 
-    eq_(number_of_active_positions(black, F_NON_RESPONSE_D12_PAT), 17)
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-pure_board_size-1], d12_start) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-pure_board_size], d12_start + 1) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-pure_board_size+1], d12_start) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']-1], d12_start + 9) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['b']+1], d12_start + 6) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['d']-1], d12_start + 9) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['d']+pure_board_size-1], d12_start + 10) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['d']+pure_board_size], d12_start + 7) 
+    eq_(black.tensor[F_D12_PAT][pure_moves['d']+pure_board_size+1], d12_start + 8) 
+    eq_(number_of_active_positions(black, F_D12_PAT), 17)
     """
     print_board(game)
 
@@ -1775,7 +1775,7 @@ def test_update_neighbor_0():
     eq_(number_of_active_positions(white, F_NEIGHBOR), 0)
 
 
-def test_update_12diamond_0():
+def test_update_12diamond_rspos_0():
     cdef game_state_t *game = allocate_game()
     cdef rollout_feature_t *black
     cdef rollout_feature_t *white
@@ -1813,111 +1813,111 @@ def test_update_12diamond_0():
     eq_(white.tensor[F_RESPONSE][pure_moves['a']+pure_board_size], response_start) 
     eq_(white.tensor[F_RESPONSE][pure_moves['a']+pure_board_size+1], response_start) 
     eq_(white.tensor[F_RESPONSE][pure_moves['a']+2*pure_board_size], response_start) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-2*pure_board_size], d12_start) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], d12_start+1) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-pure_board_size], d12_start+2) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], d12_start+1) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-2], d12_start) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']-1], d12_start+2) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+1], d12_start+2) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+2], d12_start) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], d12_start+1) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+pure_board_size], d12_start+2) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], d12_start+1) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['a']+2*pure_board_size], d12_start) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']-2*pure_board_size], d12_rsp_start) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']-pure_board_size-1], d12_rsp_start+1) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']-pure_board_size], d12_rsp_start+2) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']-pure_board_size+1], d12_rsp_start+1) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']-2], d12_rsp_start) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']-1], d12_rsp_start+2) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']+1], d12_rsp_start+2) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']+2], d12_rsp_start) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']+pure_board_size-1], d12_rsp_start+1) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']+pure_board_size], d12_rsp_start+2) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']+pure_board_size+1], d12_rsp_start+1) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['a']+2*pure_board_size], d12_rsp_start) 
     eq_(number_of_active_positions(white, F_RESPONSE), 12)
-    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 12)
+    eq_(number_of_active_positions(white, F_D12_RSP_PAT), 12)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['b']
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-2*pure_board_size], d12_start) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], d12_start+1) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-pure_board_size], d12_start+2) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], d12_start+1) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-2], d12_start) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']-1], d12_start+2) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+1], d12_start+2) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+2], d12_start) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], d12_start+1) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+pure_board_size], d12_start+2) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], d12_start+1) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['b']+2*pure_board_size], d12_start) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']-2*pure_board_size], d12_rsp_start) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']-pure_board_size-1], d12_rsp_start+1) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']-pure_board_size], d12_rsp_start+2) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']-pure_board_size+1], d12_rsp_start+1) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']-2], d12_rsp_start) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']-1], d12_rsp_start+2) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']+1], d12_rsp_start+2) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']+2], d12_rsp_start) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']+pure_board_size-1], d12_rsp_start+1) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']+pure_board_size], d12_rsp_start+2) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']+pure_board_size+1], d12_rsp_start+1) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['b']+2*pure_board_size], d12_rsp_start) 
     # no others
     eq_(number_of_active_positions(black, F_RESPONSE), 12)
-    eq_(number_of_active_positions(black, F_RESPONSE_PAT), 12)
+    eq_(number_of_active_positions(black, F_D12_RSP_PAT), 12)
 
     # put B[b]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['c']
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-2*pure_board_size], d12_start+13) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-pure_board_size], d12_start+12) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], d12_start+11) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-2], d12_start+10) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']-1], d12_start+9) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+1], d12_start+8) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+2], d12_start+7) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], d12_start+6) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+pure_board_size], d12_start+5) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], d12_start+4) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['c']+2*pure_board_size], d12_start+3) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']-2*pure_board_size], d12_rsp_start+13) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']-pure_board_size], d12_rsp_start+12) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']-pure_board_size+1], d12_rsp_start+11) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']-2], d12_rsp_start+10) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']-1], d12_rsp_start+9) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']+1], d12_rsp_start+8) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']+2], d12_rsp_start+7) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']+pure_board_size-1], d12_rsp_start+6) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']+pure_board_size], d12_rsp_start+5) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']+pure_board_size+1], d12_rsp_start+4) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['c']+2*pure_board_size], d12_rsp_start+3) 
     # no others
     eq_(number_of_active_positions(white, F_RESPONSE), 11)
-    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 11)
+    eq_(number_of_active_positions(white, F_D12_RSP_PAT), 11)
 
     # put W[d]
     put_stone(game, moves['d'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['d']
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-2*pure_board_size], d12_start+22) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-pure_board_size-1], d12_start+21) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-pure_board_size], -1) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-pure_board_size+1], d12_start+20) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-2], d12_start+19) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']-1], d12_start+18) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+1], -1) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+2], d12_start+17) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+pure_board_size-1], d12_start+16) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+pure_board_size], d12_start+15) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+pure_board_size+1], d12_start+14) 
-    eq_(black.tensor[F_RESPONSE_PAT][pure_moves['d']+2*pure_board_size], -1) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']-2*pure_board_size], d12_rsp_start+22) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']-pure_board_size-1], d12_rsp_start+21) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']-pure_board_size], -1) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']-pure_board_size+1], d12_rsp_start+20) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']-2], d12_rsp_start+19) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']-1], d12_rsp_start+18) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']+1], -1) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']+2], d12_rsp_start+17) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']+pure_board_size-1], d12_rsp_start+16) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']+pure_board_size], d12_rsp_start+15) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']+pure_board_size+1], d12_rsp_start+14) 
+    eq_(black.tensor[F_D12_RSP_PAT][pure_moves['d']+2*pure_board_size], -1) 
     # no others, previous positions are cleared
     eq_(number_of_active_positions(black, F_RESPONSE), 9)
-    eq_(number_of_active_positions(black, F_RESPONSE_PAT), 9)
+    eq_(number_of_active_positions(black, F_D12_RSP_PAT), 9)
 
     # put B[e]
     put_stone(game, moves['e'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['e']
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-2*pure_board_size], d12_start+31) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-pure_board_size-1], d12_start+30) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-pure_board_size], d12_start+29) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-pure_board_size+1], d12_start+28) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-2], d12_start+27) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']-1], -1) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+1], d12_start+26) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+2], d12_start+25) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+pure_board_size-1], -1) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+pure_board_size], -1) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+pure_board_size+1], d12_start+24) 
-    eq_(white.tensor[F_RESPONSE_PAT][pure_moves['e']+2*pure_board_size], d12_start+23) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']-2*pure_board_size], d12_rsp_start+31) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']-pure_board_size-1], d12_rsp_start+30) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']-pure_board_size], d12_rsp_start+29) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']-pure_board_size+1], d12_rsp_start+28) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']-2], d12_rsp_start+27) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']-1], -1) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']+1], d12_rsp_start+26) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']+2], d12_rsp_start+25) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']+pure_board_size-1], -1) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']+pure_board_size], -1) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']+pure_board_size+1], d12_rsp_start+24) 
+    eq_(white.tensor[F_D12_RSP_PAT][pure_moves['e']+2*pure_board_size], d12_rsp_start+23) 
     # no others, previous positions are cleared
     eq_(number_of_active_positions(white, F_RESPONSE), 9)
-    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 9)
+    eq_(number_of_active_positions(white, F_D12_RSP_PAT), 9)
 
     # print_board(game)
 
     free_game(game)
 
 
-def test_update_12diamond_after_pass_0():
+def test_update_12diamond_rspos_after_pass_0():
     cdef game_state_t *game = allocate_game()
     cdef rollout_feature_t *black
     cdef rollout_feature_t *white
@@ -1953,7 +1953,7 @@ def test_update_12diamond_after_pass_0():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
 
-    eq_(number_of_active_positions(white, F_RESPONSE_PAT), 0)
+    eq_(number_of_active_positions(white, F_D12_RSP_PAT), 0)
 
     free_game(game)
 
@@ -1984,88 +1984,88 @@ def test_update_3x3_0():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['a'] 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], x33_start) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], x33_start+1) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], x33_start) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-1], x33_start+1) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+1], x33_start+1) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], x33_start) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], x33_start+1) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], x33_start) 
-    eq_(number_of_active_positions(white, F_NON_RESPONSE_PAT), 8)
+    eq_(white.tensor[F_X33_PAT][pure_moves['a']-pure_board_size-1], x33_start) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['a']-pure_board_size], x33_start+1) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['a']-pure_board_size+1], x33_start) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['a']-1], x33_start+1) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['a']+1], x33_start+1) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['a']+pure_board_size-1], x33_start) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['a']+pure_board_size], x33_start+1) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['a']+pure_board_size+1], x33_start) 
+    eq_(number_of_active_positions(white, F_X33_PAT), 8)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['a'] 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size-1], x33_start + 2) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size], x33_start + 3) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-pure_board_size+1], x33_start + 2) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']-1], x33_start + 3) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+1], x33_start + 3) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size-1], x33_start + 2) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size], x33_start + 3) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['a']+pure_board_size+1], x33_start + 2) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['a']-pure_board_size-1], x33_start + 2) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['a']-pure_board_size], x33_start + 3) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['a']-pure_board_size+1], x33_start + 2) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['a']-1], x33_start + 3) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['a']+1], x33_start + 3) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['a']+pure_board_size-1], x33_start + 2) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['a']+pure_board_size], x33_start + 3) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['a']+pure_board_size+1], x33_start + 2) 
     # updated around move['b']
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], x33_start) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], x33_start+1) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], x33_start) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-1], x33_start+1) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+1], x33_start+1) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], x33_start) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], x33_start+1) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], x33_start) 
-    eq_(number_of_active_positions(black, F_NON_RESPONSE_PAT), 16)
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']-pure_board_size-1], x33_start) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']-pure_board_size], x33_start+1) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']-pure_board_size+1], x33_start) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']-1], x33_start+1) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']+1], x33_start+1) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']+pure_board_size-1], x33_start) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']+pure_board_size], x33_start+1) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']+pure_board_size+1], x33_start) 
+    eq_(number_of_active_positions(black, F_X33_PAT), 16)
 
     # put B[c]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['b']
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], x33_start + 2) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], x33_start + 3) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], x33_start + 2) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-1], x33_start + 3) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+1], x33_start + 4) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size-1], x33_start + 2) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size], x33_start + 4) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+pure_board_size+1], -1) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['b']-pure_board_size-1], x33_start + 2) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['b']-pure_board_size], x33_start + 3) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['b']-pure_board_size+1], x33_start + 2) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['b']-1], x33_start + 3) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['b']+1], x33_start + 4) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['b']+pure_board_size-1], x33_start + 2) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['b']+pure_board_size], x33_start + 4) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['b']+pure_board_size+1], -1) 
     # updated around move['c']
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], x33_start + 4) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], x33_start) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-1], x33_start + 4) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+1], x33_start + 1) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], x33_start + 5) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], x33_start + 5) 
-    eq_(white.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], x33_start) 
-    eq_(number_of_active_positions(white, F_NON_RESPONSE_PAT), 18)
+    eq_(white.tensor[F_X33_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['c']-pure_board_size], x33_start + 4) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['c']-pure_board_size+1], x33_start) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['c']-1], x33_start + 4) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['c']+1], x33_start + 1) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['c']+pure_board_size-1], x33_start + 5) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['c']+pure_board_size], x33_start + 5) 
+    eq_(white.tensor[F_X33_PAT][pure_moves['c']+pure_board_size+1], x33_start) 
+    eq_(number_of_active_positions(white, F_X33_PAT), 18)
 
     # put W[d]
     put_stone(game, moves['d'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['c']
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size-1], -1) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size], x33_start + 6) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-pure_board_size+1], x33_start + 2) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']-1], -1) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+1], x33_start + 3) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size-1], x33_start + 7) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size], x33_start + 8) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['c']+pure_board_size+1], x33_start + 2) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['c']-pure_board_size-1], -1) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['c']-pure_board_size], x33_start + 6) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['c']-pure_board_size+1], x33_start + 2) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['c']-1], -1) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['c']+1], x33_start + 3) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['c']+pure_board_size-1], x33_start + 7) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['c']+pure_board_size], x33_start + 8) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['c']+pure_board_size+1], x33_start + 2) 
     # updated around move['d']
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size-1], x33_start) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size], x33_start + 1) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-pure_board_size+1], x33_start) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']-1], x33_start + 9) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['b']+1], x33_start + 6) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']-1], x33_start + 9) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']+pure_board_size-1], x33_start + 10) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']+pure_board_size], x33_start + 7) 
-    eq_(black.tensor[F_NON_RESPONSE_PAT][pure_moves['d']+pure_board_size+1], x33_start + 8) 
-    eq_(number_of_active_positions(black, F_NON_RESPONSE_PAT), 17)
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']-pure_board_size-1], x33_start) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']-pure_board_size], x33_start + 1) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']-pure_board_size+1], x33_start) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']-1], x33_start + 9) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['b']+1], x33_start + 6) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['d']-1], x33_start + 9) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['d']+pure_board_size-1], x33_start + 10) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['d']+pure_board_size], x33_start + 7) 
+    eq_(black.tensor[F_X33_PAT][pure_moves['d']+pure_board_size+1], x33_start + 8) 
+    eq_(number_of_active_positions(black, F_X33_PAT), 17)
 
     # print_board(game)
 
