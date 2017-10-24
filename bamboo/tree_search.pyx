@@ -21,7 +21,7 @@ from cython.parallel import prange
 from cython.operator cimport dereference as deref, preincrement as inc
 
 from bamboo.board cimport PURE_BOARD_SIZE, PURE_BOARD_MAX, BOARD_MAX, MAX_RECORDS, MAX_MOVES, S_BLACK, S_WHITE, PASS, RESIGN
-from bamboo.board cimport FLIP_COLOR
+from bamboo.board cimport FLIP_COLOR, DMAX, DMIN
 from bamboo.board cimport onboard_pos, komi
 from bamboo.board cimport game_state_t
 from bamboo.board cimport set_board_size, set_komi, initialize_board
@@ -46,8 +46,8 @@ cdef class MCTS(object):
     def __cinit__(self,
                   object policy,
                   double temperature=0.67,
-                  double time_limit=5.0,
-                  int playout_limit=10000,
+                  double const_time=5.0,
+                  int const_playout=0,
                   int n_threads=1):
         cdef int i, j, k
         cdef tree_node_t *node
@@ -85,8 +85,12 @@ cdef class MCTS(object):
         self.policy_queue_running = False
         self.n_playout = 0
         self.beta = 1.0/temperature
-        self.time_limit = time_limit
-        self.playout_limit = playout_limit
+        self.winning_ratio = 0.5
+        self.main_time = 0.0
+        self.byoyomi_time = 0.0
+        self.time_left = 0.0
+        self.const_time = const_time
+        self.const_playout = const_playout
         self.n_threads = n_threads
         self.max_queue_size_P = 0
         self.debug = False
@@ -205,14 +209,10 @@ cdef class MCTS(object):
         return PASS
 
     cdef void start_pondering(self) nogil:
-        cdef char *stone = ['#', 'B', 'W']
-        cdef int i
-        cdef tree_node_t *node
-        cdef bint expanded
-        cdef timeval end_time
-        cdef double elapsed
-
         printf('Starting pondering main thread ...\n')
+
+        gettimeofday(&self.search_start_time, NULL)
+        
         self.pondering = True
         while self.pondering:
             if self.pondering_suspended == True:
@@ -253,17 +253,44 @@ cdef class MCTS(object):
 
     cdef void ponder(self, game_state_t *game) nogil:
         cdef char *stone = ['#', 'B', 'W']
+        cdef int playout_limit = PLAYOUT_LIMIT
+        cdef double thinking_time = THINKING_TIME_LIMIT
         cdef int i
         cdef tree_node_t *node
         cdef bint expanded
         cdef timeval end_time
         cdef double elapsed
 
+        # no time settings
+        if self.main_time == 0.0 and self.byoyomi_time == 0.0:
+            if self.const_playout > 0:
+                playout_limit = self.const_playout
+            else:
+                thinking_time = self.const_time
+        # sudden death and no time left
+        elif self.byoyomi_time == 0.0 and self.time_left < 15.0:
+            thinking_time = 0.0
+        # enough time left
+        else:
+            # no main time setting
+            if self.main_time == 0.0:
+                thinking_time = DMAX(self.byoyomi_time, 0.1)
+            else:
+                if self.time_left < self.byoyomi_time * 2.0:
+                    # take 1sec margin
+                    thinking_time = DMAX(self.byoyomi_time - 1.0, 1.0)
+                else:
+                    thinking_time = DMAX(
+                        self.time_left/(55.0 + DMAX(50.0 - game.moves, 0.0)),
+                        self.byoyomi_time * (1.5 - DMAX(50.0 - game.moves, 0.0)/100.0)
+                    )
+
+            if self.winning_ratio > 0.95:
+                thinking_time = DMIN(thinking_time, 1.0)
+
         self.n_playout = 0
         for i in range(self.n_threads):
             self.n_threads_playout[i] = 0
-
-        gettimeofday(&self.search_start_time, NULL)
 
         delete_old_hash(game)
 
@@ -291,35 +318,51 @@ cdef class MCTS(object):
         else:
             print_rollout_count(node)
 
-        for i in prange(self.n_threads + 1, nogil=True):
-            if i == self.n_threads:
-                self.start_policy_network_queue()
+        if thinking_time > 0.0:
+            for i in prange(self.n_threads + 1, nogil=True):
+                if i == self.n_threads:
+                    self.start_policy_network_queue()
+                else:
+                    self.run_search(i, game, thinking_time, playout_limit) 
+
+            self.winning_ratio = 1.0-(node.Wr/node.Nr)
+
+            gettimeofday(&end_time, NULL)
+
+            elapsed = ((end_time.tv_sec - self.search_start_time.tv_sec) +
+                       (end_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
+
+            if node.player_color == self.player_color:
+                printf(">> Time is over :-)\n")
             else:
-                self.run_search(i, game) 
+                printf(">> Stopped read-ahead pondering.\n")
 
-        gettimeofday(&end_time, NULL)
-
-        elapsed = ((end_time.tv_sec - self.search_start_time.tv_sec) +
-                   (end_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
-
-        if node.player_color == self.player_color:
-            printf(">> Time is over :-)\n")
+            printf('Elapsed            : %2.3lf sec\n', elapsed)
+            printf('Playouts           : %d\n', self.n_playout)
+            for i in range(self.n_threads):
+                printf('  T%d               : %d\n', i, self.n_threads_playout[i])
+            if elapsed != 0.0:
+                printf('Playout Speed      : %d PO/sec\n', <int>(self.n_playout/elapsed))
+            printf('Total Playouts     : %d\n', <int>node.Nr)
+            printf("Winning Ratio      : %3.2lf %\n", self.winning_ratio*100.0)
+            printf('Queue size (P)     : %d\n', self.policy_network_queue.size())
+            printf('Queue size max (P) : %d\n', self.max_queue_size_P)
+            printf('Hash status of use : %3.2lf % (%u/%u)\n', used*100.0/uct_hash_size, used, uct_hash_size)
         else:
-            printf(">> Stopped read-ahead pondering.\n")
+            gettimeofday(&end_time, NULL)
 
-        printf('Playouts           : %d\n', self.n_playout)
-        for i in range(self.n_threads):
-            printf('  T%d               : %d\n', i, self.n_threads_playout[i])
-        printf('Elapsed            : %2.3lf sec\n', elapsed)
-        if elapsed != 0.0:
-            printf('Playout Speed      : %d PO/sec\n', <int>(self.n_playout/elapsed))
-        printf('Total Playouts     : %d\n', <int>node.Nr)
-        printf("Winning Ratio      : %3.2lf %\n", 100.0-(node.Wr*100.0/node.Nr))
-        printf('Queue size (P)     : %d\n', self.policy_network_queue.size())
-        printf('Queue size max (P) : %d\n', self.max_queue_size_P)
-        printf('Hash status of use : %3.2lf % (%u/%u)\n', used*100.0/uct_hash_size, used, uct_hash_size)
+            elapsed = ((end_time.tv_sec - self.search_start_time.tv_sec) +
+                       (end_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
 
-    cdef void run_search(self, int thread_id, game_state_t *game) nogil:
+            printf(">> No time left (%3.2lfsec) :-)\n", self.time_left)
+            printf('Elapsed: %2.3lf sec\n', elapsed)
+
+
+    cdef void run_search(self,
+                         int thread_id,
+                         game_state_t *game,
+                         double thinking_time,
+                         int playout_limit) nogil:
         cdef game_state_t *search_game
         cdef tree_node_t *node
         cdef int pos
@@ -334,8 +377,8 @@ cdef class MCTS(object):
         while (self.pondering == True and
                self.pondering_suspending == False and
                check_remaining_hash_size() and
-               self.n_playout < self.playout_limit and
-               elapsed < self.time_limit):
+               self.n_playout <= playout_limit and
+               elapsed < thinking_time):
 
             if game.moves == 0 or previous_hash != game.current_hash:
                 previous_hash = game.current_hash
@@ -737,14 +780,14 @@ cdef class PyMCTS(object):
     def __cinit__(self,
                   object policy,
                   double temperature=0.67,
-                  double time_limit=5.0,
-                  int playout_limit=8000,
+                  double const_time=5.0,
+                  int const_playout=0,
                   int n_threads=1,
                   bint read_ahead=False):
-        self.mcts = MCTS(policy, temperature, time_limit, playout_limit, n_threads)
+        self.mcts = MCTS(policy, temperature, const_time, const_playout, n_threads)
         self.game = allocate_game()
-        self.time_limit = time_limit
-        self.playout_limit = playout_limit
+        self.const_time = const_time
+        self.const_playout = const_playout
         self.read_ahead = read_ahead
 
         initialize_board(self.game)
@@ -777,20 +820,33 @@ cdef class PyMCTS(object):
     
     def resume_pondering(self):
         self.mcts.game = self.game
-        self.mcts.time_limit = 86400
-        self.mcts.playout_limit = 1000000
+        self.mcts.const_time = 86400
+        self.mcts.const_playout = 1000000
         self.mcts.resume_pondering()
 
     def genmove(self, color):
+        cdef timeval end_time
+        cdef double elapsed
+
+        gettimeofday(&self.mcts.search_start_time, NULL)
+
         if self.mcts.player_color == -1:
             self.mcts.player_color = color
 
-        self.mcts.time_limit = self.time_limit
-        self.mcts.playout_limit = self.playout_limit
+        self.mcts.const_time = self.const_time
+        self.mcts.const_playout = self.const_playout
         self.mcts.ponder(self.game)
 
         self.game.current_color = color
         pos = self.mcts.genmove(self.game)
+
+        gettimeofday(&end_time, NULL)
+
+        elapsed = ((end_time.tv_sec - self.search_start_time.tv_sec) +
+                   (end_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
+
+        self.mcts.time_left = DMAX(self.mcts.time_left - elapsed, 0.0)
+
         return pos
 
     def play(self, pos, color):
@@ -831,17 +887,29 @@ cdef class PyMCTS(object):
     def set_komi(self, new_komi):
         set_komi(new_komi)
 
-    def set_time(self, m, b, stone):
-        pass
+    def set_time_settings(self, main_time, byoyomi_time, byoyomi_stones):
+        self.mcts.main_time = main_time
+        self.mcts.time_left = self.mcts.main_time
 
-    def set_time_left(self, color, time, stone):
-        pass
+        # const time for each stone.
+        if byoyomi_stones > 0:
+            self.mcts.byoyomi_time = byoyomi_time/<double>byoyomi_stones
+        else:
+            self.mcts.byoyomi_time = byoyomi_time
 
-    def set_time_limit(self, limit):
-        self.time_limit = limit
+    def set_time_left(self, color, time, stones):
+        if self.mcts.player_color == color:
+            if stones == 0:
+                self.mcts.time_left = time 
+            else:
+                self.mcts.byoyomi_time = time/<double>stones
+                self.mcts.time_left = 0.0 
 
-    def set_playout_limit(self, limit):
-        self.playout_limit = limit
+    def set_const_time(self, limit):
+        self.const_time = limit
+
+    def set_const_playout(self, limit):
+        self.const_playout = limit
 
     def showboard(self):
         print_board(self.game)

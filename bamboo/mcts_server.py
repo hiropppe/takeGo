@@ -2,8 +2,6 @@
 
 import pyjsonrpc
 
-#from bamboo.mcts.tree_search import PyMCTS
-
 mcts = None
 
 
@@ -13,15 +11,6 @@ def set_mcts(new_mcts):
 
 
 class MCTSRequestHandler(pyjsonrpc.HttpRequestHandler):
-
-    """
-    def __init__(self,
-                  policy,
-                  temperature=0.67,
-                  playout_limit=8000,
-                  n_threads=1):
-        self.mcts = PyMCTS(policy, temperature, playout_limit, n_threads)
-    """
 
     @pyjsonrpc.rpcmethod
     def clear(self):
@@ -64,20 +53,20 @@ class MCTSRequestHandler(pyjsonrpc.HttpRequestHandler):
         mcts.set_komi(new_komi)
 
     @pyjsonrpc.rpcmethod
-    def set_time(self, m, b, stone):
-        pass
+    def set_time_settings(self, main_time, byoyomi_time, byoyomi_stones):
+        mcts.set_time_settings(main_time, byoyomi_time, byoyomi_stones)
 
     @pyjsonrpc.rpcmethod
-    def set_time_left(self, color, time, stone):
-        pass
+    def set_time_left(self, color, time, stones):
+        mcts.set_time_left(color, time, stones)
 
     @pyjsonrpc.rpcmethod
-    def set_time_limit(self, limit):
-        mcts.set_time_limit(limit)
+    def set_const_time(self, limit):
+        mcts.set_const_time(limit)
 
     @pyjsonrpc.rpcmethod
-    def set_playout_limit(self, limit):
-        mcts.set_playout_limit(limit)
+    def set_const_playout(self, limit):
+        mcts.set_const_playout(limit)
 
     @pyjsonrpc.rpcmethod
     def showboard(self):

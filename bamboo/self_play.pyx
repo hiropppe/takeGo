@@ -31,7 +31,7 @@ from bamboo.printer cimport print_board
 from bamboo.parseboard cimport parse
 
 
-def self_play(time_limit=5.0, playout_limit=10000, n_games=1, n_threads=2):
+def self_play(time_limit=5.0, const_playout=10000, n_games=1, n_threads=2):
     cdef game_state_t *game
     cdef PyMCTS mcts
     cdef tree_node_t *node
@@ -83,7 +83,7 @@ def self_play(time_limit=5.0, playout_limit=10000, n_games=1, n_threads=2):
 
     mcts = PyMCTS(sl_policy,
                   time_limit=time_limit,
-                  playout_limit=playout_limit,
+                  const_playout=const_playout,
                   n_threads=n_threads,
                   read_ahead=False)
     mcts.clear()

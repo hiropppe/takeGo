@@ -1,17 +1,42 @@
 import os
 import sys
 
-from bamboo.gtp.gtp_connector import MCTSConnector
+from bamboo.zobrist_hash import set_hash_size, initialize_hash, initialize_uct_hash
+from bamboo.models.keras_dcnn_policy import CNNPolicy
+from bamboo.local_pattern import read_rands, init_d12_rsp_hash, init_x33_hash, init_d12_hash
+from bamboo.rollout_preprocess import initialize_const, set_rollout_parameter, set_tree_parameter
+
+from bamboo.gtp.gtp_connector import MCTSConnector, RemoteMCTSConnector
 from bamboo.gtp.gtp_wrapper import ExtendedGtpEngine
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Run GTP')
-    parser.add_argument("--time_limit", type=int, default=5.0,
-                        help="Simulation time limit for each move generation (Default: 5 sec)")
-    parser.add_argument("--playout_limit", type=int, default=10000,
-                        help="Number of simulation for each move generation (Default: 10000)")
+    parser.add_argument("--policy_weights", "-W", type=str, required=True,
+                        help="Policy network weights (hdf5)")
+    parser.add_argument("--rollout_weights", "-Wr", type=str, required=True,
+                        help="Rollout policy network weights (hdf5)")
+    parser.add_argument("--tree_weights", "-Wt", type=str, required=True,
+                        help="Tree policy network weights (hdf5)")
+    parser.add_argument("--mt_rands_file", "-mt", type=str, required=True,
+                        help="Mersenne twister random number file")
+    parser.add_argument("--x33_csv", "-x33", type=str, required=True,
+                        help="Non-response 3x3 pattern file")
+    parser.add_argument("--d12_rsp_csv", "-rd12", type=str, required=True,
+                        help="Response 12 point diamond(MD2) pattern file")
+    parser.add_argument("--d12_csv", "-d12", type=str, required=True,
+                        help="Non-response 12 point diamond(MD2) pattern file")
+    parser.add_argument("--policy_temp", type=float, default=0.67,
+                        help="Distribution temperature of players using policies (Default: 0.67)")
+    parser.add_argument("--threads", "-t", type=int, default=1,
+                        help="Number of search threads (Default: 1)")
+    parser.add_argument("--node_hash_size", "-n", type=int, default=1048576,
+                        help="MCT node hash size (Default: 2**20)")
+    parser.add_argument("--const_time", type=int, default=5.0,
+                        help="Constant time of simulation for each move. Enable if no time_settings set. (Default: 5 sec)")
+    parser.add_argument("--const_playout", type=int, default=0,
+                        help="Constant number of simulations for each move. Enable if no time_settings set. (Default: 0)")
     parser.add_argument("--time", "-t", type=str, default=None,
                         help="Time settings supporting Canadian byo-yomi. \
                               Main time, Byo-yomi time and Byo-yomi stone (ex: 2000 50 180 6)")
@@ -21,6 +46,8 @@ if __name__ == "__main__":
                         help="Run as server mode")
     parser.add_argument("--port", "-p", type=int, default=5000,
                         help="GTP rest server port")
+    parser.add_argument("--rpc_client_mode", default=False, action="store_true",
+                        help="Connect to MCTS RPC server (support pondering)")
     parser.add_argument("--rpc_host", type=str, default='localhost',
                         help="MCTS RPC server host")
     parser.add_argument("--rpc_port", type=int, default=6000,
@@ -30,12 +57,41 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if not args.rpc_client_mode:
+        import tensorflow as tf
+        from tensorflow.contrib.keras.python.keras.backend import set_session
+        config = tf.ConfigProto()
+        config.gpu_options.per_process_gpu_memory_fraction = 0.2
+        set_session(tf.Session(config=config))
+
+        # init SL Policy
+        sl_policy = CNNPolicy(init_network=True)
+        sl_policy.model.load_weights(args.policy_weights)
+
+        # init tree hash
+        set_hash_size(args.node_hash_size)
+        initialize_hash()
+        initialize_uct_hash()
+
+        # init rollout policy
+        read_rands(args.mt_rands_file)
+        x33_size = init_x33_hash(args.x33_csv)
+        d12_rsp_size = init_d12_rsp_hash(args.d12_rsp_csv)
+        d12_size = init_d12_hash(args.d12_csv)
+
+        initialize_const(0, x33_size, d12_rsp_size, d12_size)
+        set_rollout_parameter(args.rollout_weights)
+        set_tree_parameter(args.tree_weights)
+
+        gtp_game = MCTSConnector(sl_policy, args.policy_temp, args.threads)
+    else:
+        gtp_game = MCTSConnector(args.rpc_host, args.rpc_port)
+
     # m, ms, b, bs = [(int)(t) for t in args.time.split()]
 
-    gtp_game = MCTSConnector(args.rpc_host, args.rpc_port)
-    gtp_game.set_time_limit(args.time_limit)
-    gtp_game.set_playout_limit(args.playout_limit)
-    gtp_engine = ExtendedGtpEngine(gtp_game, name='bambooStone', version='0.0')
+    gtp_game.set_const_time(args.const_time)
+    gtp_game.set_const_playout(args.const_playout)
+    gtp_engine = ExtendedGtpEngine(gtp_game, name='bamboo', version='0.0')
 
     if args.server:
         from flask import Flask

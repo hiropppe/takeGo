@@ -4,6 +4,8 @@ from libcpp.unordered_map cimport unordered_map
 cdef extern from "common.h":
     int MAX(int x, int y) nogil
     int MIN(int x, int y) nogil
+    double DMAX(double x, double y) nogil
+    double DMIN(double x, double y) nogil
 
 cdef extern from "ray.h":
     int PURE_BOARD_SIZE

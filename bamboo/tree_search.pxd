@@ -20,6 +20,9 @@ cdef extern from "ray.h":
     int VIRTUAL_LOSS
     int MIXING_PARAMETER
 
+    int PLAYOUT_LIMIT
+    double THINKING_TIME_LIMIT
+
 
 ctypedef struct tree_node_t:
     unsigned int node_i       # node index
@@ -68,8 +71,12 @@ cdef class MCTS:
     cdef bint pondering_suspending
     cdef bint pondering_suspended
     cdef bint policy_queue_running
-    cdef double time_limit
-    cdef int playout_limit
+    cdef double winning_ratio
+    cdef double main_time
+    cdef double byoyomi_time
+    cdef double time_left
+    cdef double const_time
+    cdef int const_playout
     cdef int n_playout
     cdef int n_threads
     cdef double beta
@@ -94,7 +101,7 @@ cdef class MCTS:
 
     cdef void ponder(self, game_state_t *game) nogil
 
-    cdef void run_search(self, int thread_id, game_state_t *game) nogil
+    cdef void run_search(self, int thread_id, game_state_t *game, double thinking_time, int playout_limit) nogil
 
     cdef bint seek_root(self, game_state_t *game) nogil
 
@@ -125,6 +132,6 @@ cdef class PyMCTS:
     cdef:
         MCTS mcts
         game_state_t *game
-        double time_limit
-        int playout_limit
+        double const_time
+        int const_playout
         bint read_ahead
