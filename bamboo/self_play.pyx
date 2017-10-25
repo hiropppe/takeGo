@@ -97,7 +97,8 @@ def self_play(const_time=5.0,
             initialize_rollout_const(8,
                 init_x33_hash(x33_csv),
                 init_d12_rsp_hash(d12_rsp_csv),
-                init_d12_hash(d12_csv))
+                init_d12_hash(d12_csv),
+                pos_aware_d12=False)
             mcts.set_rollout_parameter(rollout)
 
             if use_tree:

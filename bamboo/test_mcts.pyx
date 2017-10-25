@@ -27,7 +27,7 @@ from bamboo.gtp import gtp
 
 sl_policy = None
 
-def setup_pattern(rands_file, d12_csv, x33_csv):
+def setup_pattern(rands_file, d12_rsp_csv, x33_csv):
     cdef int x33_size, d12_size   
 
     set_hash_size(2**20)
@@ -35,9 +35,9 @@ def setup_pattern(rands_file, d12_csv, x33_csv):
 
     read_rands(rands_file)
     x33_size = init_x33_hash(x33_csv)
-    d12_size = init_d12_rsp_hash(d12_csv)
+    d12_rsp_size = init_d12_rsp_hash(d12_rsp_csv)
 
-    initialize_rollout_const(0, x33_size, d12_size, 0)
+    initialize_rollout_const(8, x33_size, d12_rsp_size, 0)
 
 
 def setup_supervised_policy(model, weights):
@@ -251,7 +251,7 @@ def test_rollout():
     print_board(game)
 
 
-def test_eval_leafs_by_policy_network():
+def test_eval_leaf_by_policy_network():
     cdef game_state_t *game = initialize_game()
     cdef MCTS mcts
     cdef tree_node_t *node0
@@ -277,7 +277,7 @@ def test_eval_leafs_by_policy_network():
     eval_node = mcts.policy_network_queue.front()
     eq_(node0.node_i, eval_node.node_i)
 
-    mcts.eval_leafs_by_policy_network(eval_node)
+    mcts.eval_leaf_by_policy_network(eval_node)
     mcts.policy_network_queue.pop()
 
     prob_sum = .0
@@ -313,7 +313,7 @@ def test_eval_leafs_by_policy_network():
     eval_node = mcts.policy_network_queue.front()
     eq_(node1.node_i, eval_node.node_i)
 
-    mcts.eval_leafs_by_policy_network(eval_node)
+    mcts.eval_leaf_by_policy_network(eval_node)
     mcts.policy_network_queue.pop()
 
     prob_sum = .0
@@ -325,7 +325,7 @@ def test_eval_leafs_by_policy_network():
     eval_node = mcts.policy_network_queue.front()
     eq_(node2.node_i, eval_node.node_i)
 
-    mcts.eval_leafs_by_policy_network(eval_node)
+    mcts.eval_leaf_by_policy_network(eval_node)
     mcts.policy_network_queue.pop()
 
     prob_sum = .0

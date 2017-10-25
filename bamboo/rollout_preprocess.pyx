@@ -30,7 +30,7 @@ cpdef void initialize_rollout_const(int nakade_feature_size,
                                     int x33_feature_size,
                                     int d12_rsp_feature_size,
                                     int d12_feature_size,
-                                    bint pos_aware_d12=True):
+                                    bint pos_aware_d12=False):
     global rollout_feature_size
     global response_size, save_atari_size, neighbor_size, nakade_size, x33_size, d12_size
     global response_start, save_atari_start, neighbor_start, nakade_start, x33_start, d12_rsp_start

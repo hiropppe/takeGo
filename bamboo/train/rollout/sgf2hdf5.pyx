@@ -56,7 +56,11 @@ cdef class GameConverter(object):
 
         self.update_speeds = list()
 
-        initialize_rollout_const(nakade_size, x33_size, d12_rsp_size, 0, pos_aware_d12)
+        initialize_rollout_const(nakade_size,
+                x33_size,
+                d12_rsp_size,
+                0,
+                pos_aware_d12=pos_aware_d12)
 
     def __dealloc__(self):
         pass

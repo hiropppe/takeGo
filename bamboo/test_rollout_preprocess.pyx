@@ -33,7 +33,11 @@ cdef int d12_size = 100
 
 
 def setup():
-    initialize_rollout_const(nakade_size, x33_size, d12_rsp_size, d12_size, True)
+    initialize_rollout_const(nakade_size,
+            x33_size,
+            d12_rsp_size,
+            d12_size,
+            pos_aware_d12=True)
     initialize_rands()
     initialize_hash()
 

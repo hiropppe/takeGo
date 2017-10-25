@@ -105,6 +105,7 @@ cdef class MCTS(object):
         self.const_playout = const_playout
         self.n_threads = n_threads
         self.max_queue_size_P = 0
+        self.max_queue_size_V = 0
         self.debug = False
         self.self_play = self_play
 
@@ -122,6 +123,7 @@ cdef class MCTS(object):
         openmp.omp_init_lock(&self.tree_lock)
         openmp.omp_init_lock(&self.expand_lock)
         openmp.omp_init_lock(&self.policy_queue_lock)
+        openmp.omp_init_lock(&self.value_queue_lock)
 
     def __dealloc__(self):
         if self.nodes:
@@ -141,6 +143,11 @@ cdef class MCTS(object):
             self.policy_network_queue.pop()
         openmp.omp_unset_lock(&self.policy_queue_lock)
 
+        openmp.omp_set_lock(&self.value_queue_lock)
+        while not self.value_network_queue.empty():
+            self.value_network_queue.pop()
+        openmp.omp_unset_lock(&self.value_queue_lock)
+
         self.player_color = 0
 
         self.initialize_nodes()
@@ -152,6 +159,7 @@ cdef class MCTS(object):
         self.pondering_suspended = True
         self.n_playout = 0
         self.max_queue_size_P = 0
+        self.max_queue_size_V = 0
 
         initialize_feature(self.policy_feature) 
         initialize_feature(self.value_feature) 
@@ -159,6 +167,7 @@ cdef class MCTS(object):
         openmp.omp_init_lock(&self.tree_lock)
         openmp.omp_init_lock(&self.expand_lock)
         openmp.omp_init_lock(&self.policy_queue_lock)
+        openmp.omp_init_lock(&self.value_queue_lock)
 
     def initialize_nodes(self):
         cdef int i
@@ -231,7 +240,7 @@ cdef class MCTS(object):
                 expanded = self.expand(node, game)
                 if expanded:
                     with gil:
-                        self.eval_leafs_by_policy_network(node)
+                        self.eval_leaf_by_policy_network(node)
 
             print_prior_probability(node)
 
@@ -366,7 +375,7 @@ cdef class MCTS(object):
             expanded = self.expand(node, game)
             if expanded:
                 with gil:
-                    self.eval_leafs_by_policy_network(node)
+                    self.eval_leaf_by_policy_network(node)
         else:
             print_rollout_count(node)
 
@@ -464,6 +473,7 @@ cdef class MCTS(object):
                      game_state_t *search_game) nogil:
         cdef tree_node_t *current_node
         cdef bint expanded
+        cdef int queue_size
         cdef int winner
 
         current_node = node
@@ -489,8 +499,18 @@ cdef class MCTS(object):
 
         openmp.omp_unset_lock(&node.lock)
 
+        # VN evaluation
+        if self.use_vn and current_node.Nv == 0.0:
+            current_node.game = allocate_game()
+            copy_game(current_node.game, search_game)
+            current_node.has_game = True
+            self.value_network_queue.push(current_node)
+            queue_size = self.value_network_queue.size()
+            if queue_size > self.max_queue_size_V:
+                self.max_queue_size_V = queue_size
+
+        # Rollout evaluation
         if self.use_rollout:
-            # evaluate by rollout then backup
             winner = self.rollout(search_game)
             self.backup(current_node, winner)
 
@@ -750,7 +770,7 @@ cdef class MCTS(object):
 
             if node.game != NULL:
                 with gil:
-                    self.eval_leafs_by_policy_network(node)
+                    self.eval_leaf_by_policy_network(node)
 
                 free_game(node.game)
                 node.game = NULL
@@ -780,7 +800,7 @@ cdef class MCTS(object):
         printf('>> Policy Network Queue cleared: %d\n', self.policy_network_queue.size())
         openmp.omp_unset_lock(&self.policy_queue_lock)
 
-    cdef void eval_all_leafs_by_policy_network(self) nogil:
+    cdef void eval_all_leaf_by_policy_network(self) nogil:
         cdef tree_node_t *node
         cdef int i, pos
         cdef int n_eval = 0
@@ -792,7 +812,7 @@ cdef class MCTS(object):
 
             if node.game != NULL:
                 with gil:
-                    self.eval_leafs_by_policy_network(node)
+                    self.eval_leaf_by_policy_network(node)
 
                 free_game(node.game)
                 node.game = NULL
@@ -806,7 +826,7 @@ cdef class MCTS(object):
 
         printf('>> Policy Network Queue evaluated: %d node\n', n_eval)
 
-    cdef void eval_leafs_by_policy_network(self, tree_node_t *node):
+    cdef void eval_leaf_by_policy_network(self, tree_node_t *node):
         cdef int i, pos
         cdef tree_node_t *child
 
@@ -821,18 +841,6 @@ cdef class MCTS(object):
             pos = node.children_pos[i]
             child = node.children[pos]
             child.P = probs[pos]
-
-            if self.use_vn and child.P >= 0.01:
-                # push to VN queue
-                copy_game(child.game, node.game)
-                child.has_game = True
-                put_stone(child.game, child.pos, child.color)
-                child.game.current_color = FLIP_COLOR(child.color)
-                self.value_network_queue.push(child)
-
-        queue_size = self.value_network_queue.size()
-        if queue_size > self.max_queue_size_V:
-            self.max_queue_size_V = queue_size
 
     cdef void start_value_network_queue(self) nogil:
         cdef tree_node_t *node
@@ -857,7 +865,7 @@ cdef class MCTS(object):
 
             if node.game != NULL:
                 with gil:
-                    self.eval_leafs_by_value_network(node)
+                    self.eval_leaf_by_value_network(node)
 
                 free_game(node.game)
                 node.game = NULL
@@ -873,7 +881,7 @@ cdef class MCTS(object):
         printf('>> Shutting down value network queue ...\n')
         self.value_queue_running = False
 
-    cdef void eval_leafs_by_value_network(self, tree_node_t *node):
+    cdef void eval_leaf_by_value_network(self, tree_node_t *node):
         update(self.value_feature, node.game)
 
         tensor = np.asarray(self.value_feature.planes)
@@ -883,7 +891,7 @@ cdef class MCTS(object):
         op = inference_agz(S)
 
         node.Wv = self.vn_session.run(op, feed_dict={S: tensor})
-        node.Nv = 1
+        node.Nv += 1.0
         if node.Nr == 0.0:
             node.Q = node.Wv
         else:
@@ -902,7 +910,7 @@ cdef class MCTS(object):
                 node.game = NULL
                 node.has_game = False
             self.value_network_queue.pop()
-        printf('>> Value Network Queue cleared: %d\n', self.policy_network_queue.size())
+        printf('>> Value Network Queue cleared: %d\n', self.value_network_queue.size())
         openmp.omp_unset_lock(&self.value_queue_lock)
 
     def apply_temperature(self, distribution):
@@ -1065,8 +1073,8 @@ cdef class PyMCTS(object):
     def stop_policy_network_queue(self):
         self.mcts.stop_policy_network_queue()
 
-    def eval_all_leafs_by_policy_network(self):
-        self.mcts.eval_all_leafs_by_policy_network()
+    def eval_all_leaf_by_policy_network(self):
+        self.mcts.eval_all_leaf_by_policy_network()
 
     def start_value_network_queue(self):
         self.mcts.start_value_network_queue()

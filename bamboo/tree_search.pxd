@@ -131,9 +131,9 @@ cdef class MCTS:
 
     cdef void clear_policy_network_queue(self) nogil
 
-    cdef void eval_all_leafs_by_policy_network(self) nogil
+    cdef void eval_all_leaf_by_policy_network(self) nogil
 
-    cdef void eval_leafs_by_policy_network(self, tree_node_t *node)
+    cdef void eval_leaf_by_policy_network(self, tree_node_t *node)
 
     cdef void start_value_network_queue(self) nogil
 
@@ -141,7 +141,7 @@ cdef class MCTS:
 
     cdef void clear_value_network_queue(self) nogil
 
-    cdef void eval_leafs_by_value_network(self, tree_node_t *node)
+    cdef void eval_leaf_by_value_network(self, tree_node_t *node)
 
 
 cdef class PyMCTS:
