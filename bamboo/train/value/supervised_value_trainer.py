@@ -21,6 +21,8 @@ flags.DEFINE_string("validation_data", "", "")
 
 flags.DEFINE_string('logdir', '/tmp/logs',
                     'Directory where to save latest parameters for playout.')
+flags.DEFINE_string('ckpt_path', None,
+                    'Model checkpoint path for resume train from.')
 flags.DEFINE_integer('checkpoint', 100, 'Interval steps to execute checkpoint.')
 
 flags.DEFINE_integer("epoch", 10, "")
@@ -130,11 +132,14 @@ def run_training():
 
         sess = tf.Session(config=config, graph=graph)
         sess.run(init_op)
+        
+        # Create a saver for writing training checkpoints.
+        saver = tf.train.Saver()
+        if FLAGS.ckpt_path:
+            saver.restore(sess, FLAGS.ckpt_path)
 
         # Instantiate a SummaryWriter to output summaries and the Graph.
         summary_writer = tf.summary.FileWriter(FLAGS.logdir, graph=sess.graph)
-        # Create a saver for writing training checkpoints.
-        saver = tf.train.Saver()
 
         # prepare callbacks
         callbacks = [cbks.BaseLogger(FLAGS.logdir), cbks.History(), cbks.ProgbarLogger()]
