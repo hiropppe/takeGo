@@ -62,8 +62,14 @@ cdef class MCTS:
     cdef char player_color
     cdef tree_node_t *nodes
     cdef unsigned int current_root
-    cdef object policy
+    cdef object pn
+    cdef object vn_session
+    cdef bint nosearch
+    cdef bint use_vn
+    cdef bint use_rollout
+    cdef bint use_tree
     cdef policy_feature_t *policy_feature
+    cdef policy_feature_t *value_feature
     cdef cppqueue[tree_node_t *] policy_network_queue
     cdef cppqueue[tree_node_t *] value_network_queue
     cdef bint pondering
@@ -71,6 +77,7 @@ cdef class MCTS:
     cdef bint pondering_suspending
     cdef bint pondering_suspended
     cdef bint policy_queue_running
+    cdef bint value_queue_running
     cdef double winning_ratio
     cdef double main_time
     cdef double byoyomi_time
@@ -81,12 +88,15 @@ cdef class MCTS:
     cdef int n_threads
     cdef double beta
     cdef int max_queue_size_P
+    cdef int max_queue_size_V
     cdef timeval search_start_time
     cdef openmp.omp_lock_t tree_lock
     cdef openmp.omp_lock_t expand_lock
     cdef openmp.omp_lock_t policy_queue_lock
+    cdef openmp.omp_lock_t value_queue_lock
     cdef int n_threads_playout[100]
     cdef int lgr2[3][529][529]
+    cdef bint self_play
     cdef bint debug
 
     cdef int genmove(self, game_state_t *game) nogil
@@ -111,8 +121,6 @@ cdef class MCTS:
 
     cdef bint expand(self, tree_node_t *node, game_state_t *game) nogil
 
-    cdef void evaluate_and_backup(self, tree_node_t *node, game_state_t *game) nogil
-
     cdef int rollout(self, game_state_t *game) nogil
 
     cdef void backup(self, tree_node_t *node, int winner) nogil
@@ -126,6 +134,14 @@ cdef class MCTS:
     cdef void eval_all_leafs_by_policy_network(self) nogil
 
     cdef void eval_leafs_by_policy_network(self, tree_node_t *node)
+
+    cdef void start_value_network_queue(self) nogil
+
+    cdef void stop_value_network_queue(self) nogil
+
+    cdef void clear_value_network_queue(self) nogil
+
+    cdef void eval_leafs_by_value_network(self, tree_node_t *node)
 
 
 cdef class PyMCTS:

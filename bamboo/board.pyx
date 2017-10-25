@@ -49,9 +49,10 @@ max_moves = MAX_MOVES
 
 komi = KOMI
 
-check_superko = False
-japanese_rule = False
-use_lgrf2 = True 
+check_seki_flag = True
+check_superko_flag = False
+japanese_rule_flag = False
+use_lgrf2_flag = True 
 
 
 cdef void fill_n_char (char *arr, int size, char v) nogil:
@@ -1013,16 +1014,25 @@ cdef void set_board_size(int size):
 
     initialize_const()
 
-
 cdef void set_komi(double new_komi):
     global komi
     komi = new_komi
 
+cpdef void set_check_superko(bint flag):
+    global check_superko_flag
+    check_superko_flag = flag
 
-cdef void set_superko(bint check):
-    global check_superko
-    check_superko = check
+cpdef void set_check_seki(bint flag):
+    global check_seki_flag
+    check_seki_flag = flag
 
+cpdef void set_japanese_rule(bint flag):
+    global japanese_rule_flag
+    japanese_rule_flag = flag
+
+cpdef void set_use_lgrf2(bint flag):
+    global use_lgrf2_flag
+    use_lgrf2_flag = flag
 
 cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
     if pos == PASS:
@@ -1037,7 +1047,7 @@ cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
     if game.ko_pos == pos and game.ko_move == (game.moves - 1):
         return False
 
-    if check_superko and is_superko(game, pos, color):
+    if check_superko_flag and is_superko(game, pos, color):
         return False
 
     return True
@@ -1064,7 +1074,7 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
     if game.ko_pos == pos and game.ko_move == (game.moves - 1):
         return False
 
-    if check_superko and is_superko(game, pos, color):
+    if check_superko_flag and is_superko(game, pos, color):
         return False
 
     return True
@@ -1179,14 +1189,14 @@ cdef int calculate_score(game_state_t *game) nogil:
     cdef int color
     cdef int *scores = [0, 0, 0, 0]
 
-    if japanese_rule:
+    if japanese_rule_flag:
         check_seki(game, game.seki)
 
     check_bent_four_in_the_corner(game)
 
     for i in range(pure_board_max):
         pos = onboard_pos[i]
-        if japanese_rule and game.seki[pos]:
+        if japanese_rule_flag and game.seki[pos]:
             continue
         color = game.board[pos]
         if color == S_EMPTY:

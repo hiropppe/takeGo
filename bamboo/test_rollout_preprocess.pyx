@@ -20,7 +20,7 @@ from bamboo.rollout_preprocess cimport F_RESPONSE, F_SAVE_ATARI, F_NEIGHBOR, F_N
 from bamboo.rollout_preprocess cimport response_start, save_atari_start, neighbor_start, nakade_start, d12_rsp_start, x33_start
 from bamboo.rollout_preprocess cimport F_SELF_ATARI, F_LAST_MOVE_DISTANCE, F_D12_PAT
 from bamboo.rollout_preprocess cimport self_atari_start, last_move_distance_start, d12_start
-from bamboo.rollout_preprocess cimport initialize_const, initialize_planes, initialize_probs, update_planes, update_tree_planes_all, memorize_updated, choice_rollout_move, set_illegal, norm_probs 
+from bamboo.rollout_preprocess cimport initialize_rollout_const, initialize_planes, initialize_probs, update_planes, update_tree_planes_all, memorize_updated, choice_rollout_move, set_illegal, norm_probs 
 from bamboo.local_pattern cimport initialize_rands, put_x33_hash, put_d12_rspos_hash, put_d12_hash
 from bamboo.local_pattern import print_x33
 from bamboo.nakade cimport initialize_nakade_hash
@@ -33,7 +33,7 @@ cdef int d12_size = 100
 
 
 def setup():
-    initialize_const(nakade_size, x33_size, d12_rsp_size, d12_size, True)
+    initialize_rollout_const(nakade_size, x33_size, d12_rsp_size, d12_size, True)
     initialize_rands()
     initialize_hash()
 

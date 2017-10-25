@@ -45,7 +45,7 @@ cdef double tree_weights[100000]
 
 cdef bint use_pos_aware_d12 = False
 
-cpdef void initialize_const(int nakade_size, int x33_size, int d12_rsp_size, int d12_size, bint pos_aware_d12=?)
+cpdef void initialize_rollout_const(int nakade_size, int x33_size, int d12_rsp_size, int d12_size, bint pos_aware_d12=?)
 cpdef void set_rollout_parameter(object weights_hdf5) 
 cpdef void set_tree_parameter(object weights_hdf5)
 
@@ -71,6 +71,7 @@ cdef void update_probs(game_state_t *game) nogil
 cdef void norm_probs(double *probs, double *row_probs, double *logits, double logits_sum) nogil
 cdef void set_illegal(game_state_t *game, int pos) nogil
 cdef int choice_rollout_move(game_state_t *game) nogil
+cdef void get_rollout_probs(game_state_t *game, double *probs) nogil
 
 cdef void update_tree_planes_all(game_state_t *game) nogil
 cdef void get_tree_probs(game_state_t *game, double *probs) nogil

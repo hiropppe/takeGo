@@ -46,14 +46,17 @@ class ExtendedGtpEngine(gtp.Engine):
 
     def cmd_time_settings(self, arguments):
         try:
-            main_time, byo_yomi_time, byo_yomi_stone = [int(t) for t in arguments.split()]
+            main_time, byoyomi_time, byoyomi_stones = [int(t) for t in arguments.split()]
         except ValueError:
             raise ValueError('Invalid time_settings input: {}'.format(arguments))
-        self._game.set_time(main_time, byo_yomi_time, byo_yomi_stone)
+        self._game.set_time_settings(main_time, byoyomi_time, byoyomi_stones)
 
     def cmd_time_left(self, arguments):
         try:
             color, time, stone = arguments.split()
+            color = gtp.parse_color(color)
+            if color is False:
+                color = 0
             self._game.set_time_left(color, (int)(time), (int)(stone))
         except ValueError:
             raise ValueError('Invalid time_left input: {}'.format(arguments))

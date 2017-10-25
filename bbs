@@ -1,10 +1,11 @@
 import os
 import sys
 
-from bamboo.zobrist_hash import set_hash_size, initialize_hash, initialize_uct_hash
-from bamboo.models.keras_dcnn_policy import CNNPolicy
+from bamboo.board import set_check_superko, set_check_seki, set_japanese_rule, set_use_lgrf2
+from bamboo.zobrist_hash import set_hash_size, initialize_hash
+from bamboo.nakade.initialize_nakade_hash
 from bamboo.local_pattern import read_rands, init_d12_rsp_hash, init_x33_hash, init_d12_hash
-from bamboo.rollout_preprocess import initialize_const, set_rollout_parameter, set_tree_parameter
+from bamboo.rollout_preprocess import initialize_rollout_const
 
 from bamboo.gtp.gtp_connector import MCTSConnector, RemoteMCTSConnector
 from bamboo.gtp.gtp_wrapper import ExtendedGtpEngine
@@ -13,11 +14,13 @@ from bamboo.gtp.gtp_wrapper import ExtendedGtpEngine
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Run GTP')
-    parser.add_argument("--policy_weights", "-W", type=str, required=True,
-                        help="Policy network weights (hdf5)")
-    parser.add_argument("--rollout_weights", "-Wr", type=str, required=True,
+    parser.add_argument("--policy_net", "-pn", type=str, required=True,
+                        help="Policy network weights (keras)")
+    parser.add_argument("--value_net", "-vn", type=str, required=True,
+                        help="Value Network model (tensorflow)")
+    parser.add_argument("--rollout", "-rollout", type=str, required=True,
                         help="Rollout policy network weights (hdf5)")
-    parser.add_argument("--tree_weights", "-Wt", type=str, required=True,
+    parser.add_argument("--tree", "-tree", type=str, required=True,
                         help="Tree policy network weights (hdf5)")
     parser.add_argument("--mt_rands_file", "-mt", type=str, required=True,
                         help="Mersenne twister random number file")
@@ -42,10 +45,19 @@ if __name__ == "__main__":
                               Main time, Byo-yomi time and Byo-yomi stone (ex: 2000 50 180 6)")
     parser.add_argument("--size", "-s", type=int, default=19,
                         help="Size of the game board. SGFs not matching this are discarded with a warning")
+    parser.add_argument("--superko", default=False, action="store_true",
+                        help="Use positional superko. (Default: False)")
+    parser.add_argument("--japanese_rule", default=False, action="store_true",
+                        help="Use japanese rule. (Default: False)")
+    parser.add_argument("--check_seki", default=True, action="store_true",
+                        help="Check seki at tree expansion. (Default: True)")
+    parser.add_argument("--lgrf2", default=False, action="store_true",
+                        help="Use LGRF2. (Default: False)")
     parser.add_argument("--server", default=False, action="store_true",
                         help="Run as server mode")
     parser.add_argument("--port", "-p", type=int, default=5000,
                         help="GTP rest server port")
+
     parser.add_argument("--rpc_client_mode", default=False, action="store_true",
                         help="Connect to MCTS RPC server (support pondering)")
     parser.add_argument("--rpc_host", type=str, default='localhost',
@@ -58,36 +70,34 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not args.rpc_client_mode:
-        import tensorflow as tf
-        from tensorflow.contrib.keras.python.keras.backend import set_session
-        config = tf.ConfigProto()
-        config.gpu_options.per_process_gpu_memory_fraction = 0.2
-        set_session(tf.Session(config=config))
-
-        # init SL Policy
-        sl_policy = CNNPolicy(init_network=True)
-        sl_policy.model.load_weights(args.policy_weights)
+        set_check_superko(args.check_superko)
+        set_japanese_rule(args.japanese_rule)
+        set_check_seki(args.check_seki)
+        set_use_lgrf2(args.lgrf2)
 
         # init tree hash
         set_hash_size(args.node_hash_size)
         initialize_hash()
-        initialize_uct_hash()
+        initialize_nakade_hash()
 
-        # init rollout policy
+        # init local patterns 
         read_rands(args.mt_rands_file)
+        nakade_size = 8
         x33_size = init_x33_hash(args.x33_csv)
         d12_rsp_size = init_d12_rsp_hash(args.d12_rsp_csv)
         d12_size = init_d12_hash(args.d12_csv)
 
-        initialize_const(0, x33_size, d12_rsp_size, d12_size)
-        set_rollout_parameter(args.rollout_weights)
-        set_tree_parameter(args.tree_weights)
+        # init rollout const
+        initialize_const(nakade_size, x33_size, d12_rsp_size, d12_size)
 
-        gtp_game = MCTSConnector(sl_policy, args.policy_temp, args.threads)
+        gtp_game = MCTSConnector(args.policy_net,
+                                 args.value_net,
+                                 args.rollout,
+                                 args.tree,
+                                 args.policy_temp,
+                                 args.threads)
     else:
-        gtp_game = MCTSConnector(args.rpc_host, args.rpc_port)
-
-    # m, ms, b, bs = [(int)(t) for t in args.time.split()]
+        gtp_game = RemoteMCTSConnector(args.rpc_host, args.rpc_port)
 
     gtp_game.set_const_time(args.const_time)
     gtp_game.set_const_playout(args.const_playout)

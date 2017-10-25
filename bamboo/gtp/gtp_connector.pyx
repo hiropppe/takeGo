@@ -11,6 +11,7 @@ from bamboo.board cimport POS, X, Y, CORRECT_X, CORRECT_Y
 from bamboo.board cimport game_state_t
 from bamboo.board cimport allocate_game, free_game, initialize_board, set_board_size
 from bamboo.board cimport do_move
+from bamboo.models.keras_dcnn_policy import CNNPolicy
 from bamboo.tree_search import PyMCTS
 
 from bamboo.printer cimport print_board
@@ -18,8 +19,21 @@ from bamboo.printer cimport print_board
 
 class MCTSConnector(object):
 
-    def __init__(self, sl_policy, policy_temp, n_threads):
-        self.mcts = PyMCTS(sl_policy, policy_temp, n_threads=n_threads, read_ahead=False)
+    def __init__(self,
+                 policy_net,
+                 temperature=0.67,
+                 value_net=None,
+                 rollout=None,
+                 tree=None,
+                 n_threads=1):
+        self.mcts = PyMCTS(n_threads=n_threads, read_ahead=False)
+        self.mcts.run_pn_session(policy_net, temperature)
+        if value_net:
+            self.mcts.run_vn_session(value_net)
+        if rollout:
+            self.mcts.set_rollout_parameter(rollout)
+            if tree:
+                self.mcts.set_tree_parameter(tree)
 
     def clear(self):
         self.mcts.clear()
@@ -60,11 +74,11 @@ class MCTSConnector(object):
     def set_komi(self, komi):
         self.mcts.set_komi(komi)
 
-    def set_time(self, m, b, stone):
-        self.mcts.set_time(m, b, stone)
+    def set_time_settings(self, main_time, byoyomi_time, byoyomi_stones):
+        self.mcts.set_time_settings(main_time, byoyomi_time, byoyomi_stones)
 
-    def set_time_left(self, color, time, stone):
-        self.mcts.set_time_left(color, time, stone)
+    def set_time_left(self, color, time, stones):
+        self.mcts.set_time_left(color, time, stones)
 
     def set_const_time(self, limit):
         self.mcts.set_const_time(limit)

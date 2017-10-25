@@ -26,11 +26,11 @@ from bamboo.local_pattern cimport d12_rsp_hash, d12_rspos_hash, d12_pos_mt, d12_
 from bamboo.local_pattern cimport d12_hash, d12_hashmap
 
 
-cpdef void initialize_const(int nakade_feature_size,
-                            int x33_feature_size,
-                            int d12_rsp_feature_size,
-                            int d12_feature_size,
-                            bint pos_aware_d12=True):
+cpdef void initialize_rollout_const(int nakade_feature_size,
+                                    int x33_feature_size,
+                                    int d12_rsp_feature_size,
+                                    int d12_feature_size,
+                                    bint pos_aware_d12=True):
     global rollout_feature_size
     global response_size, save_atari_size, neighbor_size, nakade_size, x33_size, d12_size
     global response_start, save_atari_start, neighbor_start, nakade_start, x33_start, d12_rsp_start
@@ -508,6 +508,14 @@ cdef int choice_rollout_move(game_state_t *game) nogil:
         pos += 1
 
     return onboard_pos[pos]
+
+
+cdef void get_rollout_probs(game_state_t *game, double *probs) nogil:
+    cdef int i
+    cdef int color = <int>game.current_color
+
+    for i in range(PURE_BOARD_MAX):
+        probs[i] = game.rollout_probs[color][i]
 
 
 cdef void update_tree_planes_all(game_state_t *game) nogil:

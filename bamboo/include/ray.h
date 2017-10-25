@@ -275,7 +275,7 @@ const int VIRTUAL_LOSS = 3;
 
 const int EXPANSION_THRESHOLD = 40;
 const int EXPLORATION_CONSTANT = 5;
-const int MIXING_PARAMETER = 1.0;
+const int MIXING_PARAMETER = 0.6;
 
 const int PLAYOUT_LIMIT = 1000000;
 const double THINKING_TIME_LIMIT = 3600.0;

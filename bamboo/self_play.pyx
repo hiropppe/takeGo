@@ -18,20 +18,31 @@ from libc.stdio cimport printf
 from bamboo.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS, RESIGN
 from bamboo.board cimport FLIP_COLOR, CORRECT_X, CORRECT_Y
 from bamboo.board cimport game_state_t, onboard_pos
-from bamboo.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi, set_superko 
-
+from bamboo.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi, \
+        set_check_superko, set_japanese_rule, set_check_seki, set_use_lgrf2
 from bamboo.zobrist_hash cimport uct_hash_size
 from bamboo.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
 from bamboo.tree_search cimport tree_node_t, PyMCTS
 
-from bamboo.rollout_preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter, set_tree_parameter
+from bamboo.rollout_preprocess cimport set_debug, initialize_rollout_const, initialize_rollout, update_rollout, set_rollout_parameter, set_tree_parameter
 from bamboo.local_pattern cimport read_rands, init_d12_rsp_hash, init_x33_hash, init_d12_hash
 from bamboo.nakade cimport initialize_nakade_hash
 from bamboo.printer cimport print_board
 from bamboo.parseboard cimport parse
 
 
-def self_play(time_limit=5.0, const_playout=10000, n_games=1, n_threads=2):
+def self_play(const_time=5.0,
+              const_playout=0,
+              n_games=1,
+              n_threads=1,
+              nosearch=False,
+              use_vn=True,
+              use_rollout=True,
+              use_tree=True,
+              superko=False,
+              seki=True,
+              japanese_rule=False,
+              lgrf2=True):
     cdef game_state_t *game
     cdef PyMCTS mcts
     cdef tree_node_t *node
@@ -39,56 +50,62 @@ def self_play(time_limit=5.0, const_playout=10000, n_games=1, n_threads=2):
     cdef int pos
     cdef int i
 
-    # Limit the GPU memory usage
-    if K.backend() == 'tensorflow':
-        import tensorflow as tf
-        config = tf.ConfigProto()
-        config.gpu_options.per_process_gpu_memory_fraction = 0.2
-        keras.backend.set_session(tf.Session(config=config))
+    if not (use_vn or use_rollout):
+        print('No evaluation component enabled.')
+        return
 
+    # Parameters
     d = os.path.dirname(os.path.abspath(__file__))
-    # supervised policy
-    model = os.path.join(d, '../params/policy/policy.json')
-    weights = os.path.join(d, '../params/policy/kihuu_best.hdf5')
-    # rollout policy
-    rollout_weights = os.path.join(d, '../params/rollout/rollout_weights.hdf5')
-    # tree policy
-    tree_weights = os.path.join(d, '../params/rollout/tree_weights.hdf5')
+    # Policy Net
+    policy_net = os.path.join(d, '../params/policy/kihuu_best.hdf5')
+    # Value Net
+    value_net = os.path.join(d, '../logs_agz/model.ckpt-9')
+    # Rollout Policy
+    rollout = os.path.join(d, '../params/rollout/rollout_weights.hdf5')
+    # Tree Policy
+    tree = os.path.join(d, '../params/rollout/tree_weights.hdf5')
     # pattern hash for rollout
     rands_txt = os.path.join(d, '../params/rollout/mt_rands.txt')
-    d12_csv = os.path.join(d, '../params/rollout/d12.csv')
+    d12_rsp_csv = os.path.join(d, '../params/rollout/d12_rsp.csv')
     x33_csv = os.path.join(d, '../params/rollout/x33.csv')
-    tree_d12_csv = os.path.join(d, '../params/rollout/tree_d12.csv')
+    d12_csv = os.path.join(d, '../params/rollout/d12.csv')
 
-    set_hash_size(2**20)
     initialize_hash()
     initialize_nakade_hash()
 
-    read_rands(rands_txt)
-    x33_size = init_x33_hash(x33_csv)
-    d12_size = init_d12_rsp_hash(d12_csv)
-    tree_d12_size = init_d12_hash(tree_d12_csv)
-
-    initialize_const(8, x33_size, d12_size, tree_d12_size)
-
-    sl_policy = CNNPolicy(init_network=True)
-    model = sl_policy.model
-    model.load_weights(weights)
-
-    set_rollout_parameter(rollout_weights)
-    set_tree_parameter(tree_weights)
-
     set_board_size(19)
-    set_superko(False)
+    set_check_superko(superko)
+    set_check_seki(seki)
+    set_japanese_rule(japanese_rule)
+    set_use_lgrf2(lgrf2)
 
-    mcts = PyMCTS(sl_policy,
-                  time_limit=time_limit,
+    mcts = PyMCTS(const_time=const_time,
                   const_playout=const_playout,
                   n_threads=n_threads,
-                  read_ahead=False)
-    mcts.clear()
-    game = mcts.game
+                  nosearch=nosearch,
+                  read_ahead=False,
+                  self_play=True)
+
+    mcts.run_pn_session(policy_net, temperature=0.67)
+
+    if not nosearch:
+        if use_vn:
+            mcts.run_vn_session(value_net)
+
+        if use_rollout:
+            read_rands(rands_txt)
+            initialize_rollout_const(8,
+                init_x33_hash(x33_csv),
+                init_d12_rsp_hash(d12_rsp_csv),
+                init_d12_hash(d12_csv))
+            mcts.set_rollout_parameter(rollout)
+
+            if use_tree:
+                mcts.set_tree_parameter(tree)
+
     for i in range(n_games):
+        mcts.clear()
+        game = mcts.game
         while True:
             pos = mcts.genmove(game.current_color)
 
@@ -112,5 +129,3 @@ def self_play(time_limit=5.0, const_playout=10000, n_games=1, n_threads=2):
                 pass_count = 0
 
         print('Score({:s}): {:s}'.format(str(i), str(calculate_score(game) - komi)))
-
-        mcts.clear()

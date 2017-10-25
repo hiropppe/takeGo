@@ -20,7 +20,7 @@ from bamboo.zobrist_hash cimport uct_hash_size
 from bamboo.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
 from bamboo.tree_search cimport tree_node_t, MCTS
 
-from bamboo.rollout_preprocess cimport set_debug, initialize_const, initialize_rollout, update_rollout, set_rollout_parameter
+from bamboo.rollout_preprocess cimport set_debug, initialize_rollout_const, initialize_rollout, update_rollout, set_rollout_parameter
 from bamboo.local_pattern cimport read_rands, init_d12_rsp_hash, init_x33_hash
 
 from bamboo.gtp import gtp
@@ -37,7 +37,7 @@ def setup_pattern(rands_file, d12_csv, x33_csv):
     x33_size = init_x33_hash(x33_csv)
     d12_size = init_d12_rsp_hash(d12_csv)
 
-    initialize_const(0, x33_size, d12_size, 0)
+    initialize_rollout_const(0, x33_size, d12_size, 0)
 
 
 def setup_supervised_policy(model, weights):

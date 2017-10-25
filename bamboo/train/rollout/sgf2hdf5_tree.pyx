@@ -25,7 +25,7 @@ from bamboo.nakade cimport initialize_nakade_hash
 from bamboo.local_pattern cimport read_rands, init_x33_hash, init_d12_rsp_hash, init_d12_rspos_hash, init_d12_hash
 from bamboo.local_pattern cimport x33_hash, x33_hashmap
 from bamboo.rollout_preprocess cimport tree_feature_size
-from bamboo.rollout_preprocess cimport initialize_const, initialize_planes, update_planes, update_tree_planes_all 
+from bamboo.rollout_preprocess cimport initialize_rollout_const, initialize_planes, update_planes, update_tree_planes_all 
 
 
 cdef class GameConverter(object):
@@ -59,7 +59,7 @@ cdef class GameConverter(object):
 
         self.update_speeds = list()
 
-        initialize_const(nakade_size, x33_size, d12_rsp_size, d12_size, pos_aware_d12)
+        initialize_rollout_const(nakade_size, x33_size, d12_rsp_size, d12_size, pos_aware_d12)
 
     def __dealloc__(self):
         pass

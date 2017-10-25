@@ -176,9 +176,10 @@ cdef unsigned char territory[65536]     # PAT3_MAX
 cdef unsigned char nb4_empty[65536]     # PAT3_MAX
 cdef unsigned char eye_condition[65536] # PAT3_MAX
 
-cdef bint check_superko
-cdef bint japanese_rule
-cdef bint use_lgrf2
+cdef bint check_seki_flag
+cdef bint check_superko_flag
+cdef bint japanese_rule_flag
+cdef bint use_lgrf2_flag
 
 cdef int diagonal_pos[529][4]
 cdef int neighbor4_pos[529][4]
@@ -196,7 +197,11 @@ cdef void initialize_const()
 cdef void clear_const()
 cdef void set_board_size(int size)
 cdef void set_komi(double new_komi)
-cdef void set_superko(bint check)
+
+cpdef void set_check_superko(bint flag)
+cpdef void set_check_seki(bint flag)
+cpdef void set_japanese_rule(bint flag)
+cpdef void set_use_lgrf2(bint flag)
 
 cdef game_state_t *allocate_game() nogil
 cdef void free_game(game_state_t *game) nogil
