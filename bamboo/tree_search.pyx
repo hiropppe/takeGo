@@ -96,6 +96,7 @@ cdef class MCTS(object):
         self.pondering_suspending = False
         self.pondering_suspended = True
         self.policy_queue_running = False
+        self.value_queue_running = False
         self.n_playout = 0
         self.winning_ratio = 0.5
         self.main_time = 0.0
