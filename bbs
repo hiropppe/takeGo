@@ -16,7 +16,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run GTP')
     parser.add_argument("--pn_path", "-pn", type=str, required=True,
                         help="Policy network weights (keras)")
-    parser.add_argument("--vn_path", "-vn", type=str, required=True,
+    parser.add_argument("--vn_path", "-vn", type=str, required=False,
                         help="Value Network model (tensorflow)")
     parser.add_argument("--rollout_path", "-ro", type=str, required=True,
                         help="Rollout policy network weights (hdf5)")
@@ -46,7 +46,7 @@ if __name__ == "__main__":
                         help="Use positional superko. (Default: False)")
     parser.add_argument("--japanese_rule", "-jp", default=False, action="store_true",
                         help="Use japanese rule. (Default: False)")
-    parser.add_argument("--seki", "-seki", default=True, action="store_true",
+    parser.add_argument("--seki", "-seki", default=False, action="store_true",
                         help="Check seki at tree expansion. (Default: True)")
     parser.add_argument("--lgrf2", "-lgrf2", default=False, action="store_true",
                         help="Use LGRF2. (Default: False)")

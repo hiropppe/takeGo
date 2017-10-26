@@ -375,8 +375,9 @@ cdef class MCTS(object):
         printf("Current node color  : %s\n", cppstring(1, stone[node.player_color]).c_str())
         if node.Nr != 0.0:
             printf('Current Playouts           : %d\n', <int>node.Nr)
-            printf('Current Winning ratio (RO) : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
-            printf('Current Winning ratio (VN) : %3.2lf %\n', 100.0-(node.Wv*100.0))
+            printf('Current Winning Ratio (RO) : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
+            if self.use_vn:
+                printf('Current Winning Ratio (VN) : %3.2lf %\n', 100.0-(node.Wv*100.0))
         else:
             printf('>> No playout information found for current node.\n')
 
@@ -418,7 +419,8 @@ cdef class MCTS(object):
                 printf('Playout Speed       : %d PO/sec\n', <int>(self.n_playout/elapsed))
             printf('Total Playouts      : %d\n', <int>node.Nr)
             printf("Winning Ratio (RO)  : %3.2lf %\n", self.winning_ratio*100.0)
-            printf("Winning Ratio (VN)  : %3.2lf %\n", node.Wv*100.0)
+            if self.use_vn:
+                printf("Winning Ratio (VN)  : %3.2lf %\n", node.Wv*100.0)
             printf('Queue size (PN)     : %d\n', self.policy_network_queue.size())
             printf('Queue size max (PN) : %d\n', self.max_queue_size_P)
             printf('Queue size (VN)     : %d\n', self.value_network_queue.size())
@@ -757,7 +759,7 @@ cdef class MCTS(object):
                 openmp.omp_unset_lock(&node.lock)
                 break
             else:
-                if node.Nv == 0.0:
+                if self.use_vn is False or node.Nv == 0.0:
                     node.Q = node.Wr/node.Nr
                 else:
                     node.Q = (1-MIXING_PARAMETER)*node.Wv + MIXING_PARAMETER*node.Wr/node.Nr
