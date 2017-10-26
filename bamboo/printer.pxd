@@ -13,11 +13,13 @@ cdef void print_rollout_count(tree_node_t *root) nogil
 
 cdef void print_winning_ratio(tree_node_t *root) nogil
 
-cdef void print_prior_probability(tree_node_t *root) nogil
+cdef void print_PN(tree_node_t *root) nogil
 
-cdef void print_action_value(tree_node_t *root) nogil
+cdef void print_VN(tree_node_t *root) nogil
 
-cdef void print_bonus(tree_node_t *root) nogil
+cdef void print_Q(tree_node_t *root) nogil
+
+cdef void print_u(tree_node_t *root) nogil
 
 cdef void print_selection_value(tree_node_t *root) nogil
 

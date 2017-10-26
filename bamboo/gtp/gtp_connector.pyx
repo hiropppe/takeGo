@@ -20,20 +20,32 @@ from bamboo.printer cimport print_board
 class MCTSConnector(object):
 
     def __init__(self,
-                 policy_net,
+                 pn_path,
+                 vn_path=None,
+                 rollout_path=None,
+                 tree_path=None,
                  temperature=0.67,
-                 value_net=None,
-                 rollout=None,
-                 tree=None,
-                 n_threads=1):
-        self.mcts = PyMCTS(n_threads=n_threads, read_ahead=False)
-        self.mcts.run_pn_session(policy_net, temperature)
-        if value_net:
-            self.mcts.run_vn_session(value_net)
-        if rollout:
-            self.mcts.set_rollout_parameter(rollout)
-            if tree:
-                self.mcts.set_tree_parameter(tree)
+                 const_time=5.0,
+                 const_playout=0,
+                 n_threads=1,
+                 intuition=False):
+        self.mcts = PyMCTS(
+                const_time=const_time,
+                const_playout=const_playout,
+                n_threads=n_threads,
+                intuition=intuition,
+                read_ahead=False,
+                self_play=False)
+
+        self.mcts.run_pn_session(pn_path, temperature)
+
+        if vn_path:
+            self.mcts.run_vn_session(vn_path)
+
+        if rollout_path:
+            self.mcts.set_rollout_parameter(rollout_path)
+            if tree_path:
+                self.mcts.set_tree_parameter(tree_path)
 
     def clear(self):
         self.mcts.clear()

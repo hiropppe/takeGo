@@ -44,7 +44,7 @@ from bamboo.rollout_preprocess cimport set_debug, initialize_rollout, update_rol
         update_probs, set_illegal, choice_rollout_move, update_tree_planes_all, \
         get_tree_probs, get_rollout_probs
 
-from bamboo.printer cimport print_board, print_prior_probability, print_rollout_count, print_winning_ratio, print_action_value, print_bonus, print_selection_value
+from bamboo.printer cimport print_board, print_PN, print_VN, print_rollout_count, print_winning_ratio, print_Q, print_u, print_selection_value
 from bamboo.sgf_util cimport save_gamestate_to_sgf 
 
 cimport openmp
@@ -56,10 +56,11 @@ cdef class MCTS(object):
                   double const_time=5.0,
                   int const_playout=0,
                   int n_threads=1,
-                  bint nosearch=False,
+                  bint intuition=False,
                   bint self_play=False):
         cdef int i, j, k
         cdef tree_node_t *node
+        cdef game_state_t *queue_entry
 
         self.game = NULL
         self.player_color = 0
@@ -87,7 +88,7 @@ cdef class MCTS(object):
         self.current_root = uct_hash_size
         self.policy_feature = allocate_feature(MAX_POLICY_PLANES)
         self.value_feature = allocate_feature(MAX_VALUE_PLANES)
-        self.nosearch = nosearch
+        self.intuition = intuition
         self.use_vn = False
         self.use_rollout = False
         self.use_tree = False
@@ -121,17 +122,30 @@ cdef class MCTS(object):
         for i in range(n_threads):
             self.n_threads_playout[i] = 0
 
+        # pre allocate 500 game for VN
+        for i in range(500):
+            self.game_queue.push(allocate_game())
+
         openmp.omp_init_lock(&self.tree_lock)
         openmp.omp_init_lock(&self.expand_lock)
         openmp.omp_init_lock(&self.policy_queue_lock)
         openmp.omp_init_lock(&self.value_queue_lock)
+        openmp.omp_init_lock(&self.game_queue_lock)
 
     def __dealloc__(self):
+        cdef game_state_t *game
+
         if self.nodes:
             free(self.nodes)
 
         free_feature(self.policy_feature)
         free_feature(self.value_feature)
+
+        while not self.game_queue.empty():
+            game = self.game_queue.front()
+            if game != NULL:
+                free_game(game)
+            self.game_queue.pop()
 
         if self.vn_session:
             self.vn_session.close()
@@ -206,45 +220,24 @@ cdef class MCTS(object):
         cdef double max_P
         cdef int max_pos
         cdef int i, j
+        cdef game_state_t *rollout_game
+        cdef int winner
+        cdef double rollout_wins = 0
 
         self.seek_root(game)
 
         node = &self.nodes[self.current_root]
 
-        if not self.nosearch:
-            # print_selection_value(node)
-            print_prior_probability(node)
-            # print_bonus(node)
-            print_winning_ratio(node)
-            print_rollout_count(node)
+        print_PN(node)
+        if self.use_vn:
+            print_VN(node)
+        print_winning_ratio(node)
+        print_rollout_count(node)
 
-            if node.Nr != 0.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
-                return RESIGN
+        if node.Nr != 0.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
+            return RESIGN
 
-            for i in range(node.num_child):
-                max_Nr = .0
-                max_pos = PASS
-                for j in range(node.num_child):
-                    child = node.children[node.children_pos[j]]
-                    if child.Nr > max_Nr:
-                        max_child = child
-                        max_Nr = child.Nr
-                        max_pos = child.pos
-
-                if is_legal_not_eye(game, max_pos, game.current_color):
-                    return max_pos
-                else:
-                    printf('Candidated pos is not legal. p=%d c=%d\n', max_pos, game.current_color)
-                    max_child.Nr = .0
-        else:
-            if node.is_edge:
-                expanded = self.expand(node, game)
-                if expanded:
-                    with gil:
-                        self.eval_leaf_by_policy_network(node)
-
-            print_prior_probability(node)
-
+        if self.intuition:
             for i in range(node.num_child):
                 max_P = .0
                 max_pos = PASS
@@ -260,7 +253,23 @@ cdef class MCTS(object):
                 else:
                     printf('Candidated pos is not legal. p=%d c=%d\n', max_pos, game.current_color)
                     max_child.P = .0
+        else:
+            for i in range(node.num_child):
+                max_Nr = .0
+                max_pos = PASS
+                for j in range(node.num_child):
+                    child = node.children[node.children_pos[j]]
+                    if child.Nr > max_Nr:
+                        max_child = child
+                        max_Nr = child.Nr
+                        max_pos = child.pos
 
+                if is_legal_not_eye(game, max_pos, game.current_color):
+                    return max_pos
+                else:
+                    printf('Candidated pos is not legal. p=%d c=%d\n', max_pos, game.current_color)
+                    max_child.Nr = .0
+    
         return PASS
 
     cdef void start_pondering(self) nogil:
@@ -313,11 +322,9 @@ cdef class MCTS(object):
         cdef int i
         cdef tree_node_t *node
         cdef bint expanded
+        cdef int n_threads
         cdef timeval end_time
         cdef double elapsed
-
-        if self.nosearch:
-            return
 
         self.n_playout = 0
         for i in range(self.n_threads):
@@ -367,8 +374,9 @@ cdef class MCTS(object):
 
         printf("Current node color  : %s\n", cppstring(1, stone[node.player_color]).c_str())
         if node.Nr != 0.0:
-            printf('Current Playouts       : %d\n', <int>node.Nr)
-            printf('Current Winning ratio  : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
+            printf('Current Playouts           : %d\n', <int>node.Nr)
+            printf('Current Winning ratio (RO) : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
+            printf('Current Winning ratio (VN) : %3.2lf %\n', 100.0-(node.Wv*100.0))
         else:
             printf('>> No playout information found for current node.\n')
 
@@ -381,10 +389,11 @@ cdef class MCTS(object):
             print_rollout_count(node)
 
         if thinking_time > 0.0:
-            for i in prange(self.n_threads + (2 if self.use_vn else 1), nogil=True):
-                if i == self.n_threads:
+            n_threads = self.n_threads + (2 if self.use_vn else 1)
+            for i in prange(n_threads, nogil=True):
+                if i == n_threads - 1:
                     self.start_policy_network_queue()
-                elif self.use_vn and i == self.n_threads - 1:
+                elif self.use_vn and i == n_threads - 2:
                     self.start_value_network_queue()
                 else:
                     self.run_search(i, game, thinking_time, playout_limit) 
@@ -408,11 +417,13 @@ cdef class MCTS(object):
             if elapsed != 0.0:
                 printf('Playout Speed       : %d PO/sec\n', <int>(self.n_playout/elapsed))
             printf('Total Playouts      : %d\n', <int>node.Nr)
-            printf("Winning Ratio       : %3.2lf %\n", self.winning_ratio*100.0)
+            printf("Winning Ratio (RO)  : %3.2lf %\n", self.winning_ratio*100.0)
+            printf("Winning Ratio (VN)  : %3.2lf %\n", node.Wv*100.0)
             printf('Queue size (PN)     : %d\n', self.policy_network_queue.size())
             printf('Queue size max (PN) : %d\n', self.max_queue_size_P)
             printf('Queue size (VN)     : %d\n', self.value_network_queue.size())
             printf('Queue size max (VN) : %d\n', self.max_queue_size_V)
+            printf('Queue size (Game)   : %d\n', self.game_queue.size())
             printf('Hash status of use  : %3.2lf % (%u/%u)\n', used*100.0/uct_hash_size, used, uct_hash_size)
         else:
             gettimeofday(&end_time, NULL)
@@ -464,6 +475,7 @@ cdef class MCTS(object):
                        (current_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
 
         self.policy_queue_running = False
+        self.value_queue_running = False
 
         free_game(search_game)
 
@@ -502,6 +514,8 @@ cdef class MCTS(object):
 
         # VN evaluation
         if self.use_vn and current_node.Nv == 0.0:
+            # openmp.omp_set_lock(&self.game_queue_lock)
+            # current_node.game = self.game_queue.front()
             current_node.game = allocate_game()
             copy_game(current_node.game, search_game)
             current_node.has_game = True
@@ -509,6 +523,8 @@ cdef class MCTS(object):
             queue_size = self.value_network_queue.size()
             if queue_size > self.max_queue_size_V:
                 self.max_queue_size_V = queue_size
+            # self.game_queue.pop()
+            # openmp.omp_unset_lock(&self.game_queue_lock)
 
         # Rollout evaluation
         if self.use_rollout:
@@ -883,22 +899,29 @@ cdef class MCTS(object):
         self.value_queue_running = False
 
     cdef void eval_leaf_by_value_network(self, tree_node_t *node):
+        cdef double vn_out
+
         update(self.value_feature, node.game)
 
         tensor = np.asarray(self.value_feature.planes)
         tensor = tensor.reshape((1, MAX_VALUE_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
 
-        S = tf.placeholder(tf.float32, [MAX_VALUE_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE])
-        op = inference_agz(S)
-
-        node.Wv = self.vn_session.run(op, feed_dict={S: tensor})
+        vn_out = self.vn_session.run(self.vn_op, feed_dict={self.vn_inputs: tensor})
+        # rescale [-1.0, 1.0] to [0.0, 1.0]
+        node.Wv = (vn_out + 1.0) / 2.0
         node.Nv += 1.0
         if node.Nr == 0.0:
             node.Q = node.Wv
         else:
             node.Q = (1-MIXING_PARAMETER)*node.Wv + MIXING_PARAMETER*node.Wr/node.Nr
 
-        printf(">> VN: %3.2lf >> Q: %3.2lf %\n", node.Wv, node.Q)
+        # return game to queue.
+        # openmp.omp_set_lock(&self.game_queue_lock)
+        # self.game_queue.push(node.game)
+        # openmp.omp_unset_lock(&self.game_queue_lock)
+
+        # print_board(node.game)
+        # printf(">> VN: %3.2lf >> Q: %3.2lf\n", node.Wv, node.Q)
 
     cdef void clear_value_network_queue(self) nogil:
         cdef tree_node_t *node
@@ -926,20 +949,24 @@ cdef class MCTS(object):
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
         set_session(tf.Session(config=config))
-
         pn = CNNPolicy(init_network=True)
         pn.model.load_weights(policy_net)
-
         self.pn = pn
         self.beta = 1.0/temperature
 
     def run_vn_session(self, value_net):
         printf('>> Set VN Session\n')
-        saver = tf.train.Saver()
-        config = tf.ConfigProto()
-        config.gpu_options.per_process_gpu_memory_fraction = 0.3
-        self.vn_session = tf.Session(config=config)
-        saver.restore(self.vn_session, value_net)
+        with tf.Graph().as_default() as graph:
+            self.vn_inputs = tf.placeholder(tf.float32,
+                    [None, MAX_VALUE_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE])
+            # TODO return -1 if is_training is False
+            self.vn_op = inference_agz(self.vn_inputs, is_training=True)
+            saver = tf.train.Saver()
+            config = tf.ConfigProto()
+            config.gpu_options.per_process_gpu_memory_fraction = 0.3
+            self.vn_session = tf.Session(config=config, graph=graph)
+            saver.restore(self.vn_session, value_net)
+
         self.use_vn = True
 
     def set_rollout_parameter(self, rollout):
@@ -959,13 +986,13 @@ cdef class PyMCTS(object):
                   double const_time=5.0,
                   int const_playout=0,
                   int n_threads=1,
-                  bint nosearch=False,
+                  bint intuition=False,
                   bint read_ahead=False,
                   bint self_play=False):
         self.mcts = MCTS(const_time=const_time,
                          const_playout=const_playout,
                          n_threads=n_threads,
-                         nosearch=nosearch,
+                         intuition=intuition,
                          self_play=self_play)
         self.game = allocate_game()
         self.const_time = const_time

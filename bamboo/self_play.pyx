@@ -35,7 +35,7 @@ def self_play(const_time=5.0,
               const_playout=0,
               n_games=1,
               n_threads=1,
-              nosearch=False,
+              intuition=False,
               use_vn=True,
               use_rollout=True,
               use_tree=True,
@@ -57,13 +57,13 @@ def self_play(const_time=5.0,
     # Parameters
     d = os.path.dirname(os.path.abspath(__file__))
     # Policy Net
-    policy_net = os.path.join(d, '../params/policy/kihuu_best.hdf5')
+    pn_path = os.path.join(d, '../params/policy/kihuu_best.hdf5')
     # Value Net
-    value_net = os.path.join(d, '../logs_agz/model.ckpt-9')
+    vn_path = os.path.join(d, '../logs/model.ckpt-3')
     # Rollout Policy
-    rollout = os.path.join(d, '../params/rollout/rollout_weights.hdf5')
+    rollout_path = os.path.join(d, '../params/rollout/rollout_weights.hdf5')
     # Tree Policy
-    tree = os.path.join(d, '../params/rollout/tree_weights.hdf5')
+    tree_path = os.path.join(d, '../params/rollout/tree_weights.hdf5')
     # pattern hash for rollout
     rands_txt = os.path.join(d, '../params/rollout/mt_rands.txt')
     d12_rsp_csv = os.path.join(d, '../params/rollout/d12_rsp.csv')
@@ -82,27 +82,26 @@ def self_play(const_time=5.0,
     mcts = PyMCTS(const_time=const_time,
                   const_playout=const_playout,
                   n_threads=n_threads,
-                  nosearch=nosearch,
+                  intuition=intuition,
                   read_ahead=False,
                   self_play=True)
 
-    mcts.run_pn_session(policy_net, temperature=0.67)
+    mcts.run_pn_session(pn_path, temperature=0.67)
 
-    if not nosearch:
-        if use_vn:
-            mcts.run_vn_session(value_net)
+    if use_vn:
+        mcts.run_vn_session(vn_path)
 
-        if use_rollout:
-            read_rands(rands_txt)
-            initialize_rollout_const(8,
-                init_x33_hash(x33_csv),
-                init_d12_rsp_hash(d12_rsp_csv),
-                init_d12_hash(d12_csv),
-                pos_aware_d12=False)
-            mcts.set_rollout_parameter(rollout)
+    if use_rollout:
+        read_rands(rands_txt)
+        initialize_rollout_const(8,
+            init_x33_hash(x33_csv),
+            init_d12_rsp_hash(d12_rsp_csv),
+            init_d12_hash(d12_csv),
+            pos_aware_d12=False)
+        mcts.set_rollout_parameter(rollout_path)
 
-            if use_tree:
-                mcts.set_tree_parameter(tree)
+        if use_tree:
+            mcts.set_tree_parameter(tree_path)
 
     for i in range(n_games):
         mcts.clear()

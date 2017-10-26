@@ -26,6 +26,7 @@ extensions = [Extension('bamboo.board', sources=['bamboo/board.pyx'], language="
               Extension('bamboo.train.policy.sgf2tfrecord', sources=["bamboo/train/policy/sgf2tfrecord.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.policy.sgf2hdf5', sources=["bamboo/train/policy/sgf2hdf5.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.value.sgf2tfrecord', sources=["bamboo/train/value/sgf2tfrecord.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.train.value.sgf_debug', sources=["bamboo/train/value/sgf_debug.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.rollout.pattern_harvest', sources=["bamboo/train/rollout/pattern_harvest.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.rollout.sgf2hdf5', sources=["bamboo/train/rollout/sgf2hdf5.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.rollout.sgf2hdf5_tree', sources=["bamboo/train/rollout/sgf2hdf5_tree.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
