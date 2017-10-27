@@ -74,12 +74,12 @@ cdef void print_rollout_count(tree_node_t *root) nogil:
     printf("    ")
     i = 1
     for _ in range(board_start, board_end + 1):
-        printf("     %s", cppstring(1, <char>gogui_x[i]).c_str())
+        printf("      %s", cppstring(1, <char>gogui_x[i]).c_str())
         i += 1
     printf("\n")
 
     printf("   +")
-    for i in range(pure_board_size * 6 + 1):
+    for i in range(pure_board_size * 7 + 1):
         printf("-")
     printf("+\n")
 
@@ -90,12 +90,12 @@ cdef void print_rollout_count(tree_node_t *root) nogil:
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
             snprintf(buf, sizeof(buf), " %d", rollout_count[pos])
-            s = rjust(buf, 5, " ")
+            s = rjust(buf, 6, " ")
             printf(' %s', s.c_str())
         printf(" |\n")
 
     printf("   +")
-    for i in range(1, pure_board_size * 6 + 1 + 1):
+    for i in range(1, pure_board_size * 7 + 1 + 1):
         printf("-")
     printf("+\n")
 
