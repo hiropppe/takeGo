@@ -268,17 +268,21 @@ cdef class MCTS(object):
         else:
             for i in range(node.num_child):
                 max_Nr = .0
-                second_Nr = .0
                 max_child = NULL
                 max_pos = PASS
+                second_Nr = .0
+                second_child = NULL
                 for j in range(node.num_child):
                     child = node.children[node.children_pos[j]]
                     if child.Nr > max_Nr:
                         second_child = max_child
-                        max_child = child
                         second_Nr = max_Nr
+                        max_child = child
                         max_Nr = child.Nr
                         max_pos = child.pos
+                    elif child.Nr > second_Nr:
+                        second_child = child
+                        second_Nr = child.Nr
 
                 printf('>> Max visit: %d > 2nd visit: %d\n', <int>max_Nr, <int>second_Nr),
                 # extend thinking time when 1st move rollout count less than 2nd rollout count.
