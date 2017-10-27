@@ -405,7 +405,8 @@ cdef class MCTS(object):
                     max_pos = child.pos
 
             if max_P > 0.8 and is_legal_not_eye(game, max_pos, game.current_color):
-                printf(">> The maximum PN evaluation value is 90% or more. Skip search.\n")
+                print_PN(node)
+                printf(">> The maximum PN evaluation value is %3.2lf > 0.8. Skip search.\n", max_P)
                 return
         
         if self.intuition and \
