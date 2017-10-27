@@ -57,13 +57,13 @@ def self_play(const_time=5.0,
     # Parameters
     d = os.path.dirname(os.path.abspath(__file__))
     # Policy Net
-    pn_path = os.path.join(d, '../params/policy/kihuu_best.hdf5')
+    pn_path = os.path.join(d, '../params/policy/kihuu.hdf5')
     # Value Net
     vn_path = os.path.join(d, '../logs/model.ckpt-9')
     # Rollout Policy
-    rollout_path = os.path.join(d, '../params/rollout/rollout_weights.hdf5')
+    rollout_path = os.path.join(d, '../params/rollout/rollout.hdf5')
     # Tree Policy
-    tree_path = os.path.join(d, '../params/rollout/tree_weights.hdf5')
+    tree_path = os.path.join(d, '../params/rollout/tree.hdf5')
     # pattern hash for rollout
     rands_txt = os.path.join(d, '../params/rollout/mt_rands.txt')
     d12_rsp_csv = os.path.join(d, '../params/rollout/d12_rsp.csv')
