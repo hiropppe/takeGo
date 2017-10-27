@@ -175,6 +175,8 @@ cdef class MCTS(object):
         self.pondering_stopped = False
         self.pondering_suspending = False
         self.pondering_suspended = True
+        self.winning_ratio = 0.5
+        self.time_left = self.main_time
         self.can_extend = False
         self.n_playout = 0
         self.max_queue_size_P = 0
@@ -242,7 +244,7 @@ cdef class MCTS(object):
             print_winning_ratio(node)
             print_rollout_count(node)
 
-            if node.Nr >= 1000.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
+            if node.Nr >= 500.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
                 return RESIGN
 
         self.pondered = False
@@ -355,6 +357,7 @@ cdef class MCTS(object):
         cdef int n_threads
         cdef timeval end_time
         cdef double elapsed
+        cdef bint const_playout = False
 
         self.can_extend = False
 
@@ -397,6 +400,7 @@ cdef class MCTS(object):
             if self.main_time == 0.0 and self.byoyomi_time == 0.0:
                 if self.const_playout > 0:
                     playout_limit = self.const_playout
+                    const_playout = True
                 else:
                     thinking_time = self.const_time
             # sudden death and no time left
@@ -428,9 +432,10 @@ cdef class MCTS(object):
                     thinking_time = DMIN(thinking_time, 1.0)
 
             if thinking_time > 0.0:
-                printf('Pondering time: %3.2lf sec\n', thinking_time)
-            else:
-                printf('Number of simulations: %d\n', playout_limit)
+                if const_playout:
+                    printf('Number of simulations: %d\n', playout_limit)
+                else:
+                    printf('Pondering time: %3.2lf sec\n', thinking_time)
         else:
             printf("\n>> Starting read-ahead pondering ... ... ... :-)\n")
 
@@ -729,6 +734,9 @@ cdef class MCTS(object):
         cdef lgr2_seed_t lgr2_seed
         cdef cppvector[lgr2_seed_t] lgr2_rollout[3]
         cdef cppvector[lgr2_seed_t].iterator it
+        #cdef bint debug = False
+        #if game.moves in (0,1,2,3,4,5,6,7,8,9,10) and self.n_playout == 100:
+        #    debug = True
 
         color = game.current_color
         other_color = FLIP_COLOR(game.current_color)
@@ -751,6 +759,9 @@ cdef class MCTS(object):
             game.current_color = other_color
 
             update_rollout(game)
+
+            #if debug:
+            #    print_board(game)
 
             if use_lgrf2_flag and game.moves > 2:
                 lgr2_seed.pos = pos
