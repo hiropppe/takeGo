@@ -74,7 +74,8 @@ cdef class MCTS:
     cdef policy_feature_t *value_feature
     cdef cppqueue[tree_node_t *] policy_network_queue
     cdef cppqueue[tree_node_t *] value_network_queue
-    cdef cppqueue[game_state_t *] game_queue
+    # cdef cppqueue[game_state_t *] game_queue
+    cdef bint pondered
     cdef bint pondering
     cdef bint pondering_stopped
     cdef bint pondering_suspending
@@ -97,7 +98,7 @@ cdef class MCTS:
     cdef openmp.omp_lock_t expand_lock
     cdef openmp.omp_lock_t policy_queue_lock
     cdef openmp.omp_lock_t value_queue_lock
-    cdef openmp.omp_lock_t game_queue_lock
+    # cdef openmp.omp_lock_t game_queue_lock
     cdef int n_threads_playout[100]
     cdef int lgr2[3][529][529]
     cdef bint self_play
