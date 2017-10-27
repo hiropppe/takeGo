@@ -40,7 +40,7 @@ def self_play(const_time=5.0,
               use_rollout=True,
               use_tree=True,
               superko=False,
-              seki=True,
+              seki=False,
               japanese_rule=False,
               lgrf2=True):
     cdef game_state_t *game
@@ -59,7 +59,7 @@ def self_play(const_time=5.0,
     # Policy Net
     pn_path = os.path.join(d, '../params/policy/kihuu_best.hdf5')
     # Value Net
-    vn_path = os.path.join(d, '../logs/model.ckpt-3')
+    vn_path = os.path.join(d, '../logs/model.ckpt-9')
     # Rollout Policy
     rollout_path = os.path.join(d, '../params/rollout/rollout_weights.hdf5')
     # Tree Policy
