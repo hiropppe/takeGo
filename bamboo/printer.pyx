@@ -22,9 +22,8 @@ cdef void print_board(game_state_t *game) nogil:
     cdef char buf[10]
     cdef cppstring *s
 
-    printf("Prisoner(Black) : %d\n", game.prisoner[<int>S_BLACK])
-    printf("Prisoner(White) : %d\n", game.prisoner[<int>S_WHITE])
-    printf("Move : %d\n", game.moves)
+    printf("Prisoner: [Black] >> %d [White] >> %d\n", game.prisoner[<int>S_BLACK], game.prisoner[<int>S_WHITE])
+    printf("Move    : %d\n", game.moves)
 
     printf("    ")
     i = 1
@@ -172,12 +171,12 @@ cdef void print_PN(tree_node_t *root) nogil:
     printf("    ")
     i = 1
     for _ in range(board_start, board_end + 1):
-        printf("      %s", cppstring(1, <char>gogui_x[i]).c_str())
+        printf("       %s", cppstring(1, <char>gogui_x[i]).c_str())
         i += 1
     printf("\n")
 
     printf("   +")
-    for i in range(pure_board_size * 7 + 1):
+    for i in range(pure_board_size * 8 + 1):
         printf("-")
     printf("+\n")
 
@@ -188,12 +187,12 @@ cdef void print_PN(tree_node_t *root) nogil:
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
             snprintf(buf, sizeof(buf), " %3.2lf", prior_prob[pos])
-            s = rjust(buf, 6, " ")
+            s = rjust(buf, 7, " ")
             printf(' %s', s.c_str())
         printf(" |\n")
 
     printf("   +")
-    for i in range(1, pure_board_size * 7 + 1 + 1):
+    for i in range(1, pure_board_size * 8 + 1 + 1):
         printf("-")
     printf("+\n")
 
@@ -218,12 +217,12 @@ cdef void print_VN(tree_node_t *root) nogil:
     printf("    ")
     i = 1
     for _ in range(board_start, board_end + 1):
-        printf("      %s", cppstring(1, <char>gogui_x[i]).c_str())
+        printf("       %s", cppstring(1, <char>gogui_x[i]).c_str())
         i += 1
     printf("\n")
 
     printf("   +")
-    for i in range(pure_board_size * 7 + 1):
+    for i in range(pure_board_size * 8 + 1):
         printf("-")
     printf("+\n")
 
@@ -234,12 +233,12 @@ cdef void print_VN(tree_node_t *root) nogil:
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
             snprintf(buf, sizeof(buf), " %3.2lf", values[pos])
-            s = rjust(buf, 6, " ")
+            s = rjust(buf, 7, " ")
             printf(' %s', s.c_str())
         printf(" |\n")
 
     printf("   +")
-    for i in range(1, pure_board_size * 7 + 1 + 1):
+    for i in range(1, pure_board_size * 8 + 1 + 1):
         printf("-")
     printf("+\n")
 

@@ -92,6 +92,7 @@ cdef class MCTS(object):
         self.use_vn = False
         self.use_rollout = False
         self.use_tree = False
+        self.pondered = False
         self.pondering = False
         self.pondering_stopped = True
         self.pondering_suspending = False
@@ -103,6 +104,7 @@ cdef class MCTS(object):
         self.main_time = 0.0
         self.byoyomi_time = 0.0
         self.time_left = 0.0
+        self.can_extend = False
         self.const_time = const_time
         self.const_playout = const_playout
         self.n_threads = n_threads
@@ -123,14 +125,14 @@ cdef class MCTS(object):
             self.n_threads_playout[i] = 0
 
         # pre allocate 500 game for VN
-        for i in range(500):
-            self.game_queue.push(allocate_game())
+        #for i in range(500):
+        #    self.game_queue.push(allocate_game())
 
         openmp.omp_init_lock(&self.tree_lock)
         openmp.omp_init_lock(&self.expand_lock)
         openmp.omp_init_lock(&self.policy_queue_lock)
         openmp.omp_init_lock(&self.value_queue_lock)
-        openmp.omp_init_lock(&self.game_queue_lock)
+        #openmp.omp_init_lock(&self.game_queue_lock)
 
     def __dealloc__(self):
         cdef game_state_t *game
@@ -141,17 +143,17 @@ cdef class MCTS(object):
         free_feature(self.policy_feature)
         free_feature(self.value_feature)
 
-        while not self.game_queue.empty():
-            game = self.game_queue.front()
-            if game != NULL:
-                free_game(game)
-            self.game_queue.pop()
+        #while not self.game_queue.empty():
+        #    game = self.game_queue.front()
+        #    if game != NULL:
+        #        free_game(game)
+        #    self.game_queue.pop()
 
         if self.vn_session:
             self.vn_session.close()
 
     def clear(self):
-        time.sleep(3.)
+        # time.sleep(3.)
 
         openmp.omp_set_lock(&self.policy_queue_lock)
         while not self.policy_network_queue.empty():
@@ -168,10 +170,12 @@ cdef class MCTS(object):
         self.initialize_nodes()
 
         self.current_root = uct_hash_size
+        self.pondered = False
         self.pondering = True
         self.pondering_stopped = False
         self.pondering_suspending = False
         self.pondering_suspended = True
+        self.can_extend = False
         self.n_playout = 0
         self.max_queue_size_P = 0
         self.max_queue_size_V = 0
@@ -217,25 +221,31 @@ cdef class MCTS(object):
         cdef tree_node_t *child
         cdef tree_node_t *max_child
         cdef double max_Nr
+        cdef tree_node_t *second_child
+        cdef double second_Nr
         cdef double max_P
         cdef int max_pos
         cdef int i, j
         cdef game_state_t *rollout_game
         cdef int winner
         cdef double rollout_wins = 0
+        cdef timeval end_time
 
         self.seek_root(game)
 
         node = &self.nodes[self.current_root]
 
-        print_PN(node)
-        if self.use_vn:
-            print_VN(node)
-        print_winning_ratio(node)
-        print_rollout_count(node)
+        if self.pondered:
+            print_PN(node)
+            if self.use_vn:
+                print_VN(node)
+            print_winning_ratio(node)
+            print_rollout_count(node)
 
-        if node.Nr != 0.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
-            return RESIGN
+            if node.Nr >= 1000.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
+                return RESIGN
+
+        self.pondered = False
 
         if self.intuition:
             for i in range(node.num_child):
@@ -251,23 +261,43 @@ cdef class MCTS(object):
                 if is_legal_not_eye(game, max_pos, game.current_color):
                     return max_pos
                 else:
-                    printf('Candidated pos is not legal. p=%d c=%d\n', max_pos, game.current_color)
+                    printf('>> Candidated pos is not legal. p=%d c=%d\n', max_pos, game.current_color)
                     max_child.P = .0
         else:
             for i in range(node.num_child):
                 max_Nr = .0
+                second_Nr = .0
+                max_child = NULL
                 max_pos = PASS
                 for j in range(node.num_child):
                     child = node.children[node.children_pos[j]]
                     if child.Nr > max_Nr:
+                        second_child = max_child
                         max_child = child
+                        second_Nr = max_Nr
                         max_Nr = child.Nr
                         max_pos = child.pos
+
+                printf('>> Max visit: %d > 2nd visit: %d\n', <int>max_Nr, <int>second_Nr),
+                # extend thinking time when 1st move rollout count less than 2nd rollout count.
+                if self.can_extend and max_Nr <= second_Nr*1.5:
+                    printf('>> Extend pondering. %5.2lf (1st node) <= %5.2lf (2nd node*1.5)\n',
+                        max_Nr, second_Nr*1.5)
+                    gettimeofday(&end_time, NULL)
+                    elapsed = ((end_time.tv_sec - self.search_start_time.tv_sec) +
+                               (end_time.tv_usec - self.search_start_time.tv_usec) / 1000000.0)
+                    self.time_left = DMAX(self.time_left - elapsed, 0.0)
+                    printf('Time left: %3.2lf sec\n', self.time_left)
+                    gettimeofday(&self.search_start_time, NULL)
+
+                    self.ponder(game, True)
+
+                    max_pos = self.genmove(game)
 
                 if is_legal_not_eye(game, max_pos, game.current_color):
                     return max_pos
                 else:
-                    printf('Candidated pos is not legal. p=%d c=%d\n', max_pos, game.current_color)
+                    printf('>> Candidated pos is not legal. p=%d c=%d\n', max_pos, game.current_color)
                     max_child.Nr = .0
     
         return PASS
@@ -284,7 +314,7 @@ cdef class MCTS(object):
                     time.sleep(.001)
                 continue
 
-            self.ponder(self.game)
+            self.ponder(self.game, False)
 
             self.pondering_suspending = False
             self.pondering_suspended = True
@@ -315,7 +345,7 @@ cdef class MCTS(object):
         printf('>> Resume pondering.\n')
         self.pondering_suspended = False
 
-    cdef void ponder(self, game_state_t *game) nogil:
+    cdef void ponder(self, game_state_t *game, bint extend) nogil:
         cdef char *stone = ['#', 'B', 'W']
         cdef int playout_limit = PLAYOUT_LIMIT
         cdef double thinking_time = THINKING_TIME_LIMIT
@@ -325,6 +355,8 @@ cdef class MCTS(object):
         cdef int n_threads
         cdef timeval end_time
         cdef double elapsed
+
+        self.can_extend = False
 
         self.n_playout = 0
         for i in range(self.n_threads):
@@ -336,16 +368,39 @@ cdef class MCTS(object):
 
         node = &self.nodes[self.current_root]
 
+        printf(">> Root Node (%s)\n", cppstring(1, stone[node.player_color]).c_str())
+        if node.Nr != 0.0:
+            printf('Playouts           : %d\n', <int>node.Nr)
+            printf('Winning Ratio (RO) : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
+            if self.use_vn:
+                printf('Winning Ratio (VN) : %3.2lf %\n', 100.0-(node.Wv*100.0))
+        else:
+            printf('>> No playout information found for current node.\n')
+
+        if node.is_edge:
+            expanded = self.expand(node, game)
+            if expanded:
+                with gil:
+                    self.eval_leaf_by_policy_network(node)
+        else:
+            print_rollout_count(node)
+
+        if self.intuition and \
+           (game.moves < 200 or (game.moves + node.player_color) % 10 != 1):
+            printf(">> Skip node evaluation.\n")
+            return
+
+        # determine thinking time
         if self.self_play or node.player_color == self.player_color:
             printf("\n>> Starting pondering ... ... ... :-)\n")
-            # no time settings
+            # no time settings (const playout or const time)
             if self.main_time == 0.0 and self.byoyomi_time == 0.0:
                 if self.const_playout > 0:
                     playout_limit = self.const_playout
                 else:
                     thinking_time = self.const_time
             # sudden death and no time left
-            elif self.byoyomi_time == 0.0 and self.time_left < 15.0:
+            elif self.byoyomi_time == 0.0 and self.time_left < 60.0:
                 thinking_time = 0.0
             # enough time left
             else:
@@ -358,9 +413,16 @@ cdef class MCTS(object):
                         thinking_time = DMAX(self.byoyomi_time - 1.0, 1.0)
                     else:
                         thinking_time = DMAX(
-                            self.time_left/(55.0 + DMAX(50.0 - game.moves, 0.0)),
+                            self.time_left/(60.0 + DMAX(60.0 - game.moves, 0.0)),
                             self.byoyomi_time * (1.5 - DMAX(50.0 - game.moves, 0.0)/100.0)
                         )
+
+                    # check if extend thnking_time
+                    if not extend:
+                        self.can_extend = game.moves > 4 and (self.time_left - thinking_time > self.main_time * 0.15)
+
+                if game.moves < 4:
+                    thinking_time = DMIN(thinking_time, 5.0)
 
                 if self.winning_ratio > 0.95:
                     thinking_time = DMIN(thinking_time, 1.0)
@@ -371,22 +433,6 @@ cdef class MCTS(object):
                 printf('Number of simulations: %d\n', playout_limit)
         else:
             printf("\n>> Starting read-ahead pondering ... ... ... :-)\n")
-
-        printf("Current node color  : %s\n", cppstring(1, stone[node.player_color]).c_str())
-        if node.Nr != 0.0:
-            printf('Current Playouts           : %d\n', <int>node.Nr)
-            printf('Current Winning ratio (RO) : %3.2lf %\n', 100.0-(node.Wr*100.0/node.Nr))
-            printf('Current Winning ratio (VN) : %3.2lf %\n', 100.0-(node.Wv*100.0))
-        else:
-            printf('>> No playout information found for current node.\n')
-
-        if node.is_edge:
-            expanded = self.expand(node, game)
-            if expanded:
-                with gil:
-                    self.eval_leaf_by_policy_network(node)
-        else:
-            print_rollout_count(node)
 
         if thinking_time > 0.0:
             n_threads = self.n_threads + (2 if self.use_vn else 1)
@@ -418,13 +464,16 @@ cdef class MCTS(object):
                 printf('Playout Speed       : %d PO/sec\n', <int>(self.n_playout/elapsed))
             printf('Total Playouts      : %d\n', <int>node.Nr)
             printf("Winning Ratio (RO)  : %3.2lf %\n", self.winning_ratio*100.0)
-            printf("Winning Ratio (VN)  : %3.2lf %\n", node.Wv*100.0)
+            if self.use_vn:
+                printf("Winning Ratio (VN)  : %3.2lf %\n", node.Wv*100.0)
             printf('Queue size (PN)     : %d\n', self.policy_network_queue.size())
             printf('Queue size max (PN) : %d\n', self.max_queue_size_P)
             printf('Queue size (VN)     : %d\n', self.value_network_queue.size())
             printf('Queue size max (VN) : %d\n', self.max_queue_size_V)
-            printf('Queue size (Game)   : %d\n', self.game_queue.size())
+            #printf('Queue size (Game)   : %d\n', self.game_queue.size())
             printf('Hash status of use  : %3.2lf % (%u/%u)\n', used*100.0/uct_hash_size, used, uct_hash_size)
+
+            self.pondered = True
         else:
             gettimeofday(&end_time, NULL)
 
@@ -433,7 +482,6 @@ cdef class MCTS(object):
 
             printf(">> No time left (%3.2lfsec) :-)\n", self.time_left)
             printf('Elapsed: %2.3lf sec\n', elapsed)
-
 
     cdef void run_search(self,
                          int thread_id,
@@ -757,7 +805,7 @@ cdef class MCTS(object):
                 openmp.omp_unset_lock(&node.lock)
                 break
             else:
-                if node.Nv == 0.0:
+                if self.use_vn is False or node.Nv == 0.0:
                     node.Q = node.Wr/node.Nr
                 else:
                     node.Q = (1-MIXING_PARAMETER)*node.Wv + MIXING_PARAMETER*node.Wr/node.Nr
@@ -1057,7 +1105,7 @@ cdef class PyMCTS(object):
 
         self.mcts.const_time = self.const_time
         self.mcts.const_playout = self.const_playout
-        self.mcts.ponder(self.game)
+        self.mcts.ponder(self.game, False)
 
         self.game.current_color = color
         pos = self.mcts.genmove(self.game)
@@ -1067,7 +1115,11 @@ cdef class PyMCTS(object):
         elapsed = ((end_time.tv_sec - self.mcts.search_start_time.tv_sec) +
                    (end_time.tv_usec - self.mcts.search_start_time.tv_usec) / 1000000.0)
 
-        self.mcts.time_left = DMAX(self.mcts.time_left - elapsed, 0.0)
+        printf('>> Genmove Elapsed: %2.3lf sec\n', elapsed)
+
+        if self.mcts.main_time > 0.0:
+            self.mcts.time_left = DMAX(self.mcts.time_left - elapsed, 0.0)
+            printf('Time left: %3.2lf sec\n', self.mcts.time_left)
 
         return pos
 
