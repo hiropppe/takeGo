@@ -36,16 +36,17 @@ class MCTSConnector(object):
                 intuition=intuition,
                 read_ahead=False,
                 self_play=False)
-
-        self.mcts.run_pn_session(pn_path, temperature)
+        if pn_path:
+            self.mcts.run_pn_session(pn_path, temperature)
 
         if vn_path:
             self.mcts.run_vn_session(vn_path)
 
         if rollout_path:
             self.mcts.set_rollout_parameter(rollout_path)
-            if tree_path:
-                self.mcts.set_tree_parameter(tree_path)
+
+        if tree_path:
+            self.mcts.set_tree_parameter(tree_path)
 
     def clear(self):
         self.mcts.clear()

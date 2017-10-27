@@ -36,6 +36,7 @@ def self_play(const_time=5.0,
               n_games=1,
               n_threads=1,
               intuition=False,
+              use_pn=True,
               use_vn=True,
               use_rollout=True,
               use_tree=True,
@@ -86,20 +87,21 @@ def self_play(const_time=5.0,
                   read_ahead=False,
                   self_play=True)
 
-    mcts.run_pn_session(pn_path, temperature=0.67)
+    if use_pn:
+        mcts.run_pn_session(pn_path, temperature=0.67)
 
     if use_vn:
         mcts.run_vn_session(vn_path)
 
-    if use_rollout:
+    if use_rollout or use_tree:
         read_rands(rands_txt)
         initialize_rollout_const(8,
             init_x33_hash(x33_csv),
             init_d12_rsp_hash(d12_rsp_csv),
             init_d12_hash(d12_csv),
             pos_aware_d12=False)
-        mcts.set_rollout_parameter(rollout_path)
-
+        if use_rollout:
+            mcts.set_rollout_parameter(rollout_path)
         if use_tree:
             mcts.set_tree_parameter(tree_path)
 

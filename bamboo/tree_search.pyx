@@ -89,6 +89,7 @@ cdef class MCTS(object):
         self.policy_feature = allocate_feature(MAX_POLICY_PLANES)
         self.value_feature = allocate_feature(MAX_VALUE_PLANES)
         self.intuition = intuition
+        self.use_pn = False
         self.use_vn = False
         self.use_rollout = False
         self.use_tree = False
@@ -362,6 +363,8 @@ cdef class MCTS(object):
         cdef timeval end_time
         cdef double elapsed
         cdef bint const_playout = False
+        cdef double max_P
+        cdef int max_pos
 
         self.can_extend = False
 
@@ -386,15 +389,28 @@ cdef class MCTS(object):
 
         if node.is_edge:
             expanded = self.expand(node, game)
-            if expanded:
+            if self.use_pn and expanded:
                 with gil:
                     self.eval_leaf_by_policy_network(node)
         else:
             print_rollout_count(node)
 
+        if self.use_pn or self.use_tree:
+            max_P = .0
+            max_pos = PASS
+            for j in range(node.num_child):
+                child = node.children[node.children_pos[j]]
+                if child.P > max_P:
+                    max_P = child.P
+                    max_pos = child.pos
+
+            if max_P > 0.8 and is_legal_not_eye(game, max_pos, game.current_color):
+                printf(">> The maximum PN evaluation value is 90% or more. Skip search.\n")
+                return
+        
         if self.intuition and \
            (game.moves < 200 or (game.moves + node.player_color) % 10 != 1):
-            printf(">> Skip node evaluation.\n")
+            printf(">> Playing intuitively. Skip search.\n")
             return
 
         # determine thinking time
@@ -444,9 +460,14 @@ cdef class MCTS(object):
             printf("\n>> Starting read-ahead pondering ... ... ... :-)\n")
 
         if thinking_time > 0.0:
-            n_threads = self.n_threads + (2 if self.use_vn else 1)
+            if self.use_pn and self.use_vn:
+                n_threads = self.n_threads + 2
+            elif self.use_pn or self.use_vn:
+                n_threads = self.n_threads + 1
+            else:
+                n_threads = self.n_threads
             for i in prange(n_threads, nogil=True):
-                if i == n_threads - 1:
+                if self.use_pn and i == n_threads - 1:
                     self.start_policy_network_queue()
                 elif self.use_vn and i == n_threads - 2:
                     self.start_value_network_queue()
@@ -717,13 +738,14 @@ cdef class MCTS(object):
 
         if node.num_child > 0:
             node.is_edge = False
-            node.game = allocate_game()
-            copy_game(node.game, game)
-            node.has_game = True
-            self.policy_network_queue.push(node)
-            queue_size = self.policy_network_queue.size()
-            if queue_size > self.max_queue_size_P:
-                self.max_queue_size_P = queue_size
+            if self.use_pn:
+                node.game = allocate_game()
+                copy_game(node.game, game)
+                node.has_game = True
+                self.policy_network_queue.push(node)
+                queue_size = self.policy_network_queue.size()
+                if queue_size > self.max_queue_size_P:
+                    self.max_queue_size_P = queue_size
             return True
         else:
             return False
@@ -1016,6 +1038,8 @@ cdef class MCTS(object):
         pn.model.load_weights(policy_net)
         self.pn = pn
         self.beta = 1.0/temperature
+
+        self.use_pn = True
 
     def run_vn_session(self, value_net):
         printf('>> Set VN Session\n')
