@@ -87,6 +87,7 @@ cdef class MCTS:
     cdef double byoyomi_time
     cdef double time_left
     cdef double const_time
+    cdef bint can_extend
     cdef int const_playout
     cdef int n_playout
     cdef int n_threads
@@ -114,7 +115,7 @@ cdef class MCTS:
 
     cdef void resume_pondering(self) nogil
 
-    cdef void ponder(self, game_state_t *game) nogil
+    cdef void ponder(self, game_state_t *game, bint extend) nogil
 
     cdef void run_search(self, int thread_id, game_state_t *game, double thinking_time, int playout_limit) nogil
 
