@@ -30,6 +30,7 @@ ctypedef struct tree_node_t:
     int pos
     int color
     int player_color
+    int depth
     double P     # prior probability
     double Nv    # evaluation count
     double Nr    # rollout count(visit count)
@@ -89,6 +90,8 @@ cdef class MCTS:
     cdef double time_left
     cdef double const_time
     cdef bint can_extend
+    cdef int root_depth
+    cdef int leaf_depth
     cdef int const_playout
     cdef int n_playout
     cdef int n_threads

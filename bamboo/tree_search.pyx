@@ -72,6 +72,7 @@ cdef class MCTS(object):
             node.pos = 0
             node.color = 0
             node.player_color = 0
+            node.depth = 0
             node.P = .0
             node.Nv = .0
             node.Wv = .0
@@ -202,6 +203,7 @@ cdef class MCTS(object):
             node.pos = 0
             node.color = 0
             node.player_color = 0
+            node.depth = 0
             node.P = .0
             node.Nv = .0
             node.Wv = .0
@@ -233,6 +235,7 @@ cdef class MCTS(object):
         cdef int winner
         cdef double rollout_wins = 0
         cdef timeval end_time
+        cdef bint play_instinctively
 
         self.seek_root(game)
 
@@ -248,9 +251,10 @@ cdef class MCTS(object):
             if node.Nr >= 500.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
                 return RESIGN
 
+        play_instinctively = self.intuition or not self.pondered
         self.pondered = False
 
-        if self.intuition:
+        if play_instinctively:
             for i in range(node.num_child):
                 max_P = .0
                 max_pos = PASS
@@ -286,7 +290,7 @@ cdef class MCTS(object):
                         second_Nr = child.Nr
 
                 printf('>> Max visit: %d > 2nd visit: %d\n', <int>max_Nr, <int>second_Nr),
-                # extend thinking time when 1st move rollout count less than 2nd rollout count.
+                # extend thinking time when 1st move rollouts less than 2nd rollouts * 1.5.
                 if self.can_extend and max_Nr <= second_Nr*1.5:
                     printf('>> Extend pondering. %5.2lf (1st node) <= %5.2lf (2nd node*1.5)\n',
                         max_Nr, second_Nr*1.5)
@@ -377,6 +381,9 @@ cdef class MCTS(object):
         self.seek_root(game)
 
         node = &self.nodes[self.current_root]
+
+        self.root_depth = node.depth
+        self.leaf_depth = node.depth
 
         printf(">> Root Node (%s)\n", cppstring(1, stone[node.player_color]).c_str())
         if node.Nr != 0.0:
@@ -497,6 +504,7 @@ cdef class MCTS(object):
             printf("Winning Ratio (RO)  : %3.2lf %\n", self.winning_ratio*100.0)
             if self.use_vn:
                 printf("Winning Ratio (VN)  : %3.2lf %\n", node.Wv*100.0)
+            printf('Pondering Depth     : %d (%d -> %d)\n', self.leaf_depth - self.root_depth, self.root_depth, self.leaf_depth)
             printf('Queue size (PN)     : %d\n', self.policy_network_queue.size())
             printf('Queue size max (PN) : %d\n', self.max_queue_size_P)
             printf('Queue size (VN)     : %d\n', self.value_network_queue.size())
@@ -576,6 +584,7 @@ cdef class MCTS(object):
         while True:
             current_node.Nr += VIRTUAL_LOSS
             if current_node.is_edge:
+                self.leaf_depth = current_node.depth
                 break
             else:
                 current_node = self.select(current_node, search_game)
@@ -588,6 +597,7 @@ cdef class MCTS(object):
             if expanded:
                 current_node = self.select(current_node, search_game)
                 current_node.Nr += VIRTUAL_LOSS
+                self.leaf_depth = current_node.depth
 
         openmp.omp_unset_lock(&node.lock)
 
@@ -631,12 +641,13 @@ cdef class MCTS(object):
                 node.pos = game.record[game.moves - 1].pos
                 node.color = <int>game.record[game.moves - 1].color
             node.player_color = color
-            node.P = 0
-            node.Nv = 0
-            node.Wv = 0
-            node.Nr = 0
-            node.Wr = 0
-            node.Q = 0
+            node.depth = 0
+            node.P = .0
+            node.Nv = .0
+            node.Wv = .0
+            node.Nr = .0
+            node.Wr = .0
+            node.Q = .0
             node.num_child = 0
             node.is_root = True
             node.is_edge = True
@@ -721,6 +732,7 @@ cdef class MCTS(object):
                 child.pos = child_pos
                 child.color = color
                 child.player_color = other_color
+                child.depth = node.depth + 1
                 child.P = move_probs[i]
                 child.Nv = 0
                 child.Wv = 0
