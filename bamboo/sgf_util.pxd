@@ -12,10 +12,12 @@ cdef class SGFMoveIterator:
     cdef tuple next_move
     cdef float komi
     cdef int winner
+    cdef bint resign
     cdef int too_few_moves_threshold
     cdef int too_many_moves_threshold
     cdef bint ignore_not_legal
     cdef bint ignore_no_result
+    cdef bint rollout
     cdef bint verbose
 
     cdef int sgf_init_game(self, object sgf_root) except? -1

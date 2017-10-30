@@ -16,6 +16,7 @@ from bamboo.board cimport POS, FLIP_COLOR, CORRECT_X, CORRECT_Y
 from bamboo.board cimport board_size, pure_board_size, komi
 from bamboo.board cimport game_state_t, move_t, board_size
 from bamboo.board cimport allocate_game, set_board_size, initialize_const, clear_const, initialize_board, free_game, put_stone
+from bamboo.rollout_preprocess cimport update_rollout
 from bamboo.printer cimport print_board
 
 # for board location indexing
@@ -51,6 +52,7 @@ cdef class SGFMoveIterator:
                   object sgf_string,
                   int too_few_moves_threshold=50,
                   int too_many_moves_threshold=800,
+                  bint rollout=False,
                   bint ignore_not_legal=True,
                   bint ignore_no_result=True,
                   bint verbose=False):
@@ -64,6 +66,7 @@ cdef class SGFMoveIterator:
         self.too_many_moves_threshold = too_many_moves_threshold
         self.ignore_not_legal = ignore_not_legal
         self.ignore_no_result = ignore_no_result
+        self.rollout = rollout
         self.verbose = verbose
 
         sgf_string = min_sgf_extract(sgf_string)
@@ -115,6 +118,8 @@ cdef class SGFMoveIterator:
             is_legal = put_stone(self.game, prev_move[0], prev_move[1])
             if not (is_legal or self.ignore_not_legal):
                 raise IllegalMove(prev_move)
+            if self.rollout:
+                update_rollout(self.game)
             if self.i >= len(self.moves):
                 raise StopIteration()
             move = self.moves[self.i]
@@ -160,15 +165,17 @@ cdef class SGFMoveIterator:
             self.komi = float(s_komi[0])
 
         # set winner
+        self.winner = 0
+        self.resign = False
         s_re = props.get('RE')
         if s_re:
-            winner = s_re[0].strip()[0]
+            s_re = s_re[0].strip().upper()
+            winner = s_re[0]
             if winner == 'B':
                 self.winner = S_BLACK
             elif winner == 'W':
                 self.winner = S_WHITE
-            else:
-                self.winner = 0
+            self.resign = s_re.endswith('+R')
         else:
             if not self.ignore_no_result:
                 raise NoResultError
