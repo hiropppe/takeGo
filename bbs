@@ -20,7 +20,7 @@ if __name__ == "__main__":
                         help="Value Network model (tensorflow)")
     parser.add_argument("--rollout_path", "-ro", type=str, required=True,
                         help="Rollout policy network weights (hdf5)")
-    parser.add_argument("--tree_path", "-tr", type=str, required=True,
+    parser.add_argument("--tree_path", "-tr", type=str, required=False,
                         help="Tree policy network weights (hdf5)")
     parser.add_argument("--mt_rands_file", "-mt", type=str, required=True,
                         help="Mersenne twister random number file")
