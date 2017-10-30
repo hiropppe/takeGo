@@ -1,23 +1,20 @@
 import argparse
 import traceback
 import sys
-
-import urllib.request
-import urllib.parse
+import urllib
 
 
 parser = argparse.ArgumentParser(description="Client for RocAlphaGo GTP Engine")
-parser.add_argument("--host", type=str, default="192.168.88.238", help="GTP engine host")
+parser.add_argument("--host", type=str, default="localhost", help="GTP engine host")
 parser.add_argument("--port", "-p", type=int, default=5000, help="GTP engine port")
 args = parser.parse_args()
 
-sys.stderr.write("GTP engine ready\n")
-sys.stderr.flush()
+#sys.stderr.write("GTP engine ready\n")
+#sys.stderr.flush()
 
 while True:
     try:
-        inpt = input()
-
+        inpt = raw_input()
         # handle either single lines at a time
         # or multiple commands separated by '\n'
         try:
@@ -26,10 +23,11 @@ while True:
             cmd_list = [inpt]
 
         for cmd in cmd_list:
-            cmd = urllib.parse.quote(cmd)
-            response = urllib.request.urlopen("http://{host}:{port}/gtp?cmd={cmd}".format(host=args.host, port=args.port, cmd=cmd))
+            cmd = urllib.quote(cmd)
+            response = urllib.urlopen("http://{:s}:{:d}/gtp?cmd={:s}".format(args.host, args.port, cmd))
             engine_reply = response.read().decode("utf8")
             sys.stdout.write(engine_reply)
+            sys.stdout.flush()
     except KeyboardInterrupt:
         break
     except EOFError:

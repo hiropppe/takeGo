@@ -14,7 +14,7 @@ from bamboo.gtp.gtp_wrapper import ExtendedGtpEngine
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Run GTP')
-    parser.add_argument("--pn_path", "-pn", type=str, required=True,
+    parser.add_argument("--pn_path", "-pn", type=str, required=False,
                         help="Policy network weights (keras)")
     parser.add_argument("--vn_path", "-vn", type=str, required=False,
                         help="Value Network model (tensorflow)")
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--japanese_rule", "-jp", default=False, action="store_true",
                         help="Use japanese rule. (Default: False)")
     parser.add_argument("--seki", "-seki", default=False, action="store_true",
-                        help="Check seki at tree expansion. (Default: True)")
+                        help="Check seki at tree expansion. (Default: False)")
     parser.add_argument("--lgrf2", "-lgrf2", default=False, action="store_true",
                         help="Use LGRF2. (Default: False)")
     parser.add_argument("--intuition", default=False, action="store_true",
