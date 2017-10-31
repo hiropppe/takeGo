@@ -30,6 +30,7 @@ extensions = [Extension('bamboo.board', sources=['bamboo/board.pyx'], language="
               Extension('bamboo.train.rollout.pattern_harvest', sources=["bamboo/train/rollout/pattern_harvest.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.rollout.sgf2hdf5', sources=["bamboo/train/rollout/sgf2hdf5.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.train.rollout.sgf2hdf5_tree', sources=["bamboo/train/rollout/sgf2hdf5_tree.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.train.rollout.print_acc_for_sgf', sources=["bamboo/train/rollout/print_acc_for_sgf.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.gtp.gtp_connector', sources=["bamboo/gtp/gtp_connector.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.self_play', sources=["bamboo/self_play.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.test_board', sources=["bamboo/test_board.pyx"], language="c++", extra_compile_args=["-std=c++11"]),

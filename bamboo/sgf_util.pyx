@@ -16,7 +16,7 @@ from bamboo.board cimport POS, FLIP_COLOR, CORRECT_X, CORRECT_Y
 from bamboo.board cimport board_size, pure_board_size, komi
 from bamboo.board cimport game_state_t, move_t, board_size
 from bamboo.board cimport allocate_game, set_board_size, initialize_const, clear_const, initialize_board, free_game, put_stone
-from bamboo.rollout_preprocess cimport update_rollout
+from bamboo.rollout_preprocess cimport initialize_rollout, update_rollout
 from bamboo.printer cimport print_board
 
 # for board location indexing
@@ -121,8 +121,6 @@ cdef class SGFMoveIterator:
             is_legal = put_stone(self.game, prev_move[0], prev_move[1])
             if not (is_legal or self.ignore_not_legal):
                 raise IllegalMove(prev_move)
-            if self.rollout:
-                update_rollout(self.game)
             if self.i >= len(self.moves):
                 raise StopIteration()
             move = self.moves[self.i]
@@ -134,6 +132,9 @@ cdef class SGFMoveIterator:
             self.next_move = self.moves[self.i]
         else:
             self.next_move = None 
+
+        if self.rollout:
+            update_rollout(self.game)
 
         return move
 
@@ -150,6 +151,8 @@ cdef class SGFMoveIterator:
 
         set_board_size(int(s_size))
         initialize_board(self.game)
+        if self.rollout:
+            initialize_rollout(self.game)
 
         # handle 'add black' property
         if 'AB' in props:
