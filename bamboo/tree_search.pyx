@@ -402,7 +402,11 @@ cdef class MCTS(object):
         else:
             print_rollout_count(node)
 
-        if self.use_pn or self.use_tree:
+        if self.intuition:
+            if game.moves < 200 or (game.moves + node.player_color) % 10 != 1:
+                printf(">> Playing intuitively. Skip search.\n")
+                return
+        elif self.use_pn or self.use_tree:
             max_P = .0
             max_pos = PASS
             for j in range(node.num_child):
@@ -411,15 +415,10 @@ cdef class MCTS(object):
                     max_P = child.P
                     max_pos = child.pos
 
-            if max_P > 0.8 and is_legal_not_eye(game, max_pos, game.current_color):
+            if max_P > 0.95 and is_legal_not_eye(game, max_pos, game.current_color):
                 print_PN(node)
-                printf(">> The maximum PN evaluation value is %3.2lf > 0.8. Skip search.\n", max_P)
+                printf(">> The maximum PN evaluation value is %3.2lf > 0.95. Skip search.\n", max_P)
                 return
-        
-        if self.intuition and \
-           (game.moves < 200 or (game.moves + node.player_color) % 10 != 1):
-            printf(">> Playing intuitively. Skip search.\n")
-            return
 
         # determine thinking time
         if self.self_play or node.player_color == self.player_color:
@@ -432,7 +431,7 @@ cdef class MCTS(object):
                 else:
                     thinking_time = self.const_time
             # sudden death and no time left
-            elif self.byoyomi_time == 0.0 and self.time_left < 60.0:
+            elif self.byoyomi_time == 0.0 and self.time_left < 15.0:
                 thinking_time = 0.0
             # enough time left
             else:
@@ -445,7 +444,7 @@ cdef class MCTS(object):
                         thinking_time = DMAX(self.byoyomi_time - 1.0, 1.0)
                     else:
                         thinking_time = DMAX(
-                            self.time_left/(60.0 + DMAX(60.0 - game.moves, 0.0)),
+                            self.time_left/(55.0 + DMAX(50.0 - game.moves, 0.0)),
                             self.byoyomi_time * (1.5 - DMAX(50.0 - game.moves, 0.0)/100.0)
                         )
 
@@ -454,7 +453,7 @@ cdef class MCTS(object):
                         self.can_extend = game.moves > 4 and (self.time_left - thinking_time > self.main_time * 0.15)
 
                 if game.moves < 4:
-                    thinking_time = DMIN(thinking_time, 5.0)
+                    thinking_time = DMIN(thinking_time, 3.0)
 
                 if self.winning_ratio > 0.95:
                     thinking_time = DMIN(thinking_time, 1.0)
@@ -581,6 +580,7 @@ cdef class MCTS(object):
         openmp.omp_set_lock(&node.lock)
         
         # selection
+        #openmp.omp_set_lock(&self.tree_lock)
         while True:
             current_node.Nr += VIRTUAL_LOSS
             if current_node.is_edge:
@@ -588,6 +588,7 @@ cdef class MCTS(object):
                 break
             else:
                 current_node = self.select(current_node, search_game)
+        #openmp.omp_unset_lock(&self.tree_lock)
 
         # expansion
         if current_node.Nr >= EXPANSION_THRESHOLD:
@@ -598,7 +599,6 @@ cdef class MCTS(object):
                 current_node = self.select(current_node, search_game)
                 current_node.Nr += VIRTUAL_LOSS
                 self.leaf_depth = current_node.depth
-
         openmp.omp_unset_lock(&node.lock)
 
         # VN evaluation
@@ -951,6 +951,8 @@ cdef class MCTS(object):
         tensor = tensor.reshape((1, MAX_POLICY_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
 
         probs = self.pn.eval_state(tensor)
+        #if np.abs(probs.sum() - 1.0) > 0.01:
+        #    print('>> Warnings. Sum of PN evaluation values {:.3f} != 1.0', probs.sum())
         probs = self.apply_temperature(probs)
         for i in range(node.num_child):
             pos = node.children_pos[i]
