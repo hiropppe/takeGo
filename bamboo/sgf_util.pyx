@@ -62,6 +62,9 @@ cdef class SGFMoveIterator:
         self.i = 0
         self.next_move = None
         self.komi = 0.0
+        self.winner = 0
+        self.resign = False
+        self.handicap_game = False
         self.too_few_moves_threshold = too_few_moves_threshold
         self.too_many_moves_threshold = too_many_moves_threshold
         self.ignore_not_legal = ignore_not_legal
@@ -150,10 +153,12 @@ cdef class SGFMoveIterator:
 
         # handle 'add black' property
         if 'AB' in props:
+            self.handicap_game = True
             for stone in props['AB']:
                 put_stone(self.game, _parse_sgf_move(stone), S_BLACK)
         # handle 'add white' property
         if 'AW' in props:
+            self.handicap_game = True
             for stone in props['AW']:
                 put_stone(self.game, _parse_sgf_move(stone), S_WHITE)
         # setup done; set player according to 'PL' property

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import division
 
 import argparse
 import glob
@@ -103,7 +104,7 @@ cdef int rollout(game_state_t *game) nogil:
 def generate_value_dataset(cmd_line_args=None):
     cdef SGFMoveIterator sgf_iter
     cdef game_state_t *rollout_game = allocate_game()
-    cdef int black_wins, white_wins
+    cdef int black_rollout_wins, white_rollout_wins
     cdef int i
 
     parser = argparse.ArgumentParser(
@@ -122,8 +123,6 @@ def generate_value_dataset(cmd_line_args=None):
                         help="Threshold of max moves ignoring. SGFs which has moves less than this are discarded")
     parser.add_argument("--recurse", "-R", default=False, action="store_true",
                         help="Set to recurse through directories searching for SGF files")
-    parser.add_argument("--ignore_no_result", default=False, action="store_true",
-                        help="Ignoring sgf without [RE] propery")
     parser.add_argument("--rollout_path", "-ro", type=str, required=True,
                         help="Rollout policy network weights (hdf5)")
     parser.add_argument("--mt_rands_file", "-mt", type=str, required=True,
@@ -158,6 +157,11 @@ def generate_value_dataset(cmd_line_args=None):
     if not os.path.exists(args.output_directory):
         os.mkdir(args.output_directory)
 
+    n_handicap_game = 0
+    n_black_wins = 0
+    n_white_wins = 0
+    n_trust_black_wins = 0
+    n_trust_white_wins = 0
     n_trust_pro_game = 0
     n_trust_other_game = 0
 
@@ -188,32 +192,58 @@ def generate_value_dataset(cmd_line_args=None):
                                            args.max_move,
                                            rollout=True,
                                            ignore_not_legal=False,
-                                           ignore_no_result=args.ignore_no_result)
+                                           ignore_no_result=False)
 
                 # play moves
                 for move in sgf_iter:
                     pass
 
+                # exclude handicap game
+                if sgf_iter.handicap_game:
+                    n_handicap_game += 1
+                    continue
+
+                if sgf_iter.winner == S_BLACK:
+                    n_black_wins += 1
+                elif sgf_iter.winner == S_WHITE:
+                    n_white_wins += 1
+
                 if args.pro and sgf_iter.komi == args.komi and sgf_iter.resign:
                     trust_game = True
                     n_trust_pro_game += 1
+                    if args.verbose:
+                        print('Pro resign game. {:s}'.format(sgf_file))
                 else:
                     trust_game = False
 
+                black_rollout_wins = 0
+                white_rollout_wins = 0
                 if not trust_game:
                     # evaluate end state by rollout
-                    copy_game(rollout_game, sgf_iter.game)
                     for i in range(500):
+                        copy_game(rollout_game, sgf_iter.game)
+
                         winner = rollout(rollout_game)
                         if winner == S_BLACK:
-                            black_wins += 1
+                            black_rollout_wins += 1
                         elif winner == S_WHITE:
-                            white_wins += 1
+                            white_rollout_wins += 1
 
-                    if ((sgf_iter.winner == S_BLACK and black_wins > white_wins) or
-                        (sgf_iter.winner == S_WHITE and black_wins < white_wins)):
+                    if ((sgf_iter.winner == S_BLACK and black_rollout_wins > white_rollout_wins) or
+                        (sgf_iter.winner == S_WHITE and black_rollout_wins < white_rollout_wins)):
                         trust_game = True
                         n_trust_other_game += 1
+                        if sgf_iter.winner == S_BLACK:
+                            n_trust_black_wins += 1
+                        elif sgf_iter.winner == S_WHITE:
+                            n_trust_white_wins += 1
+                        if args.verbose:
+                            print('Trustable game. komi: {:.1f}. winner: {:d}. Rollout >> black(1) {:3.2f}% wins. white(2) {:3.2f} wins. {:s}' \
+                                .format(sgf_iter.komi, sgf_iter.winner, black_rollout_wins*100/500.0, white_rollout_wins*100/500.0, sgf_file))
+                    else:
+                        if args.verbose:
+                            print('Not Trustable game. komi: {:.1f}. winner: {:d}. Rollout >> black(1) {:3.2f}% wins. white(2) {:3.2f} wins. {:s}' \
+                                .format(sgf_iter.komi, sgf_iter.winner, black_rollout_wins*100/500.0, white_rollout_wins*100/500.0, sgf_file))
 
             if trust_game:
                 output_path = args.output_directory
@@ -262,20 +292,21 @@ def generate_value_dataset(cmd_line_args=None):
         finally:
             pbar.update(1)
 
-    print('Finished. {:d}/{:d} (Not19 {:d} TooFewMove {:d} TooManyMove {:d} NoResult {:d} IllegalMove {:d} ParseErr {:d} Other {:d})'.format(
-        sgf_count - n_not19 - n_too_few_move - n_too_many_move - n_no_result - n_illegal_move - n_parse_error - n_other_error,
+    print('Finished. {:d}/{:d} (Not19 {:d} TooFewMove {:d} TooManyMove {:d} NoResult {:d} IllegalMove {:d} Handicap Game {:d} ParseErr {:d} Other {:d})'.format(
+        sgf_count - n_not19 - n_too_few_move - n_too_many_move - n_no_result - n_illegal_move - n_handicap_game - n_parse_error - n_other_error,
         sgf_count,
         n_not19,
         n_too_few_move,
         n_too_many_move,
         n_no_result,
         n_illegal_move,
+        n_handicap_game,
         n_parse_error,
         n_other_error))
-
-    for d in glob.glob(os.path.join(args.output_directory, '*')):
-        print('{:s}: {:d}'.format(os.path.basename(d), len(os.listdir(d))))
-
+    print('{:d} trust game extracted (pro +R: {:d}, others: {:d}).'\
+        .format(n_trust_pro_game + n_trust_other_game, n_trust_pro_game, n_trust_other_game))
+    print('Black trusted wins: {:3.2f}% ({:d}/{:d})'.format(n_trust_black_wins*100/n_black_wins, n_trust_black_wins, n_black_wins))
+    print('White trusted wins: {:3.2f}% ({:d}/{:d})'.format(n_trust_white_wins*100/n_white_wins, n_trust_white_wins, n_white_wins))
 
 
 def merge_dataset(cmd_line_args=None):

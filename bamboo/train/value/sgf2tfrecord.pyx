@@ -86,10 +86,10 @@ def sgfs_to_tfrecord(data_directory,
     if n_workers > 1:
         print('Run {:d} workers (output {:d} files).'.format(n_workers, n_workers))
         if split_by == 'transformation':
-            print('Each worker process all sgf file with partial transformations.')
+            print('Each worker process all sgf file with 8 random transformations.')
         else:
             if symmetry:
-                print('Each worker process partial sgf files with all transformation.')
+                print('Each worker process partial sgf files with 8 random transformation.')
             else:
                 print('Each worker process partial sgf files without transformations.')
 
@@ -303,7 +303,7 @@ cdef class GameConverter(object):
                     self.write_tfrecords(file_name, writer, apply_transformations, samples_per_game)
                     n_pairs += 1
                     n_samples += samples_per_game
-                    if n_samples >= samples_per_worker:
+                    if samples_per_worker and n_samples >= samples_per_worker:
                         break
                 except sgf.ParseException:
                     n_parse_error += 1
@@ -354,8 +354,28 @@ cdef class GameConverter(object):
 
     def write_tfrecords(self, sgf_file, writer, apply_transformations, samples_per_game):
         """Converts a dataset to tfrecords."""
-        for state, z in self.convert_game(sgf_file, samples_per_game):
-            noop = state
+        transform_ops = apply_transformations.values()
+        fix_transform = transform_ops[np.random.randint(0, len(apply_transformations), 1)[0]]
+        fix_transform_idx = [0, samples_per_game/2]
+        for i, (state, z) in enumerate(self.convert_game(sgf_file, samples_per_game)):
+            # apply one of transformations
+            if i in fix_transform_idx:
+                transform = fix_transform
+            else:
+                transform = transform_ops[np.random.randint(0, len(apply_transformations), 1)[0]]
+            
+            state = transform(state)
+
+            d_feature = {}
+            d_feature['state'] = tf.train.Feature(float_list=tf.train.FloatList(value=state.flatten()))
+            d_feature['z'] = tf.train.Feature(float_list=tf.train.FloatList(value=[z]))
+
+            features = tf.train.Features(feature=d_feature)
+            example = tf.train.Example(features=features)
+            serialized = example.SerializeToString()
+            writer.write(serialized)
+            """
+            # apply all transformations
             for name, op in apply_transformations.items():
                 transformed_state = op(state)
                 if name == 'noop' or (not np.all(transformed_state == noop)):
@@ -367,6 +387,7 @@ cdef class GameConverter(object):
                     example = tf.train.Example(features=features)
                     serialized = example.SerializeToString()
                     writer.write(serialized)
+            """
 
     def convert_game(self, file_name, samples_per_game, verbose=False):
         cdef game_state_t *game
@@ -377,15 +398,17 @@ cdef class GameConverter(object):
         with open(file_name, 'r') as file_object:
             sgf_iter = SGFMoveIterator(self.bsize, file_object.read(), ignore_no_result=False)
 
-        if samples_per_game:
-            with open(file_name) as f:
-                n_moves = len(re.findall(r';[WB]\[[a-z]*?\]', f.read(), flags=re.IGNORECASE))
-            sample_idx = np.random.randint(1, n_moves, samples_per_game)
+        sampling_interval = len(sgf_iter.moves)/samples_per_game
+        sampling_idx = []
+        for i in xrange(samples_per_game):
+            low = i*sampling_interval
+            high = (i+1)*sampling_interval
+            sampling_idx.append(np.random.randint(low, high, 1))
 
         game = sgf_iter.game
         for i, move in enumerate(sgf_iter):
             if move[0] != PASS:
-                if samples_per_game and (i not in sample_idx):
+                if i not in sampling_idx:
                     continue
 
                 s = time.time()

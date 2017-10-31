@@ -13,6 +13,7 @@ cdef class SGFMoveIterator:
     cdef float komi
     cdef int winner
     cdef bint resign
+    cdef bint handicap_game 
     cdef int too_few_moves_threshold
     cdef int too_many_moves_threshold
     cdef bint ignore_not_legal
