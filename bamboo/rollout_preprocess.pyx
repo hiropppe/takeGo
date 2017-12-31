@@ -112,7 +112,8 @@ cdef void initialize_probs(game_state_t *game) nogil:
 
 cdef void update_rollout(game_state_t *game) nogil:
     update_planes(game)
-    update_probs(game)
+    update_all_probs(game)
+    # update_probs(game)
 
 
 cdef void update_planes(game_state_t *game) nogil:
@@ -428,10 +429,10 @@ cdef void update_probs(game_state_t *game) nogil:
 
     pos = feature.updated[0]
     while pos != BOARD_MAX:
+        pure_pos = onboard_index[pos]
+        updated_old_sum += logits[pure_pos]
+        logits[pure_pos] = .0
         if is_legal(game, pos, color):
-            pure_pos = onboard_index[pos]
-            updated_old_sum += logits[pure_pos]
-            logits[pure_pos] = .0
             for j in range(6):
                 if feature.tensor[j][pure_pos] != -1:
                     logits[pure_pos] += rollout_weights[feature.tensor[j][pure_pos]]
@@ -443,6 +444,35 @@ cdef void update_probs(game_state_t *game) nogil:
         pos = tmp_pos
 
     game.rollout_logits_sum[color] = game.rollout_logits_sum[color] - updated_old_sum + updated_sum
+
+    if game.rollout_logits_sum[color] > .0:
+        norm_probs(probs, row_probs, logits, game.rollout_logits_sum[color])
+
+
+cdef void update_all_probs(game_state_t *game) nogil:
+    cdef int color
+    cdef rollout_feature_t *feature
+    cdef int pos
+    cdef double *probs
+    cdef double *row_probs
+    cdef double *logits
+
+    color = <int>game.current_color
+    feature = &game.rollout_feature_planes[color]
+    probs = game.rollout_probs[color]
+    row_probs = game.rollout_row_probs[color]
+    logits = game.rollout_logits[color]
+
+    game.rollout_logits_sum[color] = .0
+    for i in range(PURE_BOARD_MAX):
+        logits[i] = .0
+        pos = onboard_pos[i]
+        if is_legal(game, pos, color):
+            for j in range(6):
+                if feature.tensor[j][i] != -1:
+                    logits[i] += rollout_weights[feature.tensor[j][i]]
+            logits[i] = cexp(logits[i])
+            game.rollout_logits_sum[color] += logits[i]
 
     if game.rollout_logits_sum[color] > .0:
         norm_probs(probs, row_probs, logits, game.rollout_logits_sum[color])

@@ -28,7 +28,7 @@ if __name__ == "__main__":
                         help="Non-response 3x3 pattern file")
     parser.add_argument("--d12_rsp_csv", "-rd12", type=str, required=True,
                         help="Response 12 point diamond(MD2) pattern file")
-    parser.add_argument("--d12_csv", "-d12", type=str, required=True,
+    parser.add_argument("--d12_csv", "-d12", type=str, required=False,
                         help="Non-response 12 point diamond(MD2) pattern file")
     parser.add_argument("--policy_temperature", type=float, default=0.67,
                         help="Distribution temperature of players using policies (Default: 0.67)")
@@ -79,11 +79,10 @@ if __name__ == "__main__":
         # init tree hash
         set_hash_size(args.node_hash_size)
         initialize_hash()
-        initialize_nakade_hash()
 
         # init local patterns 
         read_rands(args.mt_rands_file)
-        nakade_size = 8
+        nakade_size = initialize_nakade_hash()
         x33_size = init_x33_hash(args.x33_csv)
         d12_rsp_size = init_d12_rsp_hash(args.d12_rsp_csv)
         d12_size = init_d12_hash(args.d12_csv)

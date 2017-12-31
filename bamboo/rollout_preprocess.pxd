@@ -68,6 +68,7 @@ cdef bint memorize_updated(rollout_feature_t *feature, int pos) nogil
 
 cdef void initialize_probs(game_state_t *game) nogil
 cdef void update_probs(game_state_t *game) nogil
+cdef void update_all_probs(game_state_t *game) nogil
 cdef void norm_probs(double *probs, double *row_probs, double *logits, double logits_sum) nogil
 cdef void set_illegal(game_state_t *game, int pos) nogil
 cdef int choice_rollout_move(game_state_t *game) nogil
