@@ -18,15 +18,15 @@ if __name__ == "__main__":
                         help="Policy network weights (keras)")
     parser.add_argument("--vn_path", "-vn", type=str, required=False,
                         help="Value Network model (tensorflow)")
-    parser.add_argument("--rollout_path", "-ro", type=str, required=True,
+    parser.add_argument("--rollout_path", "-ro", type=str, required=False,
                         help="Rollout policy network weights (hdf5)")
     parser.add_argument("--tree_path", "-tr", type=str, required=False,
                         help="Tree policy network weights (hdf5)")
-    parser.add_argument("--mt_rands_file", "-mt", type=str, required=True,
+    parser.add_argument("--mt_rands_file", "-mt", type=str, required=False,
                         help="Mersenne twister random number file")
-    parser.add_argument("--x33_csv", "-x33", type=str, required=True,
+    parser.add_argument("--x33_csv", "-x33", type=str, required=False,
                         help="Non-response 3x3 pattern file")
-    parser.add_argument("--d12_rsp_csv", "-rd12", type=str, required=True,
+    parser.add_argument("--d12_rsp_csv", "-rd12", type=str, required=False,
                         help="Response 12 point diamond(MD2) pattern file")
     parser.add_argument("--d12_csv", "-d12", type=str, required=False,
                         help="Non-response 12 point diamond(MD2) pattern file")
@@ -54,6 +54,8 @@ if __name__ == "__main__":
                         help="Use LGRF2. (Default: False)")
     parser.add_argument("--intuition", default=False, action="store_true",
                         help="Play using policy network only. (Default: False)")
+    parser.add_argument("--nogpu", default=False, action="store_true",
+                        help="Play using CPU only. (Default: False)")
     parser.add_argument("--server", default=False, action="store_true",
                         help="Run as server mode")
     parser.add_argument("--port", "-p", type=int, default=5000,
@@ -102,7 +104,8 @@ if __name__ == "__main__":
                                  args.const_time,
                                  args.const_playout,
                                  args.threads,
-                                 args.intuition)
+                                 args.intuition,
+                                 args.nogpu)
 
         if args.time_settings:
             try:

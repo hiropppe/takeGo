@@ -57,6 +57,7 @@ cdef class MCTS(object):
                   int const_playout=0,
                   int n_threads=1,
                   bint intuition=False,
+                  bint nogpu=False,
                   bint self_play=False):
         cdef int i, j, k
         cdef tree_node_t *node
@@ -90,6 +91,7 @@ cdef class MCTS(object):
         self.policy_feature = allocate_feature(MAX_POLICY_PLANES)
         self.value_feature = allocate_feature(MAX_VALUE_PLANES)
         self.intuition = intuition
+        self.nogpu = nogpu
         self.use_pn = False
         self.use_vn = False
         self.use_rollout = False
@@ -949,6 +951,9 @@ cdef class MCTS(object):
 
         tensor = np.asarray(self.policy_feature.planes)
         tensor = tensor.reshape((1, MAX_POLICY_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
+        # Tensorflow CPU BiasOp only supports NHWC. 
+        if self.nogpu:
+            tensor = np.transpose(tensor, (0, 2, 3, 1))
 
         probs = self.pn.eval_state(tensor)
         #if np.abs(probs.sum() - 1.0) > 0.01:
@@ -1049,7 +1054,7 @@ cdef class MCTS(object):
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
         set_session(tf.Session(config=config))
-        pn = CNNPolicy(init_network=True)
+        pn = CNNPolicy(init_network=True, nogpu=self.nogpu)
         pn.model.load_weights(policy_net)
         self.pn = pn
         self.beta = 1.0/temperature
@@ -1089,12 +1094,14 @@ cdef class PyMCTS(object):
                   int const_playout=0,
                   int n_threads=1,
                   bint intuition=False,
+                  bint nogpu=False,
                   bint read_ahead=False,
                   bint self_play=False):
         self.mcts = MCTS(const_time=const_time,
                          const_playout=const_playout,
                          n_threads=n_threads,
                          intuition=intuition,
+                         nogpu=nogpu,
                          self_play=self_play)
         self.game = allocate_game()
         self.const_time = const_time

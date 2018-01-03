@@ -45,6 +45,12 @@ class CNNPolicy(NeuralNetBase):
         # such that the output dimensions are also board x board
         network = keras.models.Sequential()
 
+        if kwargs.get('nogpu', False):
+            print('CPU BiasOp only supports NHWC.')
+            input_shape = (params["board"], params["board"], params["input_dim"])
+        else:
+            input_shape = (params["input_dim"], params["board"], params["board"])
+
         # create first layer
         network.add(keras.layers.convolutional.Convolution2D(
             params["filters_per_layer"],
@@ -52,7 +58,7 @@ class CNNPolicy(NeuralNetBase):
             kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
             activation='relu',
             padding='same',
-            input_shape=(params["input_dim"], params["board"], params["board"]),
+            input_shape=input_shape,
             name='Conv2D_1'))
 
         # create all other layers

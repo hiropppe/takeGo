@@ -28,12 +28,14 @@ class MCTSConnector(object):
                  const_time=5.0,
                  const_playout=0,
                  n_threads=1,
-                 intuition=False):
+                 intuition=False,
+                 nogpu=False):
         self.mcts = PyMCTS(
                 const_time=const_time,
                 const_playout=const_playout,
                 n_threads=n_threads,
                 intuition=intuition,
+                nogpu=nogpu,
                 read_ahead=False,
                 self_play=False)
         if pn_path:

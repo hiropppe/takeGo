@@ -18,7 +18,7 @@ class TestMCTS(unittest.TestCase):
         # setup supervised policy
         model = os.path.join(d, '../params/policy/policy.json')
         weights = os.path.join(d, '../params/policy/weights.00088.hdf5')
-        ctest.setup_supervised_policy(model, weights)
+        ctest.setup_supervised_policy(model, weights, nogpu=True)
         # setup rollout policy
         rollout_weights = os.path.join(d, '../params/rollout/rollout_weights.hdf5')
         ctest.setup_rollout_policy(rollout_weights)

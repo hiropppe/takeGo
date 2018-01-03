@@ -68,6 +68,7 @@ cdef class MCTS:
     cdef object vn_op
     cdef object vn_inputs
     cdef bint intuition
+    cdef bint nogpu 
     cdef bint use_pn
     cdef bint use_vn
     cdef bint use_rollout

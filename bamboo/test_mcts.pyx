@@ -40,10 +40,10 @@ def setup_pattern(rands_file, d12_rsp_csv, x33_csv):
     initialize_rollout_const(8, x33_size, d12_rsp_size, 0)
 
 
-def setup_supervised_policy(model, weights):
+def setup_supervised_policy(model, weights, nogpu=True):
     global sl_policy
 
-    sl_policy = CNNPolicy(init_network=True)
+    sl_policy = CNNPolicy(init_network=True, nogpu=nogpu)
     sl_policy.model.load_weights(weights)
 
 

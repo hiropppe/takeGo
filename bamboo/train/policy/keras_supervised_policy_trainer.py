@@ -165,8 +165,10 @@ class threading_shuffled_hdf5_batch_generator:
             return state, action, training_sample[1]
 
     def next(self):
-        state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
-        game_size = state_batch_shape[-1]
+        state_batch_shape = (self.batch_size,) + self.state_dataset.shape[:-4:-1]
+        #state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
+        game_size = state_batch_shape[1]
+        #game_size = state_batch_shape[-1]
         Xbatch = np.zeros(state_batch_shape)
         Ybatch = np.zeros((self.batch_size, game_size * game_size))
 
@@ -180,6 +182,7 @@ class threading_shuffled_hdf5_batch_generator:
             # loop comprehension is used so that the transformation acts on the
             # 3rd and 4th dimensions
             state_transform = np.array([transform(plane) for plane in state])
+            state_transform = np.transpose(state_transform, (1, 2, 0))
             action_transform = transform(one_hot_action(action, game_size))
 
             Xbatch[batch_idx] = state_transform
@@ -467,12 +470,12 @@ def set_training_settings(resume, args, metadata, dataset_length):
 
     if resume:
         # check if argument model and meta model are the same
-        if metadata["model_file"] != args.model:
-            # verify if user really wants to use new model file
-            print("the model file is different from the model file used last run: " +
-                  metadata["model_file"] + ". It might be different than the old one.")
-            if args.override or not confirm("Are you sure you want to use the new model?", False):  # noqa: E501
-                raise ValueError("User abort after mismatch model files.")
+        #if metadata["model_file"] != args.model:
+        #    # verify if user really wants to use new model file
+        #    print("the model file is different from the model file used last run: " +
+        #          metadata["model_file"] + ". It might be different than the old one.")
+        #    if args.override or not confirm("Are you sure you want to use the new model?", False):  # noqa: E501
+        #        raise ValueError("User abort after mismatch model files.")
 
         # check if decay_every is the same
         if args.decay_every is not None and metadata["decay_every"] != args.decay_every:
@@ -537,8 +540,8 @@ def set_training_settings(resume, args, metadata, dataset_length):
     else:
         # save all argument or default settings to metadata
 
-        # save used model file to metadata
-        metadata["model_file"] = args.model
+        ## save used model file to metadata
+        # metadata["model_file"] = args.model
 
         # save decay_every to metadata
         metadata["decay_every"] = args.decay_every
@@ -609,7 +612,7 @@ def set_training_settings(resume, args, metadata, dataset_length):
             print("created new data shuffling indices")
 
 
-def train(metadata, out_directory, verbose, weight_file, meta_file):
+def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False):
     # set resume
     resume = weight_file is not None
 
@@ -620,8 +623,7 @@ def train(metadata, out_directory, verbose, weight_file, meta_file):
         keras.backend.set_session(tf.Session(config=config))
 
     # load model from json spec
-    #policy = CNNPolicy.load_model(metadata["model_file"])
-    policy = CNNPolicy(init_network=True)
+    policy = CNNPolicy(init_network=True, nogpu=nogpu)
     model = policy.model
     # load weights
     if resume:
@@ -744,7 +746,7 @@ def start_training(args):
     set_training_settings(resume, args, metadata, len(dataset["states"]))
 
     # start training
-    train(metadata, args.out_directory, args.verbose, None, meta_file)
+    train(metadata, args.out_directory, args.verbose, args.weights, meta_file, nogpu=args.nogpu)
 
 
 def resume_training(args):
@@ -775,7 +777,7 @@ def resume_training(args):
               (meta_file, os.path.join(args.out_directory, FOLDER_WEIGHT, weight_file)))
 
     # start training
-    train(metadata, args.out_directory, args.verbose, weight_file, meta_file)
+    train(metadata, args.out_directory, args.verbose, weight_file, meta_file, nogpu=args.nogpu)
 
 
 def handle_arguments(cmd_line_args=None):
@@ -791,7 +793,6 @@ def handle_arguments(cmd_line_args=None):
     train = subparsers.add_parser('train', help='Start or resume supervised training on a policy network.')  # noqa: E501
     # required arguments
     train.add_argument("out_directory", help="directory where metadata and weights will be saved")  # noqa: E501
-    train.add_argument("model", help="Path to a JSON model file (i.e. from CNNPolicy.save_model())")  # noqa: E501
     train.add_argument("train_data", help="A .h5 file of training data")
     # frequently used args
     train.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
@@ -802,6 +803,7 @@ def handle_arguments(cmd_line_args=None):
     train.add_argument("--decay", "-d", help=("The rate at which learning decreases. Default: " + str(DEFAULT_DECAY)), type=float, default=None)  # noqa: E501
     train.add_argument("--decay-every", "-de", help="Use step-decay: decay --learning-rate with --decay every --decay-every batches. Default: None", type=int, default=None)  # noqa: E501
     train.add_argument("--override", help="Turn on prompt override mode", default=False, action="store_true")  # noqa: E501
+    train.add_argument("--nogpu", help="Turn on nogpu mode", default=False, action="store_true")  # noqa: E501
     # slightly fancier args
     train.add_argument("--weights", help="Name of a .h5 weights file (in the output directory) to load to resume training", default=None)  # noqa: E501
     train.add_argument("--train-val-test", help="Fraction of data to use for training/val/test. Must sum to 1. Default: " + str(DEFAULT_TRAIN_VAL_TEST), nargs=3, type=float, default=None)  # noqa: E501
@@ -818,6 +820,7 @@ def handle_arguments(cmd_line_args=None):
     resume.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
     resume.add_argument("--weights", help="Name of a .h5 weights file (in the output directory) to load to resume training. Default: #Newest weight file.", default=None)  # noqa: E501
     resume.add_argument("--epochs", "-E", help="Total number of iterations on the data. Defaukt: #Epochs set on previous run", type=int, default=None)  # noqa: E501
+    resume.add_argument("--nogpu", help="Turn on nogpu mode", default=False, action="store_true")  # noqa: E501
     # function to call when resume training
     resume.set_defaults(func=resume_training)
 
