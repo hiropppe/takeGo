@@ -64,7 +64,7 @@ RUN pip --no-cache-dir install \
 # Install Java8
 ENV JAVA_VERSION 8u151
 ENV JAVA_BUILD 8u151-b12
-ENV JAVA_DL_HASH e758a0de34e24606bca991d704f6dcbf 
+ENV JAVA_DL_HASH e758a0de34e24606bca991d704f6dcbf
 RUN wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" \
     http://download.oracle.com/otn-pub/java/jdk/${JAVA_BUILD}/${JAVA_DL_HASH}/jdk-${JAVA_VERSION}-linux-x64.rpm \
     && rpm -i jdk-${JAVA_VERSION}-linux-x64.rpm
