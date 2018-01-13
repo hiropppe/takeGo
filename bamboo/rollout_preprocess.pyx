@@ -112,8 +112,7 @@ cdef void initialize_probs(game_state_t *game) nogil:
 
 cdef void update_rollout(game_state_t *game) nogil:
     update_planes(game)
-    update_all_probs(game)
-    # update_probs(game)
+    update_probs(game)
 
 
 cdef void update_planes(game_state_t *game) nogil:
@@ -213,7 +212,9 @@ cdef void update_neighbor(rollout_feature_t *feature, game_state_t *game, int po
     global neighbor_start
 
     for i in range(feature.prev_neighbor8_num):
-        feature.tensor[F_NEIGHBOR][feature.prev_neighbor8[i]] = -1
+        prev_pos = feature.prev_neighbor8[i]
+        feature.tensor[F_NEIGHBOR][prev_pos] = -1
+        memorize_updated(feature, onboard_pos[prev_pos])
 
     feature.prev_neighbor8_num = 0
     for i in range(8):
@@ -273,6 +274,7 @@ cdef void update_d12_rsp(rollout_feature_t *feature, game_state_t *game, int pre
         pos = feature.prev_d12[i]
         feature.tensor[F_RESPONSE][pos] = -1
         feature.tensor[F_D12_RSP_PAT][pos] = -1
+        memorize_updated(feature, onboard_pos[pos])
 
     feature.prev_d12_num = 0
     if use_pos_aware_d12:

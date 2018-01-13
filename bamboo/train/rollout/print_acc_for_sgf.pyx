@@ -6,6 +6,7 @@ from __future__ import division
 import glob
 import numpy as np
 import os
+import time
 
 from bamboo.gtp import gtp
 
@@ -17,7 +18,7 @@ from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, S_EMPTY, S_BLACK, S_WHITE, PASS, RESIGN
 from bamboo.board cimport FLIP_COLOR, CORRECT_X, CORRECT_Y
 from bamboo.board cimport game_state_t, onboard_pos
-from bamboo.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, calculate_score, komi, \
+from bamboo.board cimport set_board_size, initialize_board, allocate_game, free_game, put_stone, copy_game, is_legal, calculate_score, komi, \
         set_check_superko, set_japanese_rule, set_check_seki, set_use_lgrf2
 from bamboo.zobrist_hash cimport uct_hash_size
 from bamboo.zobrist_hash cimport set_hash_size, initialize_hash, initialize_uct_hash, clear_uct_hash, delete_old_hash, search_empty_index, find_same_hash_index
@@ -65,6 +66,7 @@ def play(sgf_glob):
     set_rollout_parameter(rollout_path)
     set_tree_parameter(tree_path)
 
+    update_speeds = []
     n_total_state = 0
     n_total_correct = 0
     for sgf in glob.glob(sgf_glob):
@@ -85,10 +87,12 @@ def play(sgf_glob):
                 max_pos = -1
                 max_prob = .0 
                 if move[0] != PASS:
+                    s = time.time()
                     update_rollout(game)
+                    update_speeds.append(time.time() - s)
                     get_rollout_probs(game, probs)
                     for i in range(361):
-                        if probs[i] > max_prob:
+                        if probs[i] > max_prob and is_legal(game, onboard_pos[i], game.current_color):
                             max_pos = onboard_pos[i]
                             max_prob = probs[i]
                     if move[0] == max_pos:
@@ -99,3 +103,4 @@ def play(sgf_glob):
 
     print('Total Acc: {:3.2f} % ({:d}/{:d})'. \
         format(n_total_correct*100/n_total_state, n_total_correct, n_total_state))
+    print('Update Speed: Avg. {:3f} us'.format(np.mean(update_speeds)*1000*1000))
