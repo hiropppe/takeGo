@@ -37,13 +37,14 @@ def self_play(const_time=5.0,
               n_threads=1,
               intuition=False,
               use_pn=True,
-              use_vn=True,
+              use_vn=False,
               use_rollout=True,
               use_tree=True,
               superko=False,
               seki=False,
               japanese_rule=False,
-              lgrf2=True):
+              lgrf2=True,
+              nogpu=True):
     cdef game_state_t *game
     cdef PyMCTS mcts
     cdef tree_node_t *node
@@ -72,7 +73,6 @@ def self_play(const_time=5.0,
     d12_csv = os.path.join(d, '../params/rollout/d12.csv')
 
     initialize_hash()
-    initialize_nakade_hash()
 
     set_board_size(19)
     set_check_superko(superko)
@@ -84,6 +84,7 @@ def self_play(const_time=5.0,
                   const_playout=const_playout,
                   n_threads=n_threads,
                   intuition=intuition,
+                  nogpu=nogpu,
                   read_ahead=False,
                   self_play=True)
 
@@ -95,7 +96,8 @@ def self_play(const_time=5.0,
 
     if use_rollout or use_tree:
         read_rands(rands_txt)
-        initialize_rollout_const(8,
+        initialize_rollout_const(
+            initialize_nakade_hash(),
             init_x33_hash(x33_csv),
             init_d12_rsp_hash(d12_rsp_csv),
             init_d12_hash(d12_csv),
