@@ -31,7 +31,7 @@ from bamboo.board cimport FLIP_COLOR, DMAX, DMIN
 from bamboo.board cimport onboard_pos, komi
 from bamboo.board cimport game_state_t
 from bamboo.board cimport set_board_size, set_komi, initialize_board
-from bamboo.board cimport put_stone, is_legal, is_legal_not_eye, do_move, allocate_game, free_game, copy_game, calculate_score
+from bamboo.board cimport put_stone, is_legal, is_legal_not_eye, is_legal_not_eye_rollout, do_move, allocate_game, free_game, copy_game, calculate_score
 from bamboo.board cimport use_lgrf2_flag, check_seki_flag
 from bamboo.seki cimport check_seki
 from bamboo.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
@@ -433,7 +433,7 @@ cdef class MCTS(object):
                 else:
                     thinking_time = self.const_time
             # sudden death and no time left
-            elif self.byoyomi_time == 0.0 and self.time_left < 15.0:
+            elif self.byoyomi_time == 0.0 and self.time_left < 30.0:
                 thinking_time = 0.0
             # enough time left
             else:
@@ -788,10 +788,10 @@ cdef class MCTS(object):
                 lgr2_seed.prev2_pos = game.record[game.moves-2].pos
                 pos = self.lgr2[color][lgr2_seed.prev_pos][lgr2_seed.prev2_pos]
 
-            if pos == PASS or is_legal_not_eye(game, pos, color) == False:
+            if pos == PASS or is_legal_not_eye_rollout(game, pos, color) == False:
                 while True:
                     pos = choice_rollout_move(game)
-                    if is_legal_not_eye(game, pos, color):
+                    if is_legal_not_eye_rollout(game, pos, color):
                         break
                     else:
                         set_illegal(game, pos)

@@ -1080,6 +1080,30 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
     return True
 
 
+cdef bint is_legal_not_eye_rollout(game_state_t *game, int pos, char color) nogil:
+    cdef int empty_diagonal_stack[200]
+    cdef int empty_diagonal_top = 0
+    cdef char other_color = FLIP_COLOR(color)
+
+    if pos == PASS:
+        return True
+
+    if game.board[pos] != S_EMPTY:
+        return False
+
+    if nb4_empty[pat.pat3(game.pat, pos)] == 0:
+        if is_suicide(game, pos, color):
+            return False
+
+        if is_true_eye(game, pos, color, other_color, empty_diagonal_stack, empty_diagonal_top):
+            return False
+
+    if game.ko_pos == pos and game.ko_move == (game.moves - 1):
+        return False
+
+    return True
+
+
 cdef bint is_true_eye(game_state_t *game,
                       int pos,
                       char color,
