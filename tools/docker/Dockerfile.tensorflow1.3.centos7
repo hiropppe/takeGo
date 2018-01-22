@@ -2,7 +2,9 @@ FROM centos:7
 
 MAINTAINER sergei <sergei.0910@gmail.com>
 
-WORKDIR /root
+RUN mkdir /root/_INSTALL
+
+WORKDIR /root/_INSTALL
 
 RUN yum -y update
 RUN yum -y groupinstall "Development Tools"
@@ -31,6 +33,7 @@ RUN yum -y install\
     lmdb-devel \
     openblas* \
     atlas-devel \
+    GConf2 \
     && \
     updatedb
 
@@ -78,25 +81,18 @@ RUN curl -s http://ftp.gnu.org/gnu/gnugo/gnugo-3.8.tar.gz | tar -xz -C . \
  && make \
  && make install
 
-#RUN wget https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/google-glog/glog-0.3.3.tar.gz \
-#  && tar zxvf glog-0.3.3.tar.gz \
-#  && cd glog-0.3.3 \
-#  && ./configure \
-#  && make \
-#  && make install
- 
-#RUN wget https://github.com/schuhschuh/gflags/archive/master.zip \
-#  && unzip master.zip \
-#  && cd gflags-master/ \
-#  && mkdir build && cd build \
-#  && export CXXFLAGS="-fPIC" && cmake .. && make VERBOSE=1 \
-#  && make \
-#  && make install
+# Leela
+RUN curl -O https://www.sjeng.org/dl/Leela0110GTP.zip \
+ && unzip Leela0110GTP.zip \
+ && cp leela_0110_linux_x64 /usr/local/bin/leela_0110 \
+ && cd /usr/local/bin \
+ && ln -s leela_0110 leela
 
-#RUN git clone https://github.com/LMDB/lmdb \
-#  && cd lmdb/libraries/liblmdb \
-#  && make \
-#  && make install
+# GoGui
+RUN curl -L -o gogui-1.4.9.zip 'https://ja.osdn.net/frs/g_redir.php?m=kent&f=gogui%2Fgogui%2F1.4.9%2Fgogui-1.4.9.zip' \
+ && unzip gogui-1.4.9.zip \
+ && cd gogui-1.4.9 \
+ && ./install.sh
 
 # update system python
 RUN curl -s https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz | tar -xz -C . \
