@@ -243,6 +243,7 @@ cdef void initialize_territory()
 cdef void initialize_eye()
 cdef bint is_legal(game_state_t *game, int pos, char color) nogil
 cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil
+cdef bint is_legal_not_eye_rollout(game_state_t *game, int pos, char color) nogil
 cdef bint is_suicide(game_state_t *game, int pos, char color) nogil
 cdef bint is_true_eye(game_state_t *game, int pos, char color, char other_color, int empty_diagonal_stack[200], int empty_diagonal_top) nogil
 cdef bint is_superko(game_state_t *game, int pos, char color) nogil

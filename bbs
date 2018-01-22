@@ -44,8 +44,8 @@ if __name__ == "__main__":
                         help="Constant number of simulations for each move. Enable if no time_settings set. (Default: 0)")
     parser.add_argument("--size", "-s", type=int, default=19,
                         help="Size of the game board. SGFs not matching this are discarded with a warning")
-    parser.add_argument("--superko", "-superko", default=False, action="store_true",
-                        help="Use positional superko. (Default: False)")
+    parser.add_argument("--superko", "-superko", default=True, action="store_true",
+                        help="Use positional superko. (Default: True)")
     parser.add_argument("--japanese_rule", "-jp", default=False, action="store_true",
                         help="Use japanese rule. (Default: False)")
     parser.add_argument("--seki", "-seki", default=False, action="store_true",
