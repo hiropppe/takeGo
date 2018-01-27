@@ -36,10 +36,10 @@ if __name__ == "__main__":
                         help="Number of search threads (Default: 1)")
     parser.add_argument("--node_hash_size", "-n", type=int, default=1048576,
                         help="MCT node hash size (Default: 2**20)")
-    parser.add_argument("--time_settings", type=str, default=None,
-                        help="Time settings in GTP context. (Default: None)")
-    parser.add_argument("--const_time", type=int, default=5.0,
-                        help="Constant time of simulation for each move. Enable if no time_settings set. (Default: 5 sec)")
+    parser.add_argument("--time_settings", type=str, default="900 0 0",
+                        help="Time settings in GTP context. (Default: '900 0 0')")
+    parser.add_argument("--const_time", type=float, default=0.0,
+                        help="Constant time of simulation for each move. Enable if non-zero value set regardless of time_settings. (Default: 0.0)")
     parser.add_argument("--const_playout", type=int, default=0,
                         help="Constant number of simulations for each move. Enable if no time_settings set. (Default: 0)")
     parser.add_argument("--size", "-s", type=int, default=19,
@@ -116,8 +116,6 @@ if __name__ == "__main__":
     else:
         gtp_game = RemoteMCTSConnector(args.rpc_host, args.rpc_port)
 
-    # gtp_game.set_const_time(args.const_time)
-    # gtp_game.set_const_playout(args.const_playout)
     gtp_engine = ExtendedGtpEngine(gtp_game, name='bamboo', version='0.0')
 
     if args.server:

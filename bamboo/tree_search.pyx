@@ -53,7 +53,7 @@ cimport openmp
 cdef class MCTS(object):
 
     def __cinit__(self,
-                  double const_time=5.0,
+                  double const_time=0.0,
                   int const_playout=0,
                   int n_threads=1,
                   bint intuition=False,
@@ -432,6 +432,7 @@ cdef class MCTS(object):
                     const_playout = True
                 else:
                     thinking_time = self.const_time
+
             # sudden death and no time left
             elif self.byoyomi_time == 0.0 and self.time_left < 30.0:
                 thinking_time = 0.0
@@ -450,9 +451,12 @@ cdef class MCTS(object):
                             self.byoyomi_time * (1.5 - DMAX(50.0 - game.moves, 0.0)/100.0)
                         )
 
+                        if self.const_time > 0.0:
+                            thinking_time = DMIN(self.const_time, thinking_time)
+
                     # check if extend thnking_time
                     if not extend:
-                        self.can_extend = game.moves > 4 and (self.time_left - thinking_time > self.main_time * 0.15)
+                        self.can_extend = game.moves >= 4 and (self.time_left - thinking_time > self.main_time * 0.15)
 
                 if game.moves < 4:
                     thinking_time = DMIN(thinking_time, 3.0)
@@ -1090,7 +1094,7 @@ cdef class MCTS(object):
 cdef class PyMCTS(object):
 
     def __cinit__(self,
-                  double const_time=5.0,
+                  double const_time=0.0,
                   int const_playout=0,
                   int n_threads=1,
                   bint intuition=False,

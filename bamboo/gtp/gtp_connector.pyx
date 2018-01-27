@@ -25,7 +25,7 @@ class MCTSConnector(object):
                  rollout_path=None,
                  tree_path=None,
                  temperature=0.67,
-                 const_time=5.0,
+                 const_time=0.0,
                  const_playout=0,
                  n_threads=1,
                  intuition=False,
