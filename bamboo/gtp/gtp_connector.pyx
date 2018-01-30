@@ -26,12 +26,14 @@ class MCTSConnector(object):
                  tree_path=None,
                  temperature=0.67,
                  const_time=0.0,
+                 playout_limit=0,
                  const_playout=0,
                  n_threads=1,
                  intuition=False,
                  nogpu=False):
         self.mcts = PyMCTS(
                 const_time=const_time,
+                playout_limit=playout_limit,
                 const_playout=const_playout,
                 n_threads=n_threads,
                 intuition=intuition,
@@ -97,6 +99,9 @@ class MCTSConnector(object):
 
     def set_const_time(self, limit):
         self.mcts.set_const_time(limit)
+
+    def set_playout_limit(self, limit):
+        self.mcts.set_playout_limit(limit)
 
     def set_const_playout(self, limit):
         self.mcts.set_const_playout(limit)

@@ -55,6 +55,7 @@ cdef class MCTS(object):
     def __cinit__(self,
                   double const_time=0.0,
                   int const_playout=0,
+                  int playout_limit=0,
                   int n_threads=1,
                   bint intuition=False,
                   bint nogpu=False,
@@ -110,6 +111,7 @@ cdef class MCTS(object):
         self.time_left = 0.0
         self.can_extend = False
         self.const_time = const_time
+        self.playout_limit = playout_limit
         self.const_playout = const_playout
         self.n_threads = n_threads
         self.max_queue_size_P = 0
@@ -467,6 +469,9 @@ cdef class MCTS(object):
             if thinking_time > 0.0:
                 if const_playout:
                     printf('Number of simulations: %d\n', playout_limit)
+                elif self.playout_limit > 0:
+                    playout_limit = self.playout_limit
+                    printf('Pondering time: %3.2lf sec (MAX %d simulations)\n', thinking_time, self.playout_limit)
                 else:
                     printf('Pondering time: %3.2lf sec\n', thinking_time)
         else:
@@ -1095,6 +1100,7 @@ cdef class PyMCTS(object):
 
     def __cinit__(self,
                   double const_time=0.0,
+                  int playout_limit=0,
                   int const_playout=0,
                   int n_threads=1,
                   bint intuition=False,
@@ -1102,6 +1108,7 @@ cdef class PyMCTS(object):
                   bint read_ahead=False,
                   bint self_play=False):
         self.mcts = MCTS(const_time=const_time,
+                         playout_limit=playout_limit,
                          const_playout=const_playout,
                          n_threads=n_threads,
                          intuition=intuition,
@@ -1109,6 +1116,7 @@ cdef class PyMCTS(object):
                          self_play=self_play)
         self.game = allocate_game()
         self.const_time = const_time
+        self.playout_limit = playout_limit
         self.const_playout = const_playout
         self.read_ahead = read_ahead
 
@@ -1169,6 +1177,7 @@ cdef class PyMCTS(object):
              self.mcts.player_color = color
 
         self.mcts.const_time = self.const_time
+        self.mcts.playout_limit = self.playout_limit
         self.mcts.const_playout = self.const_playout
         self.mcts.ponder(self.game, False)
 
@@ -1254,6 +1263,9 @@ cdef class PyMCTS(object):
 
     def set_const_time(self, limit):
         self.const_time = limit
+
+    def set_playout_limit(self, limit):
+        self.playout_limit = limit
 
     def set_const_playout(self, limit):
         self.const_playout = limit

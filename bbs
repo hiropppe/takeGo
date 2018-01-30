@@ -40,6 +40,8 @@ if __name__ == "__main__":
                         help="Time settings in GTP context. (Default: '900 0 0')")
     parser.add_argument("--const_time", type=float, default=0.0,
                         help="Constant time of simulation for each move. Enable if non-zero value set regardless of time_settings. (Default: 0.0)")
+    parser.add_argument("--playout_limit", type=int, default=10000,
+                        help="Maximum number of simulations for each move. (Default: 10000)")
     parser.add_argument("--const_playout", type=int, default=0,
                         help="Constant number of simulations for each move. Enable if no time_settings set. (Default: 0)")
     parser.add_argument("--size", "-s", type=int, default=19,
@@ -102,6 +104,7 @@ if __name__ == "__main__":
                                  args.tree_path,
                                  args.policy_temperature,
                                  args.const_time,
+                                 args.playout_limit,
                                  args.const_playout,
                                  args.threads,
                                  args.intuition,

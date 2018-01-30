@@ -32,6 +32,7 @@ from bamboo.parseboard cimport parse
 
 
 def self_play(const_time=5.0,
+              playout_limit=1000,
               const_playout=0,
               n_games=1,
               n_threads=1,
@@ -81,6 +82,7 @@ def self_play(const_time=5.0,
     set_use_lgrf2(lgrf2)
 
     mcts = PyMCTS(const_time=const_time,
+                  playout_limit=playout_limit,
                   const_playout=const_playout,
                   n_threads=n_threads,
                   intuition=intuition,

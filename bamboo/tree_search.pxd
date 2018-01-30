@@ -90,6 +90,7 @@ cdef class MCTS:
     cdef double byoyomi_time
     cdef double time_left
     cdef double const_time
+    cdef int playout_limit
     cdef bint can_extend
     cdef int root_depth
     cdef int leaf_depth
@@ -160,5 +161,6 @@ cdef class PyMCTS:
         MCTS mcts
         game_state_t *game
         double const_time
+        int playout_limit
         int const_playout
         bint read_ahead
