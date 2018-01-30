@@ -85,7 +85,7 @@ cdef extern from "ray.h":
 
     ctypedef struct rollout_feature_t:
         int color
-        int tensor[9][361]
+        int tensor[9][529]
         int prev_neighbor8[8]
         int prev_neighbor8_num
         int prev_d12[12]

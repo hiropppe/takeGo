@@ -136,7 +136,7 @@ enum rollout_feature_e {
 
 typedef struct {
     int color;
-    int tensor[F_MAX][PURE_BOARD_MAX]; // hold one-hot index for each feature
+    int tensor[F_MAX][BOARD_MAX]; // hold one-hot index for each feature
     int prev_neighbor8[8];
     int prev_neighbor8_num;
     int prev_d12[12];
