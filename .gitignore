@@ -73,6 +73,10 @@ target/
 !params/policy/*.hdf5
 !params/rollout/*.hdf5
 
+tools/docker/cudnn/*
+!.gitkeep
+
+
 #others
 *.swp
 
