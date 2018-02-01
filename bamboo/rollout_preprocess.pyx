@@ -554,7 +554,7 @@ cdef void update_tree_planes_all(game_state_t *game) nogil:
     current_color = <int>game.current_color
     current_feature = &game.rollout_feature_planes[current_color]
 
-    for i in range(PURE_BOARD_MAX):
+    for i in range(pure_board_max):
         pos = onboard_pos[i]
         if is_legal_not_eye(game, pos, current_color):
             update_self_atari(current_feature, game, pos, current_color)
