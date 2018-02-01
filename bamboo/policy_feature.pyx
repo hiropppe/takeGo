@@ -19,6 +19,7 @@ from bamboo.board cimport NORTH, WEST, EAST, SOUTH
 from bamboo.board cimport board_size, liberty_end, string_end, onboard_index, board_dis_x, board_dis_y
 from bamboo.board cimport is_true_eye, get_neighbor4
 from bamboo.pattern cimport pat3
+from bamboo.tree_search cimport tree_node_t 
 
 
 cdef policy_feature_t *allocate_feature(int n_planes):
@@ -45,9 +46,10 @@ cdef void free_feature(policy_feature_t *feature):
         free(feature)
 
 
-cdef void update(policy_feature_t *feature, board.game_state_t *game):
+cdef void update(policy_feature_t *feature, tree_node_t *node):
     cdef int[:, ::1] F = feature.planes
 
+    cdef board.game_state_t *game = node.game
     cdef char current_color = game.current_color
     cdef char other_color = board.FLIP_COLOR(game.current_color)
     cdef int neighbor4[4]
@@ -76,6 +78,7 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
     cdef int second_ladder_capture, second_ladder_escape
     cdef int ladder_result
     cdef int i, j
+    cdef tree_node_t *child
 
     F[...] = 0
     # Ones: A constant plane filled with 1
@@ -252,6 +255,12 @@ cdef void update(policy_feature_t *feature, board.game_state_t *game):
                                             ladder_moves)
                         if ladder_result == 1:
                             F[45, onboard_index[string.lib[0]]] = 1
+                        else:
+                            # Cannot escape !!!
+                            if board.is_legal_not_eye(game, string.lib[0], current_color):
+                                child = node.children[onboard_index[string.lib[0]]]
+                                child.do_not_put = True
+
                         """ Add capturing opponent stones to escape options
                         escape_option_num = get_escape_options(game,
                                                                escape_options,

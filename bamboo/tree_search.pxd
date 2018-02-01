@@ -39,6 +39,7 @@ ctypedef struct tree_node_t:
     double Q     # action-value for edge
     bint is_root
     bint is_edge
+    bint do_not_put
 
     tree_node_t *parent
     tree_node_t *children[361]

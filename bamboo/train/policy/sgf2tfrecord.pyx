@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 from concurrent.futures import ProcessPoolExecutor
 
+from libc.stdlib cimport malloc, free
 from libc.stdio cimport printf
 
 from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
@@ -25,6 +26,7 @@ from bamboo.board cimport PASS, S_BLACK, S_WHITE
 from bamboo.board cimport game_state_t, pure_board_max, onboard_index
 from bamboo.policy_feature cimport MAX_POLICY_PLANES
 from bamboo.policy_feature cimport policy_feature_t, allocate_feature, initialize_feature, free_feature, update
+from bamboo.tree_search cimport tree_node_t
 from bamboo.printer cimport print_board
 
 
@@ -327,19 +329,22 @@ cdef class GameConverter(object):
                     writer.write(serialized)
 
     def convert_game(self, file_name, verbose=False):
+        cdef tree_node_t *node
         cdef game_state_t *game
         cdef SGFMoveIterator sgf_iter
 
+        node = <tree_node_t *>malloc(sizeof(tree_node_t))
         initialize_feature(self.feature)
 
         with open(file_name, 'r') as file_object:
             sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
 
         game = sgf_iter.game
+        node.game = game
         for i, move in enumerate(sgf_iter):
             if move[0] != PASS:
                 s = time.time()
-                update(self.feature, game)
+                update(self.feature, node)
                 self.update_speeds.append(time.time()-s)
                 if onboard_index[move[0]] >= pure_board_max:
                     continue

@@ -13,11 +13,14 @@ cimport printer
 
 from bamboo.board cimport is_legal
 from bamboo.policy_feature cimport MAX_POLICY_PLANES
+from bamboo.tree_search cimport tree_node_t
 
 
 def test_stone_color():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                              "a . .|"
                              ". b .|"
                              ". . c|")
@@ -25,11 +28,11 @@ def test_stone_color():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    board.put_stone(game, moves['a'], board.S_BLACK)
-    board.put_stone(game, moves['b'], board.S_WHITE)
+    board.put_stone(node.game, moves['a'], board.S_BLACK)
+    board.put_stone(node.game, moves['b'], board.S_WHITE)
 
-    game.current_color = board.S_BLACK
-    policy_feature.update(feature, game)
+    node.game.current_color = board.S_BLACK
+    policy_feature.update(feature, node)
 
     eq_(planes[0, pure_moves['a']], 1)
     eq_(planes[1, pure_moves['b']], 1)
@@ -38,8 +41,8 @@ def test_stone_color():
     eq_(planes[1].sum(), 1)
     eq_(planes[2].sum(), 7)
 
-    game.current_color = board.S_WHITE
-    policy_feature.update(feature, game)
+    node.game.current_color = board.S_WHITE
+    policy_feature.update(feature, node)
 
     eq_(planes[0, pure_moves['b']], 1)
     eq_(planes[1, pure_moves['a']], 1)
@@ -48,13 +51,12 @@ def test_stone_color():
     eq_(planes[1].sum(), 1)
     eq_(planes[2].sum(), 7)
 
-    board.free_game(game)
-    policy_feature.free_feature(feature)
-
 
 def test_turns_since():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                              ". . . . .|"
                              ". a b c .|"
                              ". d e f .|"
@@ -64,44 +66,44 @@ def test_turns_since():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_BLACK
+    node.game.current_color = board.S_BLACK
 
     # move 'a'
-    board.do_move(game, moves['a'])
-    policy_feature.update(feature, game)
+    board.do_move(node.game, moves['a'])
+    policy_feature.update(feature, node)
     eq_(planes[4, pure_moves['a']], 1) # 0 age
     eq_(planes[4].sum(), 1)
 
     # move 'b'
-    board.do_move(game, moves['b'])
-    policy_feature.update(feature, game)
+    board.do_move(node.game, moves['b'])
+    policy_feature.update(feature, node)
     eq_(planes[5, pure_moves['a']], 1) # 1 age
     eq_(planes[4, pure_moves['b']], 1) # 0 age
     eq_(planes[5].sum(), 1)
     eq_(planes[4].sum(), 1)
 
     # PASS
-    board.do_move(game, board.PASS)
-    board.do_move(game, board.PASS)
-    policy_feature.update(feature, game)
+    board.do_move(node.game, board.PASS)
+    board.do_move(node.game, board.PASS)
+    policy_feature.update(feature, node)
     eq_(planes[7, pure_moves['a']], 1) # 3 age
     eq_(planes[6, pure_moves['b']], 1) # 2 age
     eq_(planes[7].sum(), 1)
     eq_(planes[6].sum(), 1)
 
-    board.do_move(game, moves['c'])
-    board.do_move(game, moves['d'])
-    board.do_move(game, moves['e'])
-    board.do_move(game, moves['f'])
-    policy_feature.update(feature, game)
+    board.do_move(node.game, moves['c'])
+    board.do_move(node.game, moves['d'])
+    board.do_move(node.game, moves['e'])
+    board.do_move(node.game, moves['f'])
+    policy_feature.update(feature, node)
     eq_(planes[11, pure_moves['a']], 1) # 7 age
     eq_(planes[10, pure_moves['b']], 1) # 6 age
     eq_(planes[7, pure_moves['c']], 1)  # 3 age
     eq_(planes[6, pure_moves['d']], 1)  # 2 age
     eq_(planes[4, pure_moves['f']], 1)  # 0 age
 
-    board.do_move(game, moves['g'])
-    policy_feature.update(feature, game)
+    board.do_move(node.game, moves['g'])
+    policy_feature.update(feature, node)
     eq_(planes[11, pure_moves['a']], 1) # 7 age
     eq_(planes[11, pure_moves['b']], 1) # 7 age
     eq_(planes[8, pure_moves['c']], 1)  # 4 age
@@ -109,13 +111,12 @@ def test_turns_since():
     eq_(planes[5, pure_moves['f']], 1)  # 1 age
     eq_(planes[4, pure_moves['g']], 1)  # 0 age
 
-    board.free_game(game)
-    policy_feature.free_feature(feature)
-
 
 def test_liberties():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                              ". . . . .|"
                              ". . a . .|"
                              ". . b . .|"
@@ -125,31 +126,32 @@ def test_liberties():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    board.put_stone(game, moves['a'], board.S_BLACK)
-    policy_feature.update(feature, game)
+    board.put_stone(node.game, moves['a'], board.S_BLACK)
+    policy_feature.update(feature, node)
     eq_(planes[12 + 4 - 1, pure_moves['a']], 1)
 
-    board.put_stone(game, moves['b'], board.S_BLACK)
-    board.put_stone(game, moves['c'], board.S_BLACK)
-    policy_feature.update(feature, game)
+    board.put_stone(node.game, moves['b'], board.S_BLACK)
+    board.put_stone(node.game, moves['c'], board.S_BLACK)
+    policy_feature.update(feature, node)
     eq_(planes[12 + 8 - 1, pure_moves['a']], 1)
     eq_(planes[12 + 8 - 1, pure_moves['b']], 1)
     eq_(planes[12 + 8 - 1, pure_moves['c']], 1)
 
-    board.put_stone(game, moves['d'], board.S_BLACK)
-    policy_feature.update(feature, game)
+    board.put_stone(node.game, moves['d'], board.S_BLACK)
+    policy_feature.update(feature, node)
     eq_(planes[12 + 8 - 1, pure_moves['a']], 1)
     eq_(planes[12 + 8 - 1, pure_moves['b']], 1)
     eq_(planes[12 + 8 - 1, pure_moves['c']], 1)
     eq_(planes[12 + 8 - 1, pure_moves['d']], 1)
 
-    board.free_game(game)
-    policy_feature.free_feature(feature)
-
 
 def test_capture_size():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    for i in range(361):
+        node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
+    (moves, pure_moves) = parseboard.parse(node.game,
                              "O a . . O X X X X|"
                              "X . . . . O X X X|"
                              ". . . . . . O X X|"
@@ -163,28 +165,27 @@ def test_capture_size():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_BLACK
-    policy_feature.update(feature, game)
+    node.game.current_color = board.S_BLACK
+    policy_feature.update(feature, node)
     eq_(planes[20 + 1, pure_moves['a']], 1)
     eq_(planes[20 + 1].sum(), 1)
     eq_(planes[20 + 7, pure_moves['b']], 1)
     eq_(planes[20 + 7].sum(), 1)
 
-    game.current_color = board.S_WHITE
-    policy_feature.update(feature, game)
+    node.game.current_color = board.S_WHITE
+    policy_feature.update(feature, node)
 
     eq_(planes[20 + 7, pure_moves['c']], 1)
     eq_(planes[20 + 7].sum(), 1)
-
-    board.free_game(game)
-    policy_feature.free_feature(feature)
 
 
 def test_self_atari_size():
     pass
     """
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                              "O a . . O X X X X|"
                              "X . . . . O X X X|"
                              ". . . . . . O X X|"
@@ -198,27 +199,29 @@ def test_self_atari_size():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_WHITE
-    policy_feature.update(feature, game)
+    node.game.current_color = board.S_WHITE
+    policy_feature.update(feature, node)
 
     eq_(planes[28 + 1 - 1, pure_moves['a']], 1)
     eq_(planes[28 + 1 - 1].sum(), 1)
     eq_(planes[28 + 8 - 1, pure_moves['b']], 1)
     eq_(planes[28 + 8 - 1].sum(), 1)
 
-    game.current_color = board.S_BLACK
-    policy_feature.update(feature, game)
+    node.game.current_color = board.S_BLACK
+    policy_feature.update(feature, node)
 
     eq_(planes[28 + 8 - 1, pure_moves['c']], 1)
     eq_(planes[28 + 8 - 1].sum(), 1)
 
-    board.free_game(game)
+    board.free_game(node.node)
     policy_feature.free_feature(feature)
     """
 
 def test_liberties_after_move():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                              ". . . . .|"
                              ". . a . .|"
                              ". . b . .|"
@@ -228,41 +231,40 @@ def test_liberties_after_move():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_BLACK
+    node.game.current_color = board.S_BLACK
 
     # after B 'a'
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 4 - 1, pure_moves['a']], 1)
 
     # after B 'b'
-    board.put_stone(game, moves['a'], board.S_BLACK)
-    policy_feature.update(feature, game)
+    board.put_stone(node.game, moves['a'], board.S_BLACK)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 6 - 1, pure_moves['b']], 1)
 
     # after B 'c'
-    board.put_stone(game, moves['b'], board.S_BLACK)
-    policy_feature.update(feature, game)
+    board.put_stone(node.game, moves['b'], board.S_BLACK)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 8 - 1, pure_moves['c']], 1)
 
     # after B 'd'
-    board.put_stone(game, moves['c'], board.S_BLACK)
-    policy_feature.update(feature, game)
+    board.put_stone(node.game, moves['c'], board.S_BLACK)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 8 - 1, pure_moves['d']], 1)
 
-    game.current_color = board.S_WHITE
+    node.game.current_color = board.S_WHITE
 
     # after W 'e'
-    board.put_stone(game, moves['d'], board.S_BLACK)
-    policy_feature.update(feature, game)
+    board.put_stone(node.game, moves['d'], board.S_BLACK)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 2 - 1, pure_moves['e']], 1)
-
-    board.free_game(game)
-    policy_feature.free_feature(feature)
 
 
 def test_liberties_after_move_1():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                              ". . . . .|"
                              ". W B . .|"
                              ". W a B .|"
@@ -272,15 +274,17 @@ def test_liberties_after_move_1():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_BLACK
+    node.game.current_color = board.S_BLACK
 
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 5 - 1, pure_moves['a']], 1)
 
 
 def test_liberties_after_move_dupe_empty():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                              ". . . . . .|"
                              ". . . W . .|"
                              ". . a W . .|"
@@ -291,15 +295,17 @@ def test_liberties_after_move_dupe_empty():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_BLACK
+    node.game.current_color = board.S_BLACK
 
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 5 - 1, pure_moves['a']], 1)
 
 
 def test_liberties_after_move_captured():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                              ". . . . . .|"
                              ". . B B . .|"
                              ". B W W B .|"
@@ -310,15 +316,19 @@ def test_liberties_after_move_captured():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_BLACK
+    node.game.current_color = board.S_BLACK
 
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 5 - 1, pure_moves['a']], 1)
 
 
 def test_liberties_after_move_captured_1():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    for i in range(361):
+        node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
+    (moves, pure_moves) = parseboard.parse(node.game,
                              "W W B B B B W|"
                              "W B B W . B W|"
                              "B W W W W W W|"
@@ -330,15 +340,19 @@ def test_liberties_after_move_captured_1():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_WHITE
+    node.game.current_color = board.S_WHITE
 
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 6 - 1, pure_moves['a']], 1)
 
 
 def test_liberties_after_move_captured_2():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    for i in range(361):
+        node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
+    (moves, pure_moves) = parseboard.parse(node.game,
                              ". . B . B B W . .|"
                              "B B B B W W B B .|"
                              "B W W W W W B B B|"
@@ -352,15 +366,19 @@ def test_liberties_after_move_captured_2():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_WHITE
+    node.game.current_color = board.S_WHITE
 
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[36 + 5 - 1, pure_moves['a']], 1)
 
 
 def test_sensibleness_not_suicide():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    for i in range(361):
+        node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
+    (moves, pure_moves) = parseboard.parse(node.game,
                             "W W W . . . .|"
                             "W W B W . . .|"
                             "W B B B W . .|"
@@ -372,16 +390,18 @@ def test_sensibleness_not_suicide():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_WHITE
+    node.game.current_color = board.S_WHITE
     
-    policy_feature.update(feature, game)
-    ok_(is_legal(game, moves['a'], board.S_WHITE))
+    policy_feature.update(feature, node)
+    ok_(is_legal(node.game, moves['a'], board.S_WHITE))
     eq_(planes[46, pure_moves['a']], 1)
 
 
 def test_sensibleness_true_eye():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                             "B a B . B W W|"
                             "B B B W W d W|"
                             "B b B W e W W|"
@@ -393,15 +413,15 @@ def test_sensibleness_true_eye():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_BLACK
+    node.game.current_color = board.S_BLACK
     
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[46, pure_moves['a']], 0)
     eq_(planes[46, pure_moves['b']], 0)
     eq_(planes[46, pure_moves['c']], 0)
     
-    game.current_color = board.S_WHITE
-    policy_feature.update(feature, game)
+    node.game.current_color = board.S_WHITE
+    policy_feature.update(feature, node)
     eq_(planes[46, pure_moves['d']], 0)
     eq_(planes[46, pure_moves['e']], 0)
     eq_(planes[46, pure_moves['f']], 0)
@@ -411,8 +431,10 @@ def test_sensibleness_true_eye():
 
 
 def test_sensibleness_not_true_eye():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                             "B B B . . W c|"
                             "B a B . . . W|"
                             "W B . . . . .|"
@@ -424,22 +446,24 @@ def test_sensibleness_not_true_eye():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    game.current_color = board.S_BLACK
+    node.game.current_color = board.S_BLACK
     
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[46, pure_moves['a']], 1)
     
-    game.current_color = board.S_WHITE
+    node.game.current_color = board.S_WHITE
 
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[46, pure_moves['b']], 1)
     eq_(planes[46, pure_moves['c']], 1)
     eq_(planes[46, pure_moves['d']], 1)
 
 
 def test_sensibleness_true_eye_remove_stone():
-    game = board.allocate_game()
-    (moves, pure_moves) = parseboard.parse(game,
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    (moves, pure_moves) = parseboard.parse(node.game,
                              "B W W W B B .|"
                              "B B . W B . .|"
                              "W B W W B . .|"
@@ -451,14 +475,14 @@ def test_sensibleness_true_eye_remove_stone():
     policy_feature.initialize_feature(feature)
     planes = np.asarray(feature.planes)
 
-    board.put_stone(game, moves['a'], board.S_WHITE)
-    board.put_stone(game, moves['b'], board.S_BLACK)
-    board.put_stone(game, moves['c'], board.S_WHITE)
-    board.put_stone(game, moves['d'], board.S_BLACK)
+    board.put_stone(node.game, moves['a'], board.S_WHITE)
+    board.put_stone(node.game, moves['b'], board.S_BLACK)
+    board.put_stone(node.game, moves['c'], board.S_WHITE)
+    board.put_stone(node.game, moves['d'], board.S_BLACK)
 
-    game.current_color = board.S_BLACK
+    node.game.current_color = board.S_BLACK
     
-    policy_feature.update(feature, game)
+    policy_feature.update(feature, node)
     eq_(planes[46, pure_moves['a']], 0)
     eq_(planes[46, pure_moves['c']], 0)
 
