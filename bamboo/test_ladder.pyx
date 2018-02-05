@@ -576,3 +576,46 @@ def test_segmentation_fault_2():
     node.game.current_color = board.S_WHITE
     
     policy_feature.update(feature, node)
+
+
+def test_captured_3():
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    for i in range(361):
+        node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
+    (moves, pure_moves) = parseboard.parse(node.game,
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . W B B B W .|"
+        ". . . . . . . . . . . . W B W B W W .|"
+        ". . . . . . . . . . . W B B W W B B .|"
+        ". . . . . . . . . . W B B W . . . . .|"
+        ". . . . . . . . . W B B W . . . . . .|"
+        ". . . . . . . . W B B W . . . . . . .|"
+        ". . . . . . . W B B W . . . . . . . .|"
+        ". . . . . . W B B W . . . . . . . . .|"
+        ". . . . . W B B W . . . . . . . . . .|"
+        ". . . . W B B W . . . . . . . . . . .|"
+        ". . . W B B W . . . . . . . . . . . .|"
+        ". . W B B W . . . . . . . . . . . . .|"
+        ". . W B W . . . . . . . . . . . . . .|"
+        ". . b B a . . . . . . . . . . . . . .|"
+        ". . . W . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|")
+
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    node.game.current_color = board.S_WHITE
+
+    policy_feature.update(feature, node)
+    eq_(planes[44, pure_moves['a']], 1)
+    #for i in range(46):
+    #    print i, planes[i, pure_moves['a']], planes[i, pure_moves['b']]
+    eq_(planes[44, pure_moves['b']], 0)
+    
+    board.free_game(node.game)
+    policy_feature.free_feature(feature)
