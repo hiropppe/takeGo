@@ -53,8 +53,9 @@ cimport openmp
 cdef class MCTS(object):
 
     def __cinit__(self,
-                  double const_time=5.0,
+                  double const_time=0.0,
                   int const_playout=0,
+                  int playout_limit=0,
                   int n_threads=1,
                   bint intuition=False,
                   bint nogpu=False,
@@ -82,6 +83,7 @@ cdef class MCTS(object):
             node.Q = .0
             node.is_root = False
             node.is_edge = False
+            node.do_not_put = False
             node.parent = NULL
             node.num_child = 0
             node.game = NULL
@@ -110,6 +112,7 @@ cdef class MCTS(object):
         self.time_left = 0.0
         self.can_extend = False
         self.const_time = const_time
+        self.playout_limit = playout_limit
         self.const_playout = const_playout
         self.n_threads = n_threads
         self.max_queue_size_P = 0
@@ -214,6 +217,7 @@ cdef class MCTS(object):
             node.Q = .0
             node.is_root = False
             node.is_edge = False
+            node.do_not_put = False
             node.parent = NULL
             node.num_child = 0
             if node.game != NULL:
@@ -417,9 +421,9 @@ cdef class MCTS(object):
                     max_P = child.P
                     max_pos = child.pos
 
-            if max_P > 0.95 and is_legal_not_eye(game, max_pos, game.current_color):
+            if max_P > 0.7 and is_legal_not_eye(game, max_pos, game.current_color):
                 print_PN(node)
-                printf(">> The maximum PN evaluation value is %3.2lf > 0.95. Skip search.\n", max_P)
+                printf(">> The maximum PN evaluation value is %3.2lf > 0.7. Skip search.\n", max_P)
                 return
 
         # determine thinking time
@@ -432,6 +436,7 @@ cdef class MCTS(object):
                     const_playout = True
                 else:
                     thinking_time = self.const_time
+
             # sudden death and no time left
             elif self.byoyomi_time == 0.0 and self.time_left < 30.0:
                 thinking_time = 0.0
@@ -450,9 +455,12 @@ cdef class MCTS(object):
                             self.byoyomi_time * (1.5 - DMAX(50.0 - game.moves, 0.0)/100.0)
                         )
 
+                        if self.const_time > 0.0:
+                            thinking_time = DMIN(self.const_time, thinking_time)
+
                     # check if extend thnking_time
                     if not extend:
-                        self.can_extend = game.moves > 4 and (self.time_left - thinking_time > self.main_time * 0.15)
+                        self.can_extend = game.moves >= 4 and (self.time_left - thinking_time > self.main_time * 0.15)
 
                 if game.moves < 4:
                     thinking_time = DMIN(thinking_time, 3.0)
@@ -463,6 +471,9 @@ cdef class MCTS(object):
             if thinking_time > 0.0:
                 if const_playout:
                     printf('Number of simulations: %d\n', playout_limit)
+                elif self.playout_limit > 0:
+                    playout_limit = self.playout_limit
+                    printf('Pondering time: %3.2lf sec (MAX %d simulations)\n', thinking_time, self.playout_limit)
                 else:
                     printf('Pondering time: %3.2lf sec\n', thinking_time)
         else:
@@ -653,6 +664,7 @@ cdef class MCTS(object):
             node.num_child = 0
             node.is_root = True
             node.is_edge = True
+            node.do_not_put = False
 
             node.game = allocate_game()
             copy_game(node.game, game)
@@ -744,6 +756,7 @@ cdef class MCTS(object):
                 child.num_child = 0
                 child.is_root = False
                 child.is_edge = True
+                child.do_not_put = False
                 child.parent = node
                 child.has_game = False
 
@@ -947,7 +960,7 @@ cdef class MCTS(object):
         cdef int i, pos
         cdef tree_node_t *child
 
-        update(self.policy_feature, node.game)
+        update(self.policy_feature, node)
 
         tensor = np.asarray(self.policy_feature.planes)
         tensor = tensor.reshape((1, MAX_POLICY_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
@@ -962,7 +975,10 @@ cdef class MCTS(object):
         for i in range(node.num_child):
             pos = node.children_pos[i]
             child = node.children[pos]
-            child.P = probs[pos]
+            if child.do_not_put:
+                child.P = .0
+            else:
+                child.P = probs[pos]
 
     cdef void start_value_network_queue(self) nogil:
         cdef tree_node_t *node
@@ -1006,7 +1022,7 @@ cdef class MCTS(object):
     cdef void eval_leaf_by_value_network(self, tree_node_t *node):
         cdef double vn_out
 
-        update(self.value_feature, node.game)
+        update(self.value_feature, node)
 
         tensor = np.asarray(self.value_feature.planes)
         tensor = tensor.reshape((1, MAX_VALUE_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
@@ -1090,7 +1106,8 @@ cdef class MCTS(object):
 cdef class PyMCTS(object):
 
     def __cinit__(self,
-                  double const_time=5.0,
+                  double const_time=0.0,
+                  int playout_limit=0,
                   int const_playout=0,
                   int n_threads=1,
                   bint intuition=False,
@@ -1098,6 +1115,7 @@ cdef class PyMCTS(object):
                   bint read_ahead=False,
                   bint self_play=False):
         self.mcts = MCTS(const_time=const_time,
+                         playout_limit=playout_limit,
                          const_playout=const_playout,
                          n_threads=n_threads,
                          intuition=intuition,
@@ -1105,6 +1123,7 @@ cdef class PyMCTS(object):
                          self_play=self_play)
         self.game = allocate_game()
         self.const_time = const_time
+        self.playout_limit = playout_limit
         self.const_playout = const_playout
         self.read_ahead = read_ahead
 
@@ -1165,6 +1184,7 @@ cdef class PyMCTS(object):
              self.mcts.player_color = color
 
         self.mcts.const_time = self.const_time
+        self.mcts.playout_limit = self.playout_limit
         self.mcts.const_playout = self.const_playout
         self.mcts.ponder(self.game, False)
 
@@ -1250,6 +1270,9 @@ cdef class PyMCTS(object):
 
     def set_const_time(self, limit):
         self.const_time = limit
+
+    def set_playout_limit(self, limit):
+        self.playout_limit = limit
 
     def set_const_playout(self, limit):
         self.const_playout = limit

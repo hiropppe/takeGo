@@ -5,14 +5,17 @@ from bamboo.models.dcnn_resnet_value import inference_agz
 
 cimport numpy as np
 
+from libc.stdlib cimport malloc, free
+
 from bamboo.policy_feature cimport policy_feature_t
 from bamboo.policy_feature cimport allocate_feature, initialize_feature, update
-
+from bamboo.tree_search cimport tree_node_t
 from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.printer cimport print_board
 
 
 def print_value(vn_path, sgf, moves=[4, 5, 50, 51, 100, 101, 150, 151, 250, 251, 300, 351]):
+    cdef tree_node_t *node
     cdef policy_feature_t *feature = allocate_feature(49)
     cdef SGFMoveIterator sgf_iterator
     cdef object sess
@@ -34,14 +37,16 @@ def print_value(vn_path, sgf, moves=[4, 5, 50, 51, 100, 101, 150, 151, 250, 251,
 
     #sgf = '../self_play/aya/203_19_0114_2k_r16_add300_1/20170319_0400_17784.sgf'
 
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
     initialize_feature(feature)
 
     with open(sgf, 'r') as fo:
         sgf_iterator =  SGFMoveIterator(19, fo.read(), ignore_no_result=False)
 
+    node.game = sgf_iterator.game
     for i, move in enumerate(sgf_iterator):
         if i in moves:
-            update(feature, sgf_iterator.game)
+            update(feature, node)
 
             tensor = np.asarray(feature.planes).reshape(1, 49, 19, 19)
 

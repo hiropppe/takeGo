@@ -22,34 +22,34 @@ from bamboo.tree_search cimport tree_node_t, MCTS
 
 from bamboo.rollout_preprocess cimport set_debug, initialize_rollout_const, initialize_rollout, update_rollout, set_rollout_parameter
 from bamboo.local_pattern cimport read_rands, init_d12_rsp_hash, init_x33_hash
+from bamboo.nakade cimport initialize_nakade_hash
 
 from bamboo.gtp import gtp
 
-sl_policy = None
+pn_path = None
 
 def setup_pattern(rands_file, d12_rsp_csv, x33_csv):
-    cdef int x33_size, d12_size   
+    cdef int x33_size, d12_size, nakade_size
 
     set_hash_size(2**20)
     initialize_hash()
 
     read_rands(rands_file)
+    nakade_size = initialize_nakade_hash()
     x33_size = init_x33_hash(x33_csv)
     d12_rsp_size = init_d12_rsp_hash(d12_rsp_csv)
 
-    initialize_rollout_const(8, x33_size, d12_rsp_size, 0)
+    initialize_rollout_const(nakade_size, x33_size, d12_rsp_size, 0)
 
 
-def setup_supervised_policy(model, weights, nogpu=True):
-    global sl_policy
+def setup_supervised_policy(path, nogpu=True):
+    global pn_path
 
-    sl_policy = CNNPolicy(init_network=True, nogpu=nogpu)
-    sl_policy.model.load_weights(weights)
+    pn_path = path
 
 
 def setup_rollout_policy(weights):
     set_rollout_parameter(weights)
-
 
 def setup():
     initialize_uct_hash()
@@ -61,7 +61,7 @@ def teardown():
 
 def test_seek_root():
     cdef game_state_t *game = initialize_game()
-    cdef MCTS mcts = MCTS(None)
+    cdef MCTS mcts = MCTS()
     cdef unsigned int tmp_root
     cdef tree_node_t *node
 
@@ -98,7 +98,7 @@ def test_seek_root():
 
 def test_expand():
     cdef game_state_t *game = initialize_game()
-    cdef MCTS mcts = MCTS(None)
+    cdef MCTS mcts = MCTS()
     cdef tree_node_t *node
     cdef tree_node_t *child
 
@@ -172,12 +172,14 @@ def test_expand():
 def test_select():
     cdef game_state_t *game = initialize_game()
     cdef game_state_t *search_game = allocate_game()
-    cdef MCTS mcts = MCTS(None)
+    cdef MCTS mcts = MCTS()
     cdef tree_node_t *root_node
     cdef tree_node_t *node
     cdef int max_child_pos
     cdef double max_child_Qu = .0
     cdef int i
+
+    mcts.use_rollout = False
 
     game.current_color = S_BLACK
 
@@ -238,7 +240,7 @@ def test_select():
 
 def test_rollout():
     cdef game_state_t *game = initialize_game()
-    cdef MCTS mcts = MCTS(None)
+    cdef MCTS mcts = MCTS()
 
     game.current_color = S_BLACK
 
@@ -262,7 +264,8 @@ def test_eval_leaf_by_policy_network():
     cdef int i
     cdef double prob_sum = 0.0
 
-    mcts = MCTS(sl_policy)
+    mcts = MCTS(nogpu=True)
+    mcts.run_pn_session(pn_path)
 
     game.current_color = S_BLACK
 

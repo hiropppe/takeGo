@@ -82,7 +82,7 @@ cdef void initialize_planes(game_state_t *game) nogil:
     white.color = <int>S_WHITE
 
     for i in range(9):
-        for j in range(PURE_BOARD_MAX):
+        for j in range(BOARD_MAX):
             black.tensor[i][j] = -1
             white.tensor[i][j] = -1
 
@@ -199,14 +199,14 @@ cdef void update_save_atari(rollout_feature_t *feature, game_state_t *game, stri
                 break
 
         if flag:
-            feature.tensor[F_SAVE_ATARI][onboard_index[last_lib]] = save_atari_start
+            feature.tensor[F_SAVE_ATARI][last_lib] = save_atari_start
             memorize_updated(feature, last_lib)
 
 
 cdef void update_neighbor(rollout_feature_t *feature, game_state_t *game, int pos) nogil:
     """ Move is 8-connected to previous move
     """
-    cdef int neighbor_pos, empty_neighbor_ix
+    cdef int neighbor_pos
     cdef int i
 
     global neighbor_start
@@ -214,16 +214,15 @@ cdef void update_neighbor(rollout_feature_t *feature, game_state_t *game, int po
     for i in range(feature.prev_neighbor8_num):
         prev_pos = feature.prev_neighbor8[i]
         feature.tensor[F_NEIGHBOR][prev_pos] = -1
-        memorize_updated(feature, onboard_pos[prev_pos])
+        memorize_updated(feature, prev_pos)
 
     feature.prev_neighbor8_num = 0
     for i in range(8):
         neighbor_pos = neighbor8_seq_pos[pos][i]
         if game.board[neighbor_pos] == S_EMPTY:
-            empty_neighbor_ix = onboard_index[neighbor_pos]
-            feature.tensor[F_NEIGHBOR][empty_neighbor_ix] = neighbor_start + i
+            feature.tensor[F_NEIGHBOR][neighbor_pos] = neighbor_start + i
             # memorize previous neighbor position
-            feature.prev_neighbor8[feature.prev_neighbor8_num] = empty_neighbor_ix
+            feature.prev_neighbor8[feature.prev_neighbor8_num] = neighbor_pos 
             feature.prev_neighbor8_num += 1
             memorize_updated(feature, neighbor_pos)
 
@@ -248,9 +247,8 @@ cdef void update_nakade(rollout_feature_t *feature, game_state_t *game, int prev
     if nakade_index != NOT_NAKADE:
         nakade_id = get_nakade_id(capture_num, nakade_index)
         nakade_pos = get_nakade_pos(capture_num, capture_pos, nakade_index)
-        nakade_pure_pos = onboard_index[nakade_pos]
-        feature.tensor[F_NAKADE][nakade_pure_pos] = nakade_start + nakade_id
-        feature.prev_nakade = nakade_pure_pos 
+        feature.tensor[F_NAKADE][nakade_pos] = nakade_start + nakade_id
+        feature.prev_nakade = nakade_pos 
         memorize_updated(feature, nakade_pos)
 
 
@@ -274,7 +272,7 @@ cdef void update_d12_rsp(rollout_feature_t *feature, game_state_t *game, int pre
         pos = feature.prev_d12[i]
         feature.tensor[F_RESPONSE][pos] = -1
         feature.tensor[F_D12_RSP_PAT][pos] = -1
-        memorize_updated(feature, onboard_pos[pos])
+        memorize_updated(feature, pos)
 
     feature.prev_d12_num = 0
     if use_pos_aware_d12:
@@ -283,17 +281,15 @@ cdef void update_d12_rsp(rollout_feature_t *feature, game_state_t *game, int pre
             positional_hash = hash ^ d12_pos_mt[1 << empty_ix[i]] 
             each_empty_pos = empty_pos[i]
             if d12_rsp_hashmap.find(positional_hash) == d12_rsp_hashmap.end():
-                empty_onboard_ix = onboard_index[each_empty_pos]
-                feature.tensor[F_RESPONSE][empty_onboard_ix] = -1 
-                feature.tensor[F_D12_RSP_PAT][empty_onboard_ix] = -1
+                feature.tensor[F_RESPONSE][each_empty_pos] = -1 
+                feature.tensor[F_D12_RSP_PAT][each_empty_pos] = -1
             else:
                 pat_ix = d12_rsp_start + d12_rsp_hashmap[positional_hash]
-                empty_onboard_ix = onboard_index[each_empty_pos]
                 # set response(?) and response pattern
-                feature.tensor[F_RESPONSE][empty_onboard_ix] = response_start
-                feature.tensor[F_D12_RSP_PAT][empty_onboard_ix] = pat_ix
+                feature.tensor[F_RESPONSE][each_empty_pos] = response_start
+                feature.tensor[F_D12_RSP_PAT][each_empty_pos] = pat_ix
                 # memorize previous d12 position
-                feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
+                feature.prev_d12[feature.prev_d12_num] = each_empty_pos
                 feature.prev_d12_num += 1
 
             memorize_updated(feature, each_empty_pos)
@@ -302,17 +298,15 @@ cdef void update_d12_rsp(rollout_feature_t *feature, game_state_t *game, int pre
         for i in range(n_empty_val):
             each_empty_pos = empty_pos[i]
             if d12_rsp_hashmap.find(hash) == d12_rsp_hashmap.end():
-                empty_onboard_ix = onboard_index[each_empty_pos]
-                feature.tensor[F_RESPONSE][empty_onboard_ix] = -1 
-                feature.tensor[F_D12_RSP_PAT][empty_onboard_ix] = -1
+                feature.tensor[F_RESPONSE][each_empty_pos] = -1 
+                feature.tensor[F_D12_RSP_PAT][each_empty_pos] = -1
             else:
                 pat_ix = d12_rsp_start + d12_rsp_hashmap[hash]
-                empty_onboard_ix = onboard_index[each_empty_pos]
                 # set response(?) and response pattern
-                feature.tensor[F_RESPONSE][empty_onboard_ix] = response_start
-                feature.tensor[F_D12_RSP_PAT][empty_onboard_ix] = pat_ix
+                feature.tensor[F_RESPONSE][each_empty_pos] = response_start
+                feature.tensor[F_D12_RSP_PAT][each_empty_pos] = pat_ix
                 # memorize previous d12 position
-                feature.prev_d12[feature.prev_d12_num] = empty_onboard_ix
+                feature.prev_d12[feature.prev_d12_num] = each_empty_pos
                 feature.prev_d12_num += 1
 
             memorize_updated(feature, each_empty_pos)
@@ -328,10 +322,10 @@ cdef void update_3x3(rollout_feature_t *feature, game_state_t *game, int pos, in
 
     hash = x33_hash(game, pos, color)
     if x33_hashmap.find(hash) == x33_hashmap.end():
-        feature.tensor[F_X33_PAT][onboard_index[pos]] = -1
+        feature.tensor[F_X33_PAT][pos] = -1
     else:
         pat_ix = x33_start + x33_hashmap[hash]
-        feature.tensor[F_X33_PAT][onboard_index[pos]] = pat_ix
+        feature.tensor[F_X33_PAT][pos] = pat_ix
 
     memorize_updated(feature, pos)
 
@@ -342,7 +336,7 @@ cdef void clear_neighbor(rollout_feature_t *feature) nogil:
     for i in range(feature.prev_neighbor8_num):
         pos = feature.prev_neighbor8[i]
         feature.tensor[F_NEIGHBOR][pos] = -1
-        memorize_updated(feature, onboard_pos[pos])
+        memorize_updated(feature, pos)
 
 
 cdef void clear_d12_rsp(rollout_feature_t *feature) nogil:
@@ -352,22 +346,22 @@ cdef void clear_d12_rsp(rollout_feature_t *feature) nogil:
         pos = feature.prev_d12[i]
         feature.tensor[F_RESPONSE][pos] = -1
         feature.tensor[F_D12_RSP_PAT][pos] = -1
-        memorize_updated(feature, onboard_pos[pos])
+        memorize_updated(feature, pos)
 
 
 cdef void clear_nakade(rollout_feature_t *feature) nogil:
     if feature.prev_nakade != NOT_NAKADE:
         feature.tensor[F_NAKADE][feature.prev_nakade] = -1
-        memorize_updated(feature, onboard_pos[feature.prev_nakade])
+        memorize_updated(feature, feature.prev_nakade)
 
 
 cdef void clear_onehot_index(rollout_feature_t *feature, int pos) nogil:
     if pos != PASS:
-        feature.tensor[F_RESPONSE][onboard_index[pos]] = -1
-        feature.tensor[F_SAVE_ATARI][onboard_index[pos]] = -1
-        feature.tensor[F_NAKADE][onboard_index[pos]] = -1
-        feature.tensor[F_D12_RSP_PAT][onboard_index[pos]] = -1
-        feature.tensor[F_X33_PAT][onboard_index[pos]] = -1
+        feature.tensor[F_RESPONSE][pos] = -1
+        feature.tensor[F_SAVE_ATARI][pos] = -1
+        feature.tensor[F_NAKADE][pos] = -1
+        feature.tensor[F_D12_RSP_PAT][pos] = -1
+        feature.tensor[F_X33_PAT][pos] = -1
 
 
 cdef void clear_updated_string_cache(game_state_t *game) nogil:
@@ -436,8 +430,8 @@ cdef void update_probs(game_state_t *game) nogil:
         logits[pure_pos] = .0
         if is_legal(game, pos, color):
             for j in range(6):
-                if feature.tensor[j][pure_pos] != -1:
-                    logits[pure_pos] += rollout_weights[feature.tensor[j][pure_pos]]
+                if feature.tensor[j][pos] != -1:
+                    logits[pure_pos] += rollout_weights[feature.tensor[j][pos]]
             logits[pure_pos] = cexp(logits[pure_pos])
             updated_sum += logits[pure_pos]
         # Must be cleared for next feature calculation
@@ -458,6 +452,7 @@ cdef void update_all_probs(game_state_t *game) nogil:
     cdef double *probs
     cdef double *row_probs
     cdef double *logits
+    cdef int i
 
     color = <int>game.current_color
     feature = &game.rollout_feature_planes[color]
@@ -471,8 +466,8 @@ cdef void update_all_probs(game_state_t *game) nogil:
         pos = onboard_pos[i]
         if is_legal(game, pos, color):
             for j in range(6):
-                if feature.tensor[j][i] != -1:
-                    logits[i] += rollout_weights[feature.tensor[j][i]]
+                if feature.tensor[j][pos] != -1:
+                    logits[i] += rollout_weights[feature.tensor[j][pos]]
             logits[i] = cexp(logits[i])
             game.rollout_logits_sum[color] += logits[i]
 
@@ -554,7 +549,7 @@ cdef void update_tree_planes_all(game_state_t *game) nogil:
     cdef int current_color
     cdef rollout_feature_t *current_feature
     cdef int pos
-    cdef int i, j
+    cdef int i
 
     current_color = <int>game.current_color
     current_feature = &game.rollout_feature_planes[current_color]
@@ -566,9 +561,9 @@ cdef void update_tree_planes_all(game_state_t *game) nogil:
             update_last_move_distance(current_feature, game, pos)
             update_d12(current_feature, game, pos, current_color) 
         else:
-            current_feature.tensor[F_SELF_ATARI][i] = -1
-            current_feature.tensor[F_LAST_MOVE_DISTANCE][i] = -1
-            current_feature.tensor[F_D12_PAT][i] = -1
+            current_feature.tensor[F_SELF_ATARI][pos] = -1
+            current_feature.tensor[F_LAST_MOVE_DISTANCE][pos] = -1
+            current_feature.tensor[F_D12_PAT][pos] = -1
 
 
 cdef void get_tree_probs(game_state_t *game, double probs[361]) nogil:
@@ -584,10 +579,11 @@ cdef void get_tree_probs(game_state_t *game, double probs[361]) nogil:
 
     for i in range(PURE_BOARD_MAX):
         logits[i] = .0
-        if is_legal_not_eye(game, onboard_pos[i], color):
+        pos = onboard_pos[i]
+        if is_legal_not_eye(game, pos, color):
             for j in range(9):
-                if feature.tensor[j][i] != -1:
-                    logits[i] += tree_weights[feature.tensor[j][i]]
+                if feature.tensor[j][pos] != -1:
+                    logits[i] += tree_weights[feature.tensor[j][pos]]
             logits[i] = cexp(logits[i])
             logits_sum += logits[i]
 
@@ -632,14 +628,14 @@ cdef void update_self_atari(rollout_feature_t *feature, game_state_t *game, int 
 
     # 空点
     if libs >= 2:
-        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        feature.tensor[F_SELF_ATARI][pos] = -1
         return
 
     # 上を調べる
     if board[north] == color:
         id = string_id[north]
         if string[id].libs > 2:
-            feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+            feature.tensor[F_SELF_ATARI][pos] = -1
             return
         lib = string[id].lib[0]
         count = 0
@@ -658,10 +654,10 @@ cdef void update_self_atari(rollout_feature_t *feature, game_state_t *game, int 
         already[already_num] = id
         already_num += 1
         if libs >= 2:
-            feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+            feature.tensor[F_SELF_ATARI][pos] = -1
             return
     elif board[north] == other and string[string_id[north]].libs == 1:
-        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        feature.tensor[F_SELF_ATARI][pos] = -1
         return
 
     # 左を調べる
@@ -669,7 +665,7 @@ cdef void update_self_atari(rollout_feature_t *feature, game_state_t *game, int 
         id = string_id[west]
         if already[0] != id:
             if string[id].libs > 2:
-                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                feature.tensor[F_SELF_ATARI][pos] = -1
                 return
             lib = string[id].lib[0]
             count = 0
@@ -688,10 +684,10 @@ cdef void update_self_atari(rollout_feature_t *feature, game_state_t *game, int 
             already[already_num] = id
             already_num += 1
             if libs >= 2:
-                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                feature.tensor[F_SELF_ATARI][pos] = -1
                 return
     elif board[west] == other and string[string_id[west]].libs == 1:
-        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        feature.tensor[F_SELF_ATARI][pos] = -1
         return
 
     # 右を調べる
@@ -699,7 +695,7 @@ cdef void update_self_atari(rollout_feature_t *feature, game_state_t *game, int 
         id = string_id[east];
         if already[0] != id and already[1] != id:
             if string[id].libs > 2:
-                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                feature.tensor[F_SELF_ATARI][pos] = -1
                 return
             lib = string[id].lib[0]
             count = 0
@@ -718,10 +714,10 @@ cdef void update_self_atari(rollout_feature_t *feature, game_state_t *game, int 
             already[already_num] = id
             already_num += 1
             if libs >= 2:
-                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                feature.tensor[F_SELF_ATARI][pos] = -1
                 return
     elif board[east] == other and string[string_id[east]].libs == 1:
-        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        feature.tensor[F_SELF_ATARI][pos] = -1
         return
 
     # 下を調べる
@@ -729,7 +725,7 @@ cdef void update_self_atari(rollout_feature_t *feature, game_state_t *game, int 
         id = string_id[south]
         if already[0] != id and already[1] != id and already[2] != id:
             if string[id].libs > 2:
-                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                feature.tensor[F_SELF_ATARI][pos] = -1
                 return
             lib = string[id].lib[0]
             count = 0
@@ -748,13 +744,13 @@ cdef void update_self_atari(rollout_feature_t *feature, game_state_t *game, int 
             already[already_num] = id
             already_num += 1
             if libs >= 2:
-                feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+                feature.tensor[F_SELF_ATARI][pos] = -1
                 return
     elif board[south] == other and string[string_id[south]].libs == 1:
-        feature.tensor[F_SELF_ATARI][onboard_index[pos]] = -1
+        feature.tensor[F_SELF_ATARI][pos] = -1
         return
 
-    feature.tensor[F_SELF_ATARI][onboard_index[pos]] = self_atari_start
+    feature.tensor[F_SELF_ATARI][pos] = self_atari_start
 
 
 cdef void update_last_move_distance(rollout_feature_t *feature, game_state_t *game, int pos) nogil:
@@ -775,7 +771,7 @@ cdef void update_last_move_distance(rollout_feature_t *feature, game_state_t *ga
             if prev2_pos != PASS:
                 prev2_dis = DIS(pos, prev2_pos, board_x, board_y, move_dis)
 
-        feature.tensor[F_LAST_MOVE_DISTANCE][onboard_index[pos]] = last_move_distance_start + prev_dis + prev2_dis
+        feature.tensor[F_LAST_MOVE_DISTANCE][pos] = last_move_distance_start + prev_dis + prev2_dis
 
 
 cdef void update_d12(rollout_feature_t *feature, game_state_t *game, int pos, int color) nogil:
@@ -788,10 +784,10 @@ cdef void update_d12(rollout_feature_t *feature, game_state_t *game, int pos, in
 
     hash = d12_hash(game, pos, color)
     if d12_hashmap.find(hash) == d12_hashmap.end():
-        feature.tensor[F_D12_PAT][onboard_index[pos]] = -1
+        feature.tensor[F_D12_PAT][pos] = -1
     else:
         pat_ix = d12_start + d12_hashmap[hash]
-        feature.tensor[F_D12_PAT][onboard_index[pos]] = pat_ix
+        feature.tensor[F_D12_PAT][pos] = pat_ix
 
 
 cdef void set_debug(bint dbg) nogil:
