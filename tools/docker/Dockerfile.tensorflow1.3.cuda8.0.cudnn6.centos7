@@ -46,30 +46,30 @@ RUN git clone git://github.com/xianyi/OpenBLAS \
  && make \
  && make install
 
-RUN git clone https://github.com/BVLC/caffe.git \
- && cd caffe/ \
- && cp Makefile.config.example Makefile.config \
- && sed -i 's|# CPU_ONLY := 1|CPU_ONLY := 1|' Makefile.config \
- && sed -i 's|BLAS := atlas|BLAS := open|' Makefile.config \
- && sed -i 's|# BLAS_INCLUDE := /path/to/your/blas|BLAS_INCLUDE := /opt/OpenBLAS/include|' Makefile.config \
- && sed -i 's|# BLAS_LIB := /path/to/your/blas|BLAS_LIB := /opt/OpenBLAS/lib|' Makefile.config \
- && protoc src/caffe/proto/caffe.proto --cpp_out=. \
- && mkdir include/caffe/proto \
- && mv src/caffe/proto/caffe.pb.h include/caffe/proto \
- && make all \
- && make test \
- && make runtest
+#RUN git clone https://github.com/BVLC/caffe.git \
+# && cd caffe/ \
+# && cp Makefile.config.example Makefile.config \
+# && sed -i 's|# CPU_ONLY := 1|CPU_ONLY := 1|' Makefile.config \
+# && sed -i 's|BLAS := atlas|BLAS := open|' Makefile.config \
+# && sed -i 's|# BLAS_INCLUDE := /path/to/your/blas|BLAS_INCLUDE := /opt/OpenBLAS/include|' Makefile.config \
+# && sed -i 's|# BLAS_LIB := /path/to/your/blas|BLAS_LIB := /opt/OpenBLAS/lib|' Makefile.config \
+# && protoc src/caffe/proto/caffe.proto --cpp_out=. \
+# && mkdir include/caffe/proto \
+# && mv src/caffe/proto/caffe.pb.h include/caffe/proto \
+# && make all \
+# && make test \
+# && make runtest
 
 # Pachi
-RUN git clone https://github.com/pasky/pachi.git \
- && cd pachi \
- && sed -i 's|CAFFE_PREFIX=/usr/local/caffe|CAFFE_PREFIX=/root/caffe|' Makefile \
- && sed -i 's|$(CAFFE_PREFIX)/lib|$(CAFFE_PREFIX)/build/lib|' Makefile \
- && make \
- && wget http://physik.de/CNNlast.tar.gz \
- && tar xzf CNNlast.tar.gz \
- && make install \
- && make install-data
+#RUN git clone https://github.com/pasky/pachi.git \
+# && cd pachi \
+# && sed -i 's|CAFFE_PREFIX=/usr/local/caffe|CAFFE_PREFIX=/root/caffe|' Makefile \
+# && sed -i 's|$(CAFFE_PREFIX)/lib|$(CAFFE_PREFIX)/build/lib|' Makefile \
+# && make \
+# && wget http://physik.de/CNNlast.tar.gz \
+# && tar xzf CNNlast.tar.gz \
+# && make install \
+# && make install-data
 
 # GnuGo
 RUN curl -s http://ftp.gnu.org/gnu/gnugo/gnugo-3.8.tar.gz | tar -xz -C . \
@@ -90,14 +90,14 @@ RUN curl -s https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz | tar -xz
 RUN pip --no-cache-dir install \
         ipykernel \
         jupyter \
-        Cython \
-        matplotlib \
-        pandas \
-        h5py \
-        sgf \
-        futures \
-        python-jsonrpc \
-        flask \
+        Cython==0.24.0 \
+        matplotlib==2.0.2 \
+        pandas==0.20.2 \
+        h5py==2.6.0 \
+        sgf==0.5 \
+        futures==3.0.5 \
+        python-jsonrpc==0.10.0 \
+        flask==0.12.2 \
         nose \
         tqdm \
         jedi \
@@ -110,12 +110,16 @@ RUN pip --no-cache-dir install \
     python -m ipykernel.kernelspec
 
 # Install Java8
-ENV JAVA_VERSION 8u162
-ENV JAVA_BUILD 8u162-b12
-ENV JAVA_DL_HASH 0da788060d494f5095bf8624735fa2f1
-RUN wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" \
-    http://download.oracle.com/otn-pub/java/jdk/${JAVA_BUILD}/${JAVA_DL_HASH}/jdk-${JAVA_VERSION}-linux-x64.rpm \
-    && rpm -i jdk-${JAVA_VERSION}-linux-x64.rpm
+#ENV JAVA_VERSION 8u162
+#ENV JAVA_BUILD 8u162-b12
+#ENV JAVA_DL_HASH 0da788060d494f5095bf8624735fa2f1
+#RUN wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" \
+#    http://download.oracle.com/otn-pub/java/jdk/${JAVA_BUILD}/${JAVA_DL_HASH}/jdk-${JAVA_VERSION}-linux-x64.rpm \
+#    && rpm -i jdk-${JAVA_VERSION}-linux-x64.rpm
+
+RUN yum install -y java-1.8.0-openjdk java-1.8.0-openjdk-devel
+
+ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.191.b12-1.el7_6.x86_64
 
 # Install Bazel for building tensorflow
 RUN wget https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel-0.4.5-installer-linux-x86_64.sh && \
@@ -128,6 +132,8 @@ COPY cudnn/cudnn-8.0-linux-x64-v6.0.solitairetheme8 /tmp/
 RUN tar xzf /tmp/cudnn-8.0-linux-x64-v6.0.solitairetheme8 && \
     cp -a cuda/include/* /usr/local/cuda/include/ && \
     cp -a cuda/lib64/* /usr/local/cuda/lib64/
+
+RUN pip install https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow_gpu-1.3.0-cp27-none-linux_x86_64.whl 
 
 # Install Tensorflow from source
 RUN git clone https://github.com/tensorflow/tensorflow && \
