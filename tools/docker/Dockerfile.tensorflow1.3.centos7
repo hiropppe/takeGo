@@ -90,7 +90,7 @@ RUN curl -O https://www.sjeng.org/dl/Leela0110GTP.zip \
 
 RUN yum -y install java-1.8.0-openjdk-devel
 
-ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.191.b12-1.el7_6.x86_64
+ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
 # GoGui
 RUN curl -L -o gogui-1.4.9.zip 'https://ja.osdn.net/frs/g_redir.php?m=kent&f=gogui%2Fgogui%2F1.4.9%2Fgogui-1.4.9.zip' \

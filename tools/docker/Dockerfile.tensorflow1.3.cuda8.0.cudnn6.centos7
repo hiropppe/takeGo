@@ -2,7 +2,9 @@ FROM nvidia/cuda:8.0-cudnn6-devel-centos7
 
 MAINTAINER sergei <sergei.0910@gmail.com>
 
-WORKDIR /root
+RUN mkdir /root/_INSTALL
+
+WORKDIR /root/_INSTALL
 
 RUN yum -y update
 RUN yum -y groupinstall "Development Tools"
@@ -119,7 +121,7 @@ RUN pip --no-cache-dir install \
 
 RUN yum install -y java-1.8.0-openjdk java-1.8.0-openjdk-devel
 
-ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.191.b12-1.el7_6.x86_64
+ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
 # Install Bazel for building tensorflow
 RUN wget https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel-0.4.5-installer-linux-x86_64.sh && \
