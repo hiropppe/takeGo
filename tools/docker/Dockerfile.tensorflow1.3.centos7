@@ -170,7 +170,7 @@ RUN cd tensorflow && \
     export GCC_HOST_COMPILER_PATH=$(which gcc) && \
     export TF_NEED_MPI="0" && \
     ./configure && \
-    bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 --copt=-mfma //tensorflow/tools/pip_package:build_pip_package && \
+    bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 //tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
 
 RUN pip install /tmp/tensorflow_pkg/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
