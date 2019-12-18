@@ -1,5 +1,5 @@
-# bambooStone
-This is partial and incomplete implementation of Shodai AlphaGo (AlphaGo Fan). Code was written in 2018 inspired by Ray and RocAlphaGo but it's not very good code. I rewrite it when I have time for my old age:-)
+# takeGo
+This is partial and incomplete implementation of Shodai AlphaGo (AlphaGo Fan). Code was written in 2017 inspired by Ray and RocAlphaGo but it's not very good code. I rewrite it when I have time for my old age:-)
 
 CGOS rating does not reach 2600.  
 http://www.yss-aya.com/cgos/19x19/cross/take.html  
