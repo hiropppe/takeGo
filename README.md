@@ -1,5 +1,5 @@
 # takeGo
-This is partial and incomplete implementation of Shodai AlphaGo (AlphaGo Fan). Code was written in 2017 inspired by Ray and RocAlphaGo but it's not very good code. I rewrite it when I have time for my old age:-)
+This is partial and incomplete implementation of [Shodai AlphaGo (AlphaGo Fan paper)](https://vk.com/doc-44016343_437229031?dl=56ce06e325d42fbc72). Code was written in 2017 inspired by [Ray](https://github.com/kobanium/Ray) and [RocAlphaGo](https://github.com/Rochester-NRT/RocAlphaGo) but it's not very good code. I rewrite it when I have time for my old age:-)
 
 CGOS rating does not reach 2600.  
 http://www.yss-aya.com/cgos/19x19/cross/take.html  
