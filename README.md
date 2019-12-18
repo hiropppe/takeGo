@@ -11,14 +11,14 @@ The following is a note for myself.
 ## Usage
 ### Containers
 ```
-git clone https://github.com/hiropppe/bambooStone.git
-cd bambooStone/tools/docker
+git clone https://github.com/hiropppe/takeGo.git
+cd takeGo/tools/docker
 # CPU machine
-docker build -t bamboo -f Dockerfile.tensorflow1.3.centos7 .
-docker run -td --name bamboo --net host bamboo /bin/bash
+docker build -t takeGo -f Dockerfile.tensorflow1.3.centos7 .
+docker run -td --name takeGo --net host takeGo /bin/bash
 # GPU machine
-docker build -t bamboo -f Dockerfile.tensorflow1.3.cuda8.0.cudnn6.ubuntu16.04 .
-docker run -td --runtime nvidia --name bamboo --net host bamboo /bin/bash
+docker build -t takeGo -f Dockerfile.tensorflow1.3.cuda8.0.cudnn6.ubuntu16.04 .
+docker run -td --runtime nvidia --name takeGo --net host takeGo /bin/bash
 ```
 ### Build 
 ```
@@ -44,7 +44,7 @@ python bbs \
 ```
 ### GoGUI command
 ```
-python /path/to/bambooStone/bbc --host {docker_host} --port 5000
+python /path/to/takeGo/bbc --host {docker_host} --port 5000
 ```
 ## Training
 ### SL Policy
