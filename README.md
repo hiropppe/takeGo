@@ -51,3 +51,9 @@ python /path/to/takeGo/bbc --host {docker_host} --port 5000
 TODO
 ### Rollout and Tree policy
 TODO
+
+## AlphaGo Papers
+[Mastering the game of Go with deep neural networks and tree search](https://vk.com/doc-44016343_437229031?dl=56ce06e325d42fbc72)  
+[Mastering the Game of Go without Human Knowledge](http://faculty.washington.edu/jwilker/559/2018/go.pdf)  
+[Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm](https://arxiv.org/abs/1712.01815)  
+[Mastering Atari, Go, Chess and Shogi by Planning with a Learned Model](https://arxiv.org/abs/1911.08265)
