@@ -108,11 +108,13 @@ RUN curl -s https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz | tar -xz
 RUN pip --no-cache-dir install \
         ipykernel \
         jupyter \
+        numpy==1.11.3 \
         Cython==0.27.0 \
         matplotlib==2.0.2 \
         pandas==0.20.2 \
         h5py==2.6.0 \
         sgf==0.5 \
+        six==1.10.0 \
         futures==3.0.5 \
         python-jsonrpc==0.10.0 \
         flask==0.12.2 \
@@ -124,14 +126,6 @@ RUN pip --no-cache-dir install \
         wheel \
         && \
     python -m ipykernel.kernelspec
-
-# Install Java8
-#ENV JAVA_VERSION 8u151
-#ENV JAVA_BUILD 8u151-b12
-#ENV JAVA_DL_HASH e758a0de34e24606bca991d704f6dcbf
-#RUN wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" \
-#    http://download.oracle.com/otn-pub/java/jdk/${JAVA_BUILD}/${JAVA_DL_HASH}/jdk-${JAVA_VERSION}-linux-x64.rpm \
-#    && rpm -i jdk-${JAVA_VERSION}-linux-x64.rpm
 
 #RUN pip --no-cache-dir install tensorflow==v1.3.0
 
@@ -184,8 +178,7 @@ ENV LANG="ja_JP.UTF-8" \
     LANGUAGE="ja_JP:ja" \
     LC_ALL="ja_JP.UTF-8"
 
-RUN git config --global user.name "hiropppe"
-RUN git config --global user.email "sergei.0910@gmail.com"
+RUN mkdir -p keras-NHWC.json /root/.keras/keras.json
 
 # vs GnuGo
 # gogui-twogtp -black "python /root/bambooStone/bbc" -white "gnugo --mode gtp --chinese-rules --level 10" -games 1 -size 19 -komi 7.5 -time 15 -alternate -sgffile take.vs.gnugo -auto -force

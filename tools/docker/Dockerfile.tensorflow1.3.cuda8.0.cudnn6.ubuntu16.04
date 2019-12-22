@@ -51,11 +51,13 @@ RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
 RUN pip --no-cache-dir install \
         ipykernel \
         jupyter \
+        numpy==1.11.3 \
         Cython==0.24 \
         matplotlib==2.0.2 \
         pandas==0.20.2 \
         h5py==2.6.0 \
         sgf==0.5 \
+        six==1.10.0 \
         futures==3.0.5 \
         python-jsonrpc==0.10.0 \
         flask==0.12.2 \
@@ -135,5 +137,4 @@ RUN echo '# OpenMPI' >> ~/.bash_profile \
  && echo 'export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH' >> ~/.bash_profile \
  && echo '' >> ~/.bash_profile
 
-RUN git config --global user.name "hiropppe"
-RUN git config --global user.email "sergei.0910@gmail.com"
+RUN mkdir -p keras-NCHW.json /root/.keras/keras.json
