@@ -55,3 +55,6 @@ class TestLadder(unittest.TestCase):
 
     def test_segmentation_fault_2(self):
         test_ladder.test_segmentation_fault_2()
+
+    def test_segmentation_fault_3(self):
+        test_ladder.test_segmentation_fault_3()

@@ -14,7 +14,7 @@ from libc.stdio cimport printf
 cimport board 
 cimport printer
 
-from bamboo.board cimport LIBERTY_END, NEIGHBOR_END
+from bamboo.board cimport PURE_BOARD_MAX, LIBERTY_END, NEIGHBOR_END
 from bamboo.board cimport NORTH, WEST, EAST, SOUTH
 from bamboo.board cimport board_size, liberty_end, string_end, onboard_index, board_dis_x, board_dis_y
 from bamboo.board cimport is_true_eye, get_neighbor4
@@ -77,10 +77,11 @@ cdef void update(policy_feature_t *feature, tree_node_t *node):
     cdef int first_ladder_capture, first_ladder_escape
     cdef int second_ladder_capture, second_ladder_escape
     cdef int ladder_result
-    cdef int i, j
+    cdef int i, j, n
     cdef tree_node_t *child
 
     F[...] = 0
+
     # Ones: A constant plane filled with 1
     F[3, :] = 1
 
@@ -99,7 +100,11 @@ cdef void update(policy_feature_t *feature, tree_node_t *node):
         neighbor[i][0] = NEIGHBOR_END
         libpos_after_move[i][0] = LIBERTY_END
 
-    for i in range(board.pure_board_max):
+    for i in range(361):
+        # workaround for ut board size
+        if board.pure_board_max - 1 < i:
+            break
+
         capture_size = 0
         self_atari_size = 1
         libs_after_move = 0
@@ -190,7 +195,6 @@ cdef void update(policy_feature_t *feature, tree_node_t *node):
             while libpos != LIBERTY_END:
                 libs_after_move += 1
                 libpos = libpos_after_move[i][libpos]
-
             # Capture size(8): How many opponent stones would be captured
             F[20 + board.MIN(capture_size, 7), i] = 1
             # Self-atari size(8): How many of own stones would be captured
@@ -202,16 +206,14 @@ cdef void update(policy_feature_t *feature, tree_node_t *node):
             if not is_true_eye(game, pos, color, other_color, empty_diagonal_stack, empty_diagonal_top):
                 F[46, i] = 1
         else:
-            if color:
+            if color != board.S_EMPTY:
                 string_id = game.string_id[pos]
                 string = &game.string[string_id]
                 # Turns since(8): How many turns since a move was played
                 if game.birth_move[pos]:
                     F[4 + board.MIN(game.moves - game.birth_move[pos], 7), i] = 1
-
                 # Liberties(8): Number of liberties (empty adjacent points)
                 F[12 + board.MIN(string.libs, 8) - 1, i] = 1
-
                 if not ladder_checked[string_id]:
                     # Ladder capture(1): Whether a move at this point is a successful ladder capture
                     if string.libs == 2 and string.color == other_color:
@@ -242,7 +244,6 @@ cdef void update(policy_feature_t *feature, tree_node_t *node):
                                             ladder_moves)
                         if capture_result == 1:
                             F[44, onboard_index[second_ladder_capture]] = 1
-
                     # Ladder escape(1): Whether a move at this point is a successful ladder escape
                     elif string.libs == 1 and string.color == current_color:
                         ladder_moves[0] = 0
@@ -353,11 +354,15 @@ cdef int is_ladder_capture(board.game_state_t *game,
     board.put_stone(ladder_game, pos, ladder_game.current_color)
     ladder_game.current_color = board.FLIP_COLOR(ladder_game.current_color)
 
+    # printf(">> Put stone to capture. color=%d, depth=%d, moves=%d\n", capture_color, depth, ladder_moves[0])
+    # printer.print_board(ladder_game)
+
     escape_options_num = get_escape_options(ladder_game,
                                             escape_options,
                                             atari_pos,
                                             escape_color,
                                             string_id)
+
     for i in range(escape_options_num):
         escape_result =  is_ladder_escape(ladder_game,
                             string_id,
@@ -368,6 +373,7 @@ cdef int is_ladder_capture(board.game_state_t *game,
                             ladder_moves)
         if escape_result == 1:
             return -1
+
     return 1
 
 
@@ -418,22 +424,21 @@ cdef int is_ladder_escape(board.game_state_t *game,
     board.put_stone(ladder_game, pos, ladder_game.current_color)
     ladder_game.current_color = board.FLIP_COLOR(ladder_game.current_color)
 
+    # printf(">> Put stone to escape. color=%d, depth=%d, moves=%d\n", escape_color, depth, ladder_moves[0])
+    # printer.print_board(ladder_game)
+
     # May change string_id by string merge
     if is_atari_pos:
         string_id = ladder_game.string_id[pos]
 
     string = &ladder_game.string[string_id]
     if string.libs == 1:
-        """
-        printer.print_board(ladder_game)
-        print 'Captured !!'
-        """
+        # printf('>> Captured !!\n')
+        # printer.print_board(ladder_game)
         return -1
     elif string.libs >= 3:
-        """
-        printer.print_board(ladder_game)
-        print 'Escaped !!'
-        """
+        # printf('>> Escaped !!\n')
+        # printer.print_board(ladder_game)
         return 1
     else:
         first_ladder_capture = string.lib[0]

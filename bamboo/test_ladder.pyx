@@ -58,6 +58,8 @@ def test_breaker_1():
     cdef tree_node_t *node
     node = <tree_node_t *>malloc(sizeof(tree_node_t))
     node.game = board.allocate_game()
+    for i in range(361):
+        node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
     (moves, pure_moves) = parseboard.parse(node.game,
                                  ". B . . . . .|"
                                  "B W a . . W .|"
@@ -619,3 +621,81 @@ def test_captured_3():
     
     board.free_game(node.game)
     policy_feature.free_feature(feature)
+
+
+def test_segmentation_fault_3():
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    for i in range(361):
+        node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
+    """
+    (moves, pure_moves) = parseboard.parse(node.game,
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . B . . . . . . . B . . W . .|"
+        ". . . W . . . . . . . . . . . B . W .|"
+        ". . . . . . . . . . . . . . . . B W .|"
+        ". . W . . . . . . . . . . . . B W W .|"
+        ". . . . . . . . . . . . . . a W B . .|"
+        ". . . . . . . . . . . . . . . . B . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . B . .|"
+        ". . . W . . . . . . . . . . B . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|")
+    """
+    (moves, pure_moves) = parseboard.parse(node.game,
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . i . . . . . . . g . . l . .|"
+        ". . . b . . . . . . . . . . . a . h .|"
+        ". . . . . . . . . . . . . . . . m n .|"
+        ". . j . . . . . . . . . . . . o f r .|"
+        ". . . . . . . . . . . . . . s p q . .|"
+        ". . . . . . . . . . . . . . . . k . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . c . .|"
+        ". . . d . . . . . . . . . . e . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|"
+        ". . . . . . . . . . . . . . . . . . .|")
+
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    board.put_stone(node.game, moves['a'], board.S_BLACK)
+    board.put_stone(node.game, moves['b'], board.S_WHITE)
+    board.put_stone(node.game, moves['c'], board.S_BLACK)
+    board.put_stone(node.game, moves['d'], board.S_WHITE)
+    board.put_stone(node.game, moves['e'], board.S_BLACK)
+    board.put_stone(node.game, moves['f'], board.S_WHITE)
+    board.put_stone(node.game, moves['g'], board.S_BLACK)
+    board.put_stone(node.game, moves['h'], board.S_WHITE)
+    board.put_stone(node.game, moves['i'], board.S_BLACK)
+    board.put_stone(node.game, moves['j'], board.S_WHITE)
+    board.put_stone(node.game, moves['k'], board.S_BLACK)
+    board.put_stone(node.game, moves['l'], board.S_WHITE)
+    board.put_stone(node.game, moves['m'], board.S_BLACK)
+    board.put_stone(node.game, moves['n'], board.S_WHITE)
+    board.put_stone(node.game, moves['o'], board.S_BLACK)
+    board.put_stone(node.game, moves['p'], board.S_WHITE)
+    board.put_stone(node.game, moves['q'], board.S_BLACK)
+    board.put_stone(node.game, moves['r'], board.S_WHITE)
+    board.put_stone(node.game, moves['s'], board.S_BLACK)
+    printer.print_board(node.game)
+    node.game.current_color = board.S_WHITE
+    
+    policy_feature.update(feature, node)

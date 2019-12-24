@@ -56,6 +56,8 @@ cdef class GameConverter(object):
         cdef SGFMoveIterator sgf_iter
 
         node = <tree_node_t *>malloc(sizeof(tree_node_t))
+        for i in range(self.bsize**2):
+            node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
         initialize_feature(self.feature)
 
         with open(file_name, 'r') as file_object:
