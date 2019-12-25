@@ -178,7 +178,10 @@ ENV LANG="ja_JP.UTF-8" \
     LANGUAGE="ja_JP:ja" \
     LC_ALL="ja_JP.UTF-8"
 
-RUN mkdir -p keras-NHWC.json /root/.keras/keras.json
+RUN mkdir -p /root/.keras
+COPY keras-NHWC.json /root/.keras/keras.json
+
+WORKDIR /root
 
 # vs GnuGo
 # gogui-twogtp -black "python /root/bambooStone/bbc" -white "gnugo --mode gtp --chinese-rules --level 10" -games 1 -size 19 -komi 7.5 -time 15 -alternate -sgffile take.vs.gnugo -auto -force
