@@ -3,12 +3,13 @@ import json
 import threading
 import h5py as h5
 import numpy as np
-
+import sys
 import tensorflow as tf
 
 from tensorflow.contrib.keras.python import keras
 from tensorflow.contrib.keras.python.keras import backend as K
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 from bamboo.models.keras_dcnn_policy import CNNPolicy
 
 
@@ -116,7 +117,7 @@ class threading_shuffled_hdf5_batch_generator:
             np.random.shuffle(self.indices)
 
     def __init__(self, state_dataset, action_dataset, indices, batch_size, metadata=None,
-                 validation=False):
+                 validation=False, nogpu=False):
         self.action_dataset = action_dataset
         self.state_dataset = state_dataset
         # lock used for multithreaded workers
@@ -125,6 +126,7 @@ class threading_shuffled_hdf5_batch_generator:
         self.validation = validation
         self.batch_size = batch_size
         self.indices = indices
+        self.nogpu = nogpu
 
         if metadata is not None:
             self.metadata = metadata
@@ -165,16 +167,18 @@ class threading_shuffled_hdf5_batch_generator:
             return state, action, training_sample[1]
 
     def next(self):
-        state_batch_shape = (self.batch_size,) + self.state_dataset.shape[:-4:-1]
-        #state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
-        game_size = state_batch_shape[1]
-        #game_size = state_batch_shape[-1]
+        if self.nogpu:
+            state_batch_shape = (self.batch_size,) + self.state_dataset.shape[:-4:-1]
+            game_size = state_batch_shape[1]
+        else:
+            state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
+            game_size = state_batch_shape[-1]
+
         Xbatch = np.zeros(state_batch_shape)
         Ybatch = np.zeros((self.batch_size, game_size * game_size))
 
         for batch_idx in xrange(self.batch_size):
             state, action, transformation = self.next_indice()
-
             # get rotation symmetry belonging to state
             transform = BOARD_TRANSFORMATIONS[transformation]
 
@@ -182,7 +186,8 @@ class threading_shuffled_hdf5_batch_generator:
             # loop comprehension is used so that the transformation acts on the
             # 3rd and 4th dimensions
             state_transform = np.array([transform(plane) for plane in state])
-            state_transform = np.transpose(state_transform, (1, 2, 0))
+            if self.nogpu:
+                state_transform = np.transpose(state_transform, (1, 2, 0))
             action_transform = transform(one_hot_action(action, game_size))
 
             Xbatch[batch_idx] = state_transform
@@ -649,13 +654,15 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
         dataset["actions"],
         train_indices,
         metadata["batch_size"],
-        metadata)
+        metadata,
+        nogpu=nogpu)
     val_data_generator = threading_shuffled_hdf5_batch_generator(
         dataset["states"],
         dataset["actions"],
         val_indices,
         metadata["batch_size"],
-        validation=True)
+        validation=True,
+        nogpu=nogpu)
 
     # check if step decay has to be applied
     if metadata["decay_every"] is None:

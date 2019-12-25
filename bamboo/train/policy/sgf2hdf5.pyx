@@ -75,7 +75,7 @@ cdef class GameConverter(object):
                 else:
                     planes = np.asarray(self.feature.planes)
                     planes = planes.reshape(1, self.n_features, self.bsize, self.bsize)
-                    planes = planes.transpose(0, 1, 3, 2)
+                    planes = planes.transpose(0, 1, 3, 2)  # required?
                     yield (planes, onboard_index_to_np_move(onboard_index[move[0]], self.bsize))
 
     def sgfs_to_hdf5(self,
