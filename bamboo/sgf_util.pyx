@@ -170,7 +170,10 @@ cdef class SGFMoveIterator:
         # set komi
         s_komi = props.get('KM')
         if s_komi:
-            self.komi = float(s_komi[0])
+            try:
+                self.komi = float(s_komi[0])
+            except ValueError:
+                pass
 
         # set winner
         self.winner = 0
