@@ -1,5 +1,5 @@
 # takeGo
-This is partial and incomplete implementation of [Shodai AlphaGo (AlphaGo Fan paper)](https://vk.com/doc-44016343_437229031?dl=56ce06e325d42fbc72). Code was written in 2017 inspired by [Ray](https://github.com/kobanium/Ray) and [RocAlphaGo](https://github.com/Rochester-NRT/RocAlphaGo) but it's not very good code. I rewrite it when I have time for my old age:-)
+This is partial and incomplete implementation of [Shodai AlphaGo (AlphaGo Fan paper)](https://vk.com/doc-44016343_437229031?dl=56ce06e325d42fbc72). Code was written in 2017 inspired by [Ray](https://github.com/kobanium/Ray) and [RocAlphaGo](https://github.com/Rochester-NRT/RocAlphaGo).
 
 CGOS rating does not reach 2600.  
 http://www.yss-aya.com/cgos/19x19/cross/take.html  
@@ -8,24 +8,23 @@ http://www.yss-aya.com/cgos/19x19/cross/mishima-0.1.html
 
 The following is a note for myself.
 
-## Usage
-### Containers
+## Playing Go
+### Work in a container
 ```
 git clone https://github.com/hiropppe/takeGo.git
 cd takeGo/tools/docker
 # CPU machine
-docker build -t takeGo -f Dockerfile.tensorflow1.3.centos7 .
-docker run -td --name takeGo --net host takeGo /bin/bash
+docker build -t takego -f Dockerfile.tensorflow1.3.centos7 .
+docker run -td --name takeGo --net host bamboo /bin/bash
 # GPU machine
-docker build -t takeGo -f Dockerfile.tensorflow1.3.cuda8.0.cudnn6.ubuntu16.04 .
-docker run -td --runtime nvidia --name takeGo --net host takeGo /bin/bash
+docker build -t takego -f Dockerfile.tensorflow1.3.cuda8.0.cudnn6.centos7 .
+docker run -td --runtime nvidia --name takeGo --net host bamboo /bin/bash
 ```
 ### Build 
 ```
 python setup.py build_ext -i
 ```
 ### Run GTP server
-Required to image_data_format in ~/.keras/keras.json. NHWC(channels_last) for CPU and NCHW(channels_first) for GPU. (not dockernized)
 ```
 python bbs \
   -pn ./params/policy/weights.hdf5 \
@@ -46,11 +45,37 @@ python bbs \
 ```
 python /path/to/takeGo/bbc --host {docker_host} --port 5000
 ```
-## Training
-### SL Policy
-TODO
-### Rollout and Tree policy
-TODO
+## Training Networks
+### Supervised Learning Policy
+```
+# convert SGFs
+python bamboo/train/policy/sgf2hdf5_main.py -o /path/to/output/feature_planes.hdf5 -d /path/to/input/sgf/directory
+# run training
+python bamboo/train/policy/keras_supervised_policy_trainer.py train /path/to/weights/saved /path/to/feature_planes.h5
+```
+### Harvest patterns for rollout and tree policy
+```
+# Response Pattern (12-point diamond)
+python bamboo/train/rollout/pattern_harvest_main.py -o /path/to/output/d12_rsp.csv -p d12_rsp -d /path/to/input/sgf/directory
+# Non-Response Pattern (3x3)
+python bamboo/train/rollout/pattern_harvest_main.py -o /path/to/output/x33.csv -p x33 -d /path/to/input/sgf/directory
+# Non-Response Pattern (12-point diamond)
+python bamboo/train/rollout/pattern_harvest_main.py -o /path/to/output/d12.csv -p d12 -d /path/to/input/sgf/directory
+```
+### Rollout Policy
+```
+# convert SGFs
+python bamboo/train/rollout/sgf2hdf5_main.py -o /path/to/output/rollout_feature.h5 -d /path/to/input/sgf/directory -p rollout -mt ./params/rollout/mt_rands.txt -x33 /path/to/input/x33.csv -rd12 /path/to/input/d12_rsp.csv
+# run training
+python bamboo/train/rollout/supervised_rollout_trainer.py -p rollout /path/to/input/rollout_feature.h5 /path/to/weights/saved
+```
+### Tree Policy
+```
+# convert SGFs
+python bamboo/train/rollout/sgf2hdf5_main.py -o /path/to/output/tree_feature.h5 -d /path/to/input/sgf/directory -p tree -mt ./params/rollout/mt_rands.txt -x33 /path/to/input/x33.csv -rd12 /path/to/input/d12_rsp.csv -d12 /path/to/input/d12.csv
+# run training
+python bamboo/train/rollout/supervised_rollout_trainer.py -p tree /path/to/input/tree_feature.h5 /path/to/weights/saved
+```
 
 ## AlphaGo Papers
 [Mastering the game of Go with deep neural networks and tree search](https://vk.com/doc-44016343_437229031?dl=56ce06e325d42fbc72)  
