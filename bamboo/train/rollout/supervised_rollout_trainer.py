@@ -5,9 +5,9 @@ import numpy as np
 import os
 import sys
 import traceback
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 from tqdm import tqdm
-
 from bamboo.train.rollout.optimizer import SGD, Momentum, AdaGrad, Adam, Nesterov, RMSprop
 
 # default settings

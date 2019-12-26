@@ -16,7 +16,7 @@ from tqdm import tqdm
 from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.sgf_util cimport SGFMoveIterator
-from bamboo.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
+from bamboo.board cimport PURE_BOARD_MAX, BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
 from bamboo.board cimport game_state_t, rollout_feature_t, pure_board_size, pure_board_max, onboard_index
 from bamboo.printer cimport print_board
 from bamboo.zobrist_hash cimport initialize_hash
@@ -107,10 +107,10 @@ cdef class GameConverter(object):
             states = h5f.require_dataset(
                 'states',
                 dtype=np.int32,
-                shape=(1, 6, PURE_BOARD_MAX),
-                maxshape=(None, 6, PURE_BOARD_MAX),  # 'None' == arbitrary size
+                shape=(1, 6, BOARD_MAX),
+                maxshape=(None, 6, BOARD_MAX),  # 'None' == arbitrary size
                 exact=False, 
-                chunks=(64, 6, PURE_BOARD_MAX),
+                chunks=(64, 6, BOARD_MAX),
                 compression="lzf")
             actions = h5f.require_dataset(
                 'actions',
@@ -143,7 +143,7 @@ cdef class GameConverter(object):
                 try:
                     for state, move in self.convert_game(file_name):
                         if next_idx >= len(states):
-                            states.resize((next_idx + 1, 6, PURE_BOARD_MAX))
+                            states.resize((next_idx + 1, 6, BOARD_MAX))
                             actions.resize((next_idx + 1, 1))
                         states[next_idx] = state
                         actions[next_idx] = move

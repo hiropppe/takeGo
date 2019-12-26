@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 from bamboo.train.rollout.sgf2hdf5 import GameConverter as RolloutGameConverter
 from bamboo.train.rollout.sgf2hdf5_tree import GameConverter as TreeGameConverter
