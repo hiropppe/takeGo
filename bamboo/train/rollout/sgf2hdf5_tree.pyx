@@ -17,8 +17,8 @@ from tqdm import tqdm
 from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove
 
 from bamboo.sgf_util cimport SGFMoveIterator
-from bamboo.board cimport PURE_BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
-from bamboo.board cimport game_state_t, rollout_feature_t, pure_board_size, pure_board_max, onboard_index
+from bamboo.board cimport PURE_BOARD_MAX, BOARD_MAX, S_BLACK, S_WHITE, PASS, POS, CORRECT_X, CORRECT_Y
+from bamboo.board cimport game_state_t, rollout_feature_t, onboard_index
 from bamboo.printer cimport print_board
 from bamboo.zobrist_hash cimport initialize_hash
 from bamboo.nakade cimport initialize_nakade_hash
@@ -94,10 +94,10 @@ cdef class GameConverter(object):
                 feature = &game.rollout_feature_planes[<int>game.current_color]
                 onehot_index_array = np.asarray(feature.tensor)
 
-                if onboard_index[move[0]] >= pure_board_max:
+                if onboard_index[move[0]] >= PURE_BOARD_MAX:
                     continue
                 else:
-                    yield (onehot_index_array, onboard_index[move[0]])
+                    yield (onehot_index_array, move[0])
 
     def sgfs_to_hdf5(self,
                      sgf_files,
@@ -113,10 +113,10 @@ cdef class GameConverter(object):
             states = h5f.require_dataset(
                 'states',
                 dtype=np.int32,
-                shape=(1, 9, PURE_BOARD_MAX),
-                maxshape=(None, 9, PURE_BOARD_MAX),  # 'None' == arbitrary size
+                shape=(1, 9, BOARD_MAX),
+                maxshape=(None, 9, BOARD_MAX),  # 'None' == arbitrary size
                 exact=False, 
-                chunks=(64, 9, PURE_BOARD_MAX),
+                chunks=(64, 9, BOARD_MAX),
                 compression="lzf")
             actions = h5f.require_dataset(
                 'actions',
@@ -149,7 +149,7 @@ cdef class GameConverter(object):
                 try:
                     for state, move in self.convert_game(file_name):
                         if next_idx >= len(states):
-                            states.resize((next_idx + 1, 9, PURE_BOARD_MAX))
+                            states.resize((next_idx + 1, 9, BOARD_MAX))
                             actions.resize((next_idx + 1, 1))
                         states[next_idx] = state
                         actions[next_idx] = move
