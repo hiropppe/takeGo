@@ -44,7 +44,7 @@ RUN wget https://cmake.org/files/v3.8/cmake-3.8.2.tar.gz \
  && make \
  && make install
 
-RUN git clone git://github.com/xianyi/OpenBLAS \
+RUN git clone https://github.com/OpenMathLib/OpenBLAS \
  && cd OpenBLAS \
  && make \
  && make install
@@ -82,21 +82,21 @@ RUN curl -s http://ftp.gnu.org/gnu/gnugo/gnugo-3.8.tar.gz | tar -xz -C . \
  && make install
 
 # Leela
-RUN curl -O https://www.sjeng.org/dl/Leela0110GTP.zip \
- && unzip Leela0110GTP.zip \
- && cp leela_0110_linux_x64 /usr/local/bin/leela_0110 \
- && cd /usr/local/bin \
- && ln -s leela_0110 leela
+#RUN curl -O https://www.sjeng.org/dl/Leela0110GTP.zip \
+# && unzip Leela0110GTP.zip \
+# && cp leela_0110_linux_x64 /usr/local/bin/leela_0110 \
+# && cd /usr/local/bin \
+# && ln -s leela_0110 leela
 
 RUN yum -y install java-1.8.0-openjdk-devel
 
 ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 
 # GoGui
-RUN curl -L -o gogui-1.4.9.zip 'https://ja.osdn.net/frs/g_redir.php?m=kent&f=gogui%2Fgogui%2F1.4.9%2Fgogui-1.4.9.zip' \
- && unzip gogui-1.4.9.zip \
- && cd gogui-1.4.9 \
- && ./install.sh
+#RUN curl -L -o gogui-1.4.9.zip 'https://ja.osdn.net/frs/g_redir.php?m=kent&f=gogui%2Fgogui%2F1.4.9%2Fgogui-1.4.9.zip' \
+# && unzip gogui-1.4.9.zip \
+# && cd gogui-1.4.9 \
+# && ./install.sh
 
 # update system python
 RUN curl -s https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz | tar -xz -C . \
@@ -106,8 +106,8 @@ RUN curl -s https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz | tar -xz
  && make install
 
 RUN pip --no-cache-dir install \
-        ipykernel \
-        jupyter \
+#        ipykernel \
+#        jupyter \
         numpy==1.11.3 \
         Cython==0.27.0 \
         matplotlib==2.0.2 \
@@ -120,12 +120,12 @@ RUN pip --no-cache-dir install \
         flask==0.12.2 \
         nose \
         tqdm \
-        jedi \
-        flake8 \
-        autopep8 \
-        wheel \
-        && \
-    python -m ipykernel.kernelspec
+#        jedi \
+#        flake8 \
+#        autopep8 \
+        wheel
+#        && \
+#    python -m ipykernel.kernelspec
 
 #RUN pip --no-cache-dir install tensorflow==v1.3.0
 
@@ -167,6 +167,7 @@ RUN cd tensorflow && \
     bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 //tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
 
+RUN pip install protobuf==3.6.1
 RUN pip install /tmp/tensorflow_pkg/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
 
 RUN rm -f /etc/rpm/macros.image-language-conf && \
