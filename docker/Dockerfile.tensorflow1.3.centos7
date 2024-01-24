@@ -85,7 +85,7 @@ RUN pip --no-cache-dir install \
 #RUN pip --no-cache-dir install tensorflow==v1.3.0
 
 ## Install tensorflow from self-build package (noavx2 option)
-COPY tensorflow-1.3.0-cp27-cp27m-linux_x86_64_noavx2.whl /root/_INSTALL/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
+COPY docker/tensorflow-1.3.0-cp27-cp27m-linux_x86_64_noavx2.whl /root/_INSTALL/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
 RUN pip install protobuf==3.6.1
 RUN pip --no-cache-dir install /root/_INSTALL/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
 
@@ -98,7 +98,7 @@ RUN pip --no-cache-dir install /root/_INSTALL/tensorflow-1.3.0-cp27-cp27m-linux_
 #    cd tensorflow && \
 #    git checkout v1.3.0
 #
-#COPY workspace.bzl /root/_INSTALL/tensorflow/tensorflow/
+#COPY docker/workspace.bzl /root/_INSTALL/tensorflow/tensorflow/
 #
 #RUN cd tensorflow && \
 #    export PATH=$PATH:/root/bin && \
@@ -135,20 +135,21 @@ ENV LANG="ja_JP.UTF-8" \
     LC_ALL="ja_JP.UTF-8"
 
 RUN mkdir -p /root/.keras
-COPY keras-NHWC.json /root/.keras/keras.json
+COPY docker/keras-NHWC.json /root/.keras/keras.json
 
-# GoGui
-#RUN curl -L -o gogui-1.4.9.zip 'https://ja.osdn.net/frs/g_redir.php?m=kent&f=gogui%2Fgogui%2F1.4.9%2Fgogui-1.4.9.zip' \
-# && unzip gogui-1.4.9.zip \
-# && cd gogui-1.4.9 \
-# && ./install.sh
+WORKDIR /games
 
-WORKDIR /root
+RUN mkdir gtp
+COPY . ./gtp/
+RUN cd gtp/ && python setup.py build_ext -i
 
-COPY gogui-1.4.9.zip .
-RUN unzip gogui-1.4.9.zip \
+RUN unzip ./gtp/tools/gogui-1.4.9.zip \
  && cd gogui-1.4.9 \
  && ./install.sh
+
+COPY docker/docker-entrypoint.sh /
+RUN chown root:root /docker-entrypoint.sh && chmod 700 /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # vs GnuGo
 # gogui-twogtp -black "python /root/bambooStone/bbc" -white "gnugo --mode gtp --chinese-rules --level 10" -games 1 -size 19 -komi 7.5 -time 15 -alternate -sgffile take.vs.gnugo -auto -force

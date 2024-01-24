@@ -94,6 +94,8 @@ RUN git clone https://github.com/tensorflow/tensorflow && \
 
 COPY workspace.bzl /root/_INSTALL/tensorflow/tensorflow/
 
+## If Avx2 is not available, the following error occurs when starting the GTP server, so build tensorflow without avx2.
+## 'The TensorFlow library was compiled to use AVX2 instructions, but these aren't available on your machine.'
 RUN cd tensorflow && \
     export PATH=$PATH:/root/bin && \
     export PYTHON_BIN_PATH=$(which python) && \
@@ -112,6 +114,7 @@ RUN cd tensorflow && \
     export GCC_HOST_COMPILER_PATH=$(which gcc) && \
     export TF_NEED_MPI="0" && \
     ./configure && \
+#    bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 //tensorflow/tools/pip_package:build_pip_package && \
     bazel build -c opt --copt=-mavx --copt=-msse4.1 --copt=-msse4.2 //tensorflow/tools/pip_package:build_pip_package && \
     bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
 
@@ -130,12 +133,19 @@ ENV LANG="ja_JP.UTF-8" \
 RUN mkdir -p /root/.keras
 COPY keras-NHWC.json /root/.keras/keras.json
 
-WORKDIR /root
+WORKDIR /games
 
-COPY gogui-1.4.9.zip .
-RUN unzip gogui-1.4.9.zip \
+RUN mkdir gtp
+COPY . ./gtp/
+RUN cd gtp/ && python setup.py build_ext -i
+
+RUN unzip ./gtp/tools/gogui-1.4.9.zip \
  && cd gogui-1.4.9 \
  && ./install.sh
+
+COPY docker/docker-entrypoint.sh /
+RUN chown root:root /docker-entrypoint.sh && chmod 700 /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # vs GnuGo
 # gogui-twogtp -black "python /root/bambooStone/bbc" -white "gnugo --mode gtp --chinese-rules --level 10" -games 1 -size 19 -komi 7.5 -time 15 -alternate -sgffile take.vs.gnugo -auto -force

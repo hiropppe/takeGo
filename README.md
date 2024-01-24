@@ -9,19 +9,45 @@ http://www.yss-aya.com/cgos/19x19/cross/mishima-0.1.html
 The following is a note for myself.
 
 ## Playing Go
-### Work in a container
+### Clone this repository
+
+### Build container
 ```
-git clone https://github.com/hiropppe/takeGo.git
-cd takeGo/tools/docker
 # CPU machine
-docker build -t takego -f Dockerfile.tensorflow1.3.centos7 .
-docker run -td --name takeGo --net host bamboo /bin/bash
+docker build -t bbs -f Dockerfile.tensorflow1.3.centos7 ./docker
+## If Avx2 is not available, the following error occurs when starting the GTP server, so build tensorflow without avx2.
+## 'The TensorFlow library was compiled to use AVX2 instructions, but these aren't available on your machine.'
+docker build -t bbs -f Dockerfile.tensorflow1.3_noavx2.centos7 ./docker
+
 # GPU machine
-docker build -t takego -f Dockerfile.tensorflow1.3.cuda8.0.cudnn6.centos7 .
-docker run -td --runtime nvidia --name takeGo --net host bamboo /bin/bash
+docker build -t bbs -f Dockerfile.tensorflow1.3.cuda8.0.cudnn6.centos7 ./docker
 ```
-### Build 
+### Run container
 ```
+# CPU machine
+docker run --rm --name bbs -p 5000:5000 bbs gtp --nogpu -t 2 -lgrf2
+
+# GPU machine
+docker run -td --gpus all --name bbs -p 5000:5000 bbs gtp -t 10 -lgrf2
+```
+
+### Playing with gogui
+GoGUI is in this repository
+```
+java -jar tools/gogui-1.4.9/lib/gogui.jar
+```
+GoGUI command is set as follows
+```
+python /path/to/takeGo/bbc --host localhost --port 5000
+```
+
+## Development
+### Build
+```
+docker exec -it bbs bash
+cd /root
+git clone https://github.com/hiropppe/takeGo.git
+cd takeGo
 python setup.py build_ext -i
 ```
 ### Run GTP server
@@ -41,10 +67,7 @@ python bbs \
 
 # --nogpu (CPU only)
 ```
-### GoGUI command
-```
-python /path/to/takeGo/bbc --host {docker_host} --port 5000
-```
+
 ## Training Networks
 ### Supervised Learning Policy
 ```
