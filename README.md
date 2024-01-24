@@ -9,26 +9,21 @@ http://www.yss-aya.com/cgos/19x19/cross/mishima-0.1.html
 The following is a note for myself.
 
 ## Playing Go
-### Clone this repository
-
 ### Build container
 ```
 # CPU machine
 docker build -t bbs -f Dockerfile.tensorflow1.3.centos7 ./docker
-## If Avx2 is not available, the following error occurs when starting the GTP server, so build tensorflow without avx2.
-## 'The TensorFlow library was compiled to use AVX2 instructions, but these aren't available on your machine.'
-docker build -t bbs -f Dockerfile.tensorflow1.3_noavx2.centos7 ./docker
 
 # GPU machine
 docker build -t bbs -f Dockerfile.tensorflow1.3.cuda8.0.cudnn6.centos7 ./docker
 ```
-### Run container
+### Run GTP Server
 ```
 # CPU machine
-docker run --rm --name bbs -p 5000:5000 bbs gtp --nogpu -t 2 -lgrf2
+docker run --rm --name bbs -p 5000:5000 bbs gtp -t 2 -lgrf2 --nogpu
 
 # GPU machine
-docker run -td --gpus all --name bbs -p 5000:5000 bbs gtp -t 10 -lgrf2
+docker run --rm --gpus all --name bbs -p 5000:5000 bbs gtp -t 10 -lgrf2
 ```
 
 ### Playing with gogui
