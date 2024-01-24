@@ -49,31 +49,6 @@ RUN git clone https://github.com/OpenMathLib/OpenBLAS \
  && make \
  && make install
 
-#RUN git clone https://github.com/BVLC/caffe.git \
-# && cd caffe/ \
-# && cp Makefile.config.example Makefile.config \
-# && sed -i 's|# CPU_ONLY := 1|CPU_ONLY := 1|' Makefile.config \
-# && sed -i 's|BLAS := atlas|BLAS := open|' Makefile.config \
-# && sed -i 's|# BLAS_INCLUDE := /path/to/your/blas|BLAS_INCLUDE := /opt/OpenBLAS/include|' Makefile.config \
-# && sed -i 's|# BLAS_LIB := /path/to/your/blas|BLAS_LIB := /opt/OpenBLAS/lib|' Makefile.config \
-# && protoc src/caffe/proto/caffe.proto --cpp_out=. \
-# && mkdir include/caffe/proto \
-# && mv src/caffe/proto/caffe.pb.h include/caffe/proto \
-# && make all \
-# && make test \
-# && make runtest
-
-# Pachi
-#RUN git clone https://github.com/pasky/pachi.git \
-# && cd pachi \
-# && sed -i 's|CAFFE_PREFIX=/usr/local/caffe|CAFFE_PREFIX=/root/caffe|' Makefile \
-# && sed -i 's|$(CAFFE_PREFIX)/lib|$(CAFFE_PREFIX)/build/lib|' Makefile \
-# && make \
-# && wget http://physik.de/CNNlast.tar.gz \
-# && tar xzf CNNlast.tar.gz \
-# && make install \
-# && make install-data
-
 # GnuGo
 RUN curl -s http://ftp.gnu.org/gnu/gnugo/gnugo-3.8.tar.gz | tar -xz -C . \
  && cd gnugo-3.8 \
@@ -81,22 +56,9 @@ RUN curl -s http://ftp.gnu.org/gnu/gnugo/gnugo-3.8.tar.gz | tar -xz -C . \
  && make \
  && make install
 
-# Leela
-#RUN curl -O https://www.sjeng.org/dl/Leela0110GTP.zip \
-# && unzip Leela0110GTP.zip \
-# && cp leela_0110_linux_x64 /usr/local/bin/leela_0110 \
-# && cd /usr/local/bin \
-# && ln -s leela_0110 leela
-
 RUN yum -y install java-1.8.0-openjdk-devel
 
 ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
-
-# GoGui
-#RUN curl -L -o gogui-1.4.9.zip 'https://ja.osdn.net/frs/g_redir.php?m=kent&f=gogui%2Fgogui%2F1.4.9%2Fgogui-1.4.9.zip' \
-# && unzip gogui-1.4.9.zip \
-# && cd gogui-1.4.9 \
-# && ./install.sh
 
 # update system python
 RUN curl -s https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz | tar -xz -C . \
@@ -106,8 +68,6 @@ RUN curl -s https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz | tar -xz
  && make install
 
 RUN pip --no-cache-dir install \
-#        ipykernel \
-#        jupyter \
         numpy==1.11.3 \
         Cython==0.27.0 \
         matplotlib==2.0.2 \
@@ -120,55 +80,50 @@ RUN pip --no-cache-dir install \
         flask==0.12.2 \
         nose \
         tqdm \
-#        jedi \
-#        flake8 \
-#        autopep8 \
         wheel
-#        && \
-#    python -m ipykernel.kernelspec
 
 #RUN pip --no-cache-dir install tensorflow==v1.3.0
 
-# Install Bazel for building tensorflow
-RUN wget https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel-0.4.5-installer-linux-x86_64.sh && \
-    chmod +x bazel-0.4.5-installer-linux-x86_64.sh && \
-    ./bazel-0.4.5-installer-linux-x86_64.sh --user
-
-# Install Tensorflow from source
-RUN git clone https://github.com/tensorflow/tensorflow && \
-    cd tensorflow && \
-    git checkout v1.3.0
-
-COPY workspace.bzl /root/_INSTALL/tensorflow/tensorflow/
-
-RUN cd tensorflow && \
-    export PATH=$PATH:/root/bin && \
-    export PYTHON_BIN_PATH=$(which python) && \
-    export PYTHON_LIB_PATH="/usr/local/lib/python2.7/site-packages" && \
-    export TF_NEED_MKL="1" && \
-    export TF_DOWNLOAD_MKL="1" && \
-    export CC_OPT_FLAGS="-march=native" && \
-    export TF_NEED_JEMALLOC="1" && \
-    export TF_NEED_GCP="0" && \
-    export TF_NEED_HDFS="0" && \
-    export TF_NEED_OPENCL="0" && \
-    export TF_NEED_CUDA="0" && \
-    export TF_ENABLE_XLA="1" && \
-    export TF_NEED_VERBS="0" && \
-    export TF_CUDA_CLANG="0" && \
-#    export TF_CUDA_VERSION="8.0" && \
-#    export CUDA_TOOLKIT_PATH="/usr/local/cuda" && \
-#    export TF_CUDNN_VERSION="6" && \
-#    export CUDNN_INSTALL_PATH="/usr/local/cuda" && \
-#    export TF_CUDA_COMPUTE_CAPABILITIES="6.1" && \
-    export GCC_HOST_COMPILER_PATH=$(which gcc) && \
-    export TF_NEED_MPI="0" && \
-    ./configure && \
-    bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 //tensorflow/tools/pip_package:build_pip_package && \
-    bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
-
+## Install tensorflow from self-build package (noavx2 option)
+COPY tensorflow-1.3.0-cp27-cp27m-linux_x86_64_noavx2.whl /root/_INSTALL/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
 RUN pip install protobuf==3.6.1
-RUN pip install /tmp/tensorflow_pkg/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
+RUN pip --no-cache-dir install /root/_INSTALL/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
+
+# Install Bazel for building tensorflow
+#RUN wget https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel-0.4.5-installer-linux-x86_64.sh && \
+#    chmod +x bazel-0.4.5-installer-linux-x86_64.sh && \
+#    ./bazel-0.4.5-installer-linux-x86_64.sh --user
+# Install Tensorflow from source
+#RUN git clone https://github.com/tensorflow/tensorflow && \
+#    cd tensorflow && \
+#    git checkout v1.3.0
+#
+#COPY workspace.bzl /root/_INSTALL/tensorflow/tensorflow/
+#
+#RUN cd tensorflow && \
+#    export PATH=$PATH:/root/bin && \
+#    export PYTHON_BIN_PATH=$(which python) && \
+#    export PYTHON_LIB_PATH="/usr/local/lib/python2.7/site-packages" && \
+#    export TF_NEED_MKL="1" && \
+#    export TF_DOWNLOAD_MKL="1" && \
+#    export CC_OPT_FLAGS="-march=native" && \
+#    export TF_NEED_JEMALLOC="1" && \
+#    export TF_NEED_GCP="0" && \
+#    export TF_NEED_HDFS="0" && \
+#    export TF_NEED_OPENCL="0" && \
+#    export TF_NEED_CUDA="0" && \
+#    export TF_ENABLE_XLA="1" && \
+#    export TF_NEED_VERBS="0" && \
+#    export TF_CUDA_CLANG="0" && \
+#    export GCC_HOST_COMPILER_PATH=$(which gcc) && \
+#    export TF_NEED_MPI="0" && \
+#    ./configure && \
+#    bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-msse4.1 --copt=-msse4.2 //tensorflow/tools/pip_package:build_pip_package && \
+##    bazel build -c opt --copt=-mavx --copt=-msse4.1 --copt=-msse4.2 //tensorflow/tools/pip_package:build_pip_package && \
+#    bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
+#
+#RUN pip install protobuf==3.6.1
+#RUN pip install /tmp/tensorflow_pkg/tensorflow-1.3.0-cp27-cp27m-linux_x86_64.whl
 
 RUN rm -f /etc/rpm/macros.image-language-conf && \
     sed -i '/^override_install_langs=/d' /etc/yum.conf && \
@@ -182,7 +137,18 @@ ENV LANG="ja_JP.UTF-8" \
 RUN mkdir -p /root/.keras
 COPY keras-NHWC.json /root/.keras/keras.json
 
+# GoGui
+#RUN curl -L -o gogui-1.4.9.zip 'https://ja.osdn.net/frs/g_redir.php?m=kent&f=gogui%2Fgogui%2F1.4.9%2Fgogui-1.4.9.zip' \
+# && unzip gogui-1.4.9.zip \
+# && cd gogui-1.4.9 \
+# && ./install.sh
+
 WORKDIR /root
+
+COPY gogui-1.4.9.zip .
+RUN unzip gogui-1.4.9.zip \
+ && cd gogui-1.4.9 \
+ && ./install.sh
 
 # vs GnuGo
 # gogui-twogtp -black "python /root/bambooStone/bbc" -white "gnugo --mode gtp --chinese-rules --level 10" -games 1 -size 19 -komi 7.5 -time 15 -alternate -sgffile take.vs.gnugo -auto -force
