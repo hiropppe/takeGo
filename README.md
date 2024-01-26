@@ -6,16 +6,19 @@ http://www.yss-aya.com/cgos/19x19/cross/take.html
 http://www.yss-aya.com/cgos/19x19/cross/mishima-0.1.html
 
 
-The following is a note for myself.
+The following is a note for myself.  
+
+***Preparations for archiving and re-development are underway.***
 
 ## Playing Go
 ### Build container
+gpu container is not working now:-)
 ```
 # CPU machine
-docker build -t bbs -f Dockerfile.tensorflow1.3.centos7 ./docker
+docker build -t bbs -f ./docker/Dockerfile.tensorflow1.3.centos7 .
 
 # GPU machine
-docker build -t bbs -f Dockerfile.tensorflow1.3.cuda8.0.cudnn6.centos7 ./docker
+docker build -t bbs -f ./docker/Dockerfile.tensorflow1.3.cuda8.0.cudnn6.centos7 .
 ```
 ### Run GTP Server
 ```
@@ -65,6 +68,7 @@ python bbs \
 
 ## Training Networks
 ### Supervised Learning Policy
+this is not working now:-)
 ```
 # convert SGFs
 python bamboo/train/policy/sgf2hdf5_main.py -o /path/to/output/feature_planes.hdf5 -d /path/to/input/sgf/directory
