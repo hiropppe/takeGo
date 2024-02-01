@@ -8,7 +8,7 @@ http://www.yss-aya.com/cgos/19x19/cross/mishima-0.1.html
 
 The following is a note for myself.  
 
-*** (Re)development branch, the following notes are out of date. ***
+***(Re)development branch, the following notes are out of date.***
 
 ## Playing Go
 ### Build container
