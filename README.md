@@ -8,7 +8,7 @@ http://www.yss-aya.com/cgos/19x19/cross/mishima-0.1.html
 
 The following is a note for myself.  
 
-***Preparations for archiving and re-development are underway.***
+*** (Re)development branch, the following notes are out of date. ***
 
 ## Playing Go
 ### Build container
@@ -43,9 +43,7 @@ python /path/to/takeGo/bbc --host localhost --port 5000
 ### Build
 ```
 docker exec -it bbs bash
-cd /root
-git clone https://github.com/hiropppe/takeGo.git
-cd takeGo
+cd ./gtp
 python setup.py build_ext -i
 ```
 ### Run GTP server

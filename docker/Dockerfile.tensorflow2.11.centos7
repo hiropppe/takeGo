@@ -1,0 +1,99 @@
+FROM centos:7
+
+MAINTAINER sergei <sergei.0910@gmail.com>
+
+RUN mkdir /root/_INSTALL
+
+WORKDIR /root/_INSTALL
+
+RUN yum -y update
+RUN yum -y groupinstall "Development Tools"
+RUN yum -y install epel-release
+RUN yum -y install\
+    which \
+    wget \
+    git \
+    vim \
+    mlocate \
+    zlib-devel \
+    bzip2-devel \
+    readline-devel \
+    sqlite-devel \
+    openssl-devel \
+    libpng-devel \
+    freetype-devel \
+    protobuf-devel \
+    leveldb-devel \
+    snappy-devel \
+    opencv-devel \
+    boost-devel \
+    hdf5-devel \
+    gflags-devel \
+    glog-devel \
+    lmdb-devel \
+    openblas* \
+    atlas-devel \
+    GConf2 \
+    gdbm-devel \
+    libffi-devel \
+    libuuid-devel \
+    ncurses-devel \
+    readline-devel \
+    tk-devel \
+    xz-devel \
+    && \
+    updatedb
+
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.2/cmake-3.28.2.tar.gz \
+ && tar xzf cmake-3.28.2.tar.gz \
+ && cd cmake-3.28.2 \
+ && ./bootstrap \
+ && make \
+ && make install
+
+RUN git clone https://github.com/OpenMathLib/OpenBLAS \
+ && cd OpenBLAS \
+ && make \
+ && make install
+
+# GnuGo
+RUN curl -s http://ftp.gnu.org/gnu/gnugo/gnugo-3.8.tar.gz | tar -xz -C . \
+ && cd gnugo-3.8 \
+ && ./configure \
+ && make \
+ && make install
+
+# python3.10
+RUN yum -y install openssl11 openssl11-devel
+
+RUN curl -s https://www.python.org/ftp/python/3.10.13/Python-3.10.13.tgz | tar -xz -C . \
+ && cd Python-3.10.13/ \
+ && export CFLAGS=$(pkg-config --cflags openssl11) \
+ && export LDFLAGS=$(pkg-config --libs openssl11) \
+ && ./configure --enable-optimizations \
+ && make altinstall
+
+RUN ln -s /usr/local/bin/python3.10 /usr/local/bin/python3
+RUN ln -s /usr/local/bin/pip3.10 /usr/local/bin/pip3
+
+RUN pip3 install --upgrade pip
+RUN pip3 --no-cache-dir install tensorflow==2.11.1
+RUN pip3 --no-cache-dir install \
+        numpy \
+        Cython \
+        h5py \
+        sgf \
+        python-jsonrpc \
+        flask \
+        nose \
+        tqdm
+
+WORKDIR /games
+
+RUN mkdir gtp
+COPY . ./gtp/
+#RUN cd gtp/ && python setup.py build_ext -i
+
+COPY docker/docker-entrypoint.sh /
+RUN chown root:root /docker-entrypoint.sh && chmod 700 /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
