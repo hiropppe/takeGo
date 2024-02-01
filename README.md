@@ -5,28 +5,14 @@ CGOS rating does not reach 2600.
 http://www.yss-aya.com/cgos/19x19/cross/take.html  
 http://www.yss-aya.com/cgos/19x19/cross/mishima-0.1.html
 
-
-The following is a note for myself.  
-
-***Preparations for archiving and re-development are underway.***
-
 ## Playing Go
 ### Build container
-gpu container is not working now:-)
 ```
-# CPU machine
 docker build -t bbs -f ./docker/Dockerfile.tensorflow1.3.centos7 .
-
-# GPU machine
-docker build -t bbs -f ./docker/Dockerfile.tensorflow1.3.cuda8.0.cudnn6.centos7 .
 ```
 ### Run GTP Server
 ```
-# CPU machine
 docker run --rm --name bbs -p 5000:5000 bbs gtp -t 2 -lgrf2 --nogpu
-
-# GPU machine
-docker run --rm --gpus all --name bbs -p 5000:5000 bbs gtp -t 10 -lgrf2
 ```
 
 ### Playing with gogui
@@ -43,9 +29,7 @@ python /path/to/takeGo/bbc --host localhost --port 5000
 ### Build
 ```
 docker exec -it bbs bash
-cd /root
-git clone https://github.com/hiropppe/takeGo.git
-cd takeGo
+cd ./gtp
 python setup.py build_ext -i
 ```
 ### Run GTP server
@@ -67,14 +51,6 @@ python bbs \
 ```
 
 ## Training Networks
-### Supervised Learning Policy
-this is not working now:-)
-```
-# convert SGFs
-python bamboo/train/policy/sgf2hdf5_main.py -o /path/to/output/feature_planes.hdf5 -d /path/to/input/sgf/directory
-# run training
-python bamboo/train/policy/keras_supervised_policy_trainer.py train /path/to/weights/saved /path/to/feature_planes.h5
-```
 ### Harvest patterns for rollout and tree policy
 ```
 # Response Pattern (12-point diamond)
