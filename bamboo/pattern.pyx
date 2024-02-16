@@ -2,7 +2,7 @@ from libc.string cimport memset
 
 from libcpp.string cimport string as cppstring
 
-cimport board 
+from . cimport board 
 
 
 cdef unsigned int update_mask[12][3]
@@ -157,9 +157,9 @@ cdef unsigned int pat3_rotate90(unsigned int pat3):
 cdef void print_input_pat3(unsigned int pat3):
     cdef char stone[4]
     cdef list buf = []
-    stone = ['+', '@', 'O', '#']
+    stone = [b'+', b'@', b'O', b'#']
     buf.append("\n")
     buf.append("{:s}{:s}{:s}\n".format(cppstring(1, stone[pat3 & 0x3]), cppstring(1, stone[(pat3 >> 2) & 0x3]), cppstring(1, stone[(pat3 >> 4) & 0x3])))
     buf.append("{:s}*{:s}\n".format(cppstring(1, stone[(pat3 >> 6) & 0x3]), cppstring(1, stone[(pat3 >> 8) & 0x3])))
     buf.append("{:s}{:s}{:s}\n".format(cppstring(1, stone[(pat3 >> 10) & 0x3]), cppstring(1, stone[(pat3 >> 12) & 0x3]), cppstring(1, stone[(pat3 >> 14) & 0x3])))
-    print ''.join(buf)
+    print(''.join(buf))

@@ -26,7 +26,7 @@ from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.board cimport PASS, S_BLACK, S_WHITE
 from bamboo.board cimport game_state_t, pure_board_max, onboard_index
 from bamboo.policy_feature cimport MAX_VALUE_PLANES
-from bamboo.policy_feature cimport policy_feature_t, allocate_feature, initialize_feature, free_feature, update
+from bamboo.policy_feature cimport PolicyFeature, allocate_feature, initialize_feature, free_feature, update
 from bamboo.tree_search cimport tree_node_t
 from bamboo.printer cimport print_board
 
@@ -251,7 +251,7 @@ cdef class GameConverter(object):
 
     cdef:
         int bsize
-        policy_feature_t *feature
+        PolicyFeature feature
         int n_features
         list update_speeds
 

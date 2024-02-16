@@ -54,7 +54,7 @@ extensions = [Extension('bamboo.board', sources=['bamboo/board.pyx'], language="
               Extension('bamboo.test_sgf_util', sources=["bamboo/test_sgf_util.pyx"], language="c++", extra_compile_args=["-std=c++11"])]
 
 core.setup(
-  ext_modules=cythonize(extensions),
+  ext_modules=cythonize(extensions, compiler_directives={'language_level' : "3"}),
   include_dirs=[numpy.get_include(), 'bamboo/include']
 )
 

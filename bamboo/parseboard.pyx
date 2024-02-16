@@ -1,4 +1,4 @@
-cimport board 
+from . cimport board 
 
 from bamboo.rollout_preprocess cimport initialize_rollout 
 

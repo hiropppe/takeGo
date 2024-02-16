@@ -2,7 +2,7 @@ from libcpp.queue cimport queue as cppqueue
 from posix.time cimport timeval
 
 from bamboo.board cimport game_state_t
-from bamboo.policy_feature cimport policy_feature_t
+from bamboo.policy_feature cimport PolicyFeature
 
 cimport openmp
 
@@ -74,8 +74,8 @@ cdef class MCTS:
     cdef bint use_vn
     cdef bint use_rollout
     cdef bint use_tree
-    cdef policy_feature_t *policy_feature
-    cdef policy_feature_t *value_feature
+    cdef PolicyFeature policy_feature
+    cdef PolicyFeature value_feature
     cdef cppqueue[tree_node_t *] policy_network_queue
     cdef cppqueue[tree_node_t *] value_network_queue
     # cdef cppqueue[game_state_t *] game_queue

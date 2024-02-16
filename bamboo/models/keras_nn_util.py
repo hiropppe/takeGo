@@ -3,8 +3,11 @@ import numpy as np
 
 import tensorflow as tf
 
-from tensorflow.contrib.keras.python import keras
-from tensorflow.contrib.keras.python.keras import backend as K
+from tensorflow import keras
+from tensorflow.keras import backend as K
+#from tensorflow.contrib.keras.python import keras
+#from tensorflow.contrib.keras.python.keras import backend as K
+from tensorflow.keras.layers import Layer
 
 
 class NeuralNetBase(object):
@@ -113,7 +116,7 @@ def neuralnet(cls):
     return cls
 
 
-class Bias(keras.engine.topology.Layer):
+class Bias(Layer):
     """Custom keras layer that simply adds a scalar bias to each location in the input
 
     Largely copied from the keras docs:

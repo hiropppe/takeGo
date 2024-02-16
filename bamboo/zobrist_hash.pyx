@@ -11,7 +11,7 @@ from cpprand cimport uniform_int_distribution, mt19937_64, random_device
 
 ctypedef uniform_int_distribution[long long] int_dist
 
-cdef int_dist *randint = new int_dist(0, sys.maxint)
+cdef int_dist *randint = new int_dist(0, sys.maxsize)
 cdef random_device *rand_gen = new random_device()
 cdef int seed = rand_gen[0]()
 cdef mt19937_64 *engine = new mt19937_64(seed)
@@ -22,7 +22,7 @@ cdef int oldest_move = 1
 cdef bint enough_size = True
 
 uct_hash_size = UCT_HASH_SIZE
-uct_hash_limit = UCT_HASH_SIZE * 9 / 10
+uct_hash_limit = UCT_HASH_SIZE * 9 // 10
 used = 0
 
 
@@ -41,7 +41,7 @@ cpdef void set_hash_size(unsigned int new_size):
 
     if not new_size & (new_size-1):
         uct_hash_size = new_size
-        uct_hash_limit = new_size * 9 / 10
+        uct_hash_limit = new_size * 9 // 10
     else:
         printf("Hash size must be 2 ^ n\n")
         for i in range(1, 21):
@@ -164,13 +164,13 @@ cdef bint check_remaining_hash_size() nogil:
 
 
 def test():
-    print uct_hash_size
-    print uct_hash_limit
-    print mt()
+    print(uct_hash_size)
+    print(uct_hash_limit)
+    print(mt())
     initialize_hash()
     for i in range(BOARD_MAX):
-        print hash_bit[i][<int>HASH_PASS]
-        print hash_bit[i][<int>HASH_BLACK]
-        print hash_bit[i][<int>HASH_WHITE]
-        print hash_bit[i][<int>HASH_KO]
-        print shape_bit[i]
+        print(hash_bit[i][<int>HASH_PASS])
+        print(hash_bit[i][<int>HASH_BLACK])
+        print(hash_bit[i][<int>HASH_WHITE])
+        print(hash_bit[i][<int>HASH_KO])
+        print(shape_bit[i])

@@ -15,15 +15,15 @@ from libc.stdio cimport printf
 
 from libcpp.string cimport string as cppstring
 
-cimport pattern as pat
-cimport printer 
-cimport policy_feature
+from . cimport pattern as pat
+from . cimport printer 
+from . cimport policy_feature
 
-from bamboo.zobrist_hash cimport HASH_PASS, HASH_BLACK, HASH_WHITE, HASH_KO
-from bamboo.zobrist_hash cimport hash_bit
-from bamboo.rollout_preprocess cimport MOVE_DISTANCE_MAX
-from bamboo.rollout_preprocess cimport initialize_rollout
-from bamboo.seki cimport check_seki
+from .zobrist_hash cimport HASH_PASS, HASH_BLACK, HASH_WHITE, HASH_KO
+from .zobrist_hash cimport hash_bit
+from .rollout_preprocess cimport MOVE_DISTANCE_MAX
+from .rollout_preprocess cimport initialize_rollout
+from .seki cimport check_seki
 
 
 pure_board_size = PURE_BOARD_SIZE
@@ -724,7 +724,7 @@ cdef void init_line_number():
     board_dis_x = <int *>malloc(board_max * sizeof(int))
     board_dis_y = <int *>malloc(board_max * sizeof(int))
     for y in range(board_start, board_end + 1):
-        for x in range(board_start, board_start + pure_board_size / 2 + 1):
+        for x in range(board_start, board_start + pure_board_size // 2 + 1):
             d = x - (OB_SIZE - 1)
             board_dis_x[POS(x, y, board_size)] = d
             board_dis_x[POS(board_end + OB_SIZE - x, y, board_size)] = d
@@ -995,7 +995,7 @@ cdef void set_board_size(int size):
     board_size = size + 2 * OB_SIZE
     board_max = board_size ** 2
 
-    max_string = pure_board_max * 4 / 5
+    max_string = pure_board_max * 4 // 5
     max_neighbor = max_string
 
     board_start = OB_SIZE

@@ -6,13 +6,13 @@ from libc.stdlib cimport malloc, free
 
 from nose.tools import ok_, eq_
 
-cimport board 
-cimport policy_feature
-cimport parseboard
-cimport printer
+from . cimport board 
+from . cimport policy_feature
+from . cimport parseboard
+from . cimport printer
 
-from bamboo.policy_feature cimport MAX_POLICY_PLANES
-from bamboo.tree_search cimport tree_node_t
+from .policy_feature cimport MAX_POLICY_PLANES
+from .tree_search cimport tree_node_t
 
 
 def test_captured_1():

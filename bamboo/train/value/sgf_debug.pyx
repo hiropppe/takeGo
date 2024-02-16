@@ -7,7 +7,7 @@ cimport numpy as np
 
 from libc.stdlib cimport malloc, free
 
-from bamboo.policy_feature cimport policy_feature_t
+from bamboo.policy_feature cimport PolicyFeature
 from bamboo.policy_feature cimport allocate_feature, initialize_feature, update
 from bamboo.tree_search cimport tree_node_t
 from bamboo.sgf_util cimport SGFMoveIterator
@@ -16,7 +16,7 @@ from bamboo.printer cimport print_board
 
 def print_value(vn_path, sgf, moves=[4, 5, 50, 51, 100, 101, 150, 151, 250, 251, 300, 351]):
     cdef tree_node_t *node
-    cdef policy_feature_t *feature = allocate_feature(49)
+    cdef PolicyFeature feature = allocate_feature(49)
     cdef SGFMoveIterator sgf_iterator
     cdef object sess
 

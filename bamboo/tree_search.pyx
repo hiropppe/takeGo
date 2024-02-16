@@ -6,7 +6,8 @@ import time
 import numpy as np
 import tensorflow as tf
 
-from tensorflow.contrib.keras.python.keras.backend import set_session
+from tensorflow.python.keras import backend as K
+#from tensorflow.contrib.keras.python.keras.backend import set_session
 
 from bamboo.models.keras_dcnn_policy import CNNPolicy
 from bamboo.models.dcnn_resnet_value import inference_agz
@@ -37,7 +38,6 @@ from bamboo.seki cimport check_seki
 from bamboo.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
 from bamboo.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
 from bamboo.policy_feature cimport MAX_POLICY_PLANES, MAX_VALUE_PLANES
-from bamboo.policy_feature cimport policy_feature_t
 from bamboo.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
 from bamboo.rollout_preprocess cimport set_rollout_parameter, set_tree_parameter
 from bamboo.rollout_preprocess cimport set_debug, initialize_rollout, update_rollout, update_planes, \
@@ -363,7 +363,7 @@ cdef class MCTS(object):
         self.pondering_suspended = False
 
     cdef void ponder(self, game_state_t *game, bint extend) nogil:
-        cdef char *stone = ['#', 'B', 'W']
+        cdef char *stone = [b'#', b'B', b'W']
         cdef int playout_limit = PLAYOUT_LIMIT
         cdef double thinking_time = THINKING_TIME_LIMIT
         cdef int i
@@ -1069,7 +1069,7 @@ cdef class MCTS(object):
         printf('>> Set PN Session\n')
         config = tf.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
-        set_session(tf.Session(config=config))
+        K.set_session(tf.Session(config=config))
         pn = CNNPolicy(init_network=True, nogpu=self.nogpu)
         pn.model.load_weights(policy_net)
         self.pn = pn

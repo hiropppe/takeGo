@@ -1,51 +1,49 @@
 from libc.stdlib cimport malloc, free
 
-from nose.tools import ok_, eq_
+from . cimport board 
+from . cimport printer
+from . cimport parseboard
+from . cimport pattern as pat
 
-cimport board 
-cimport printer
-cimport parseboard
-cimport pattern as pat
-
-from bamboo.board cimport STRING_EMPTY_END
+from .board cimport STRING_EMPTY_END
 
 
 def test_set_board_size_9():
     board.set_board_size(9)
 
-    ok_(board.pure_board_size == 9)
-    ok_(board.pure_board_max == 81)
-    ok_(board.board_size == 13)
-    ok_(board.board_max == 169)
-    ok_(board.max_string == 64)
-    ok_(board.max_neighbor == 64)
-    ok_(board.board_start == 2)
-    ok_(board.board_end == 10)
-    ok_(board.string_lib_max == 143)
-    ok_(board.string_pos_max == 143)
-    ok_(board.string_end == 142)
-    ok_(board.liberty_end == 142)
-    ok_(board.max_records == 243)
-    ok_(board.max_moves == 242)
+    assert (board.pure_board_size == 9)
+    assert (board.pure_board_max == 81)
+    assert (board.board_size == 13)
+    assert (board.board_max == 169)
+    assert (board.max_string == 64)
+    assert (board.max_neighbor == 64)
+    assert (board.board_start == 2)
+    assert (board.board_end == 10)
+    assert (board.string_lib_max == 143)
+    assert (board.string_pos_max == 143)
+    assert (board.string_end == 142)
+    assert (board.liberty_end == 142)
+    assert (board.max_records == 243)
+    assert (board.max_moves == 242)
 
 
 def test_set_board_size_19():
     board.set_board_size(19)
 
-    ok_(board.pure_board_size == 19)
-    ok_(board.pure_board_max == 361)
-    ok_(board.board_size == 23)
-    ok_(board.board_max == 529)
-    ok_(board.max_string == 288)
-    ok_(board.max_neighbor == 288)
-    ok_(board.board_start == 2)
-    ok_(board.board_end == 20)
-    ok_(board.string_lib_max == 483)
-    ok_(board.string_pos_max == 483)
-    ok_(board.string_end == 482)
-    ok_(board.liberty_end == 482)
-    ok_(board.max_records == 1083)
-    ok_(board.max_moves == 1082)
+    assert (board.pure_board_size == 19)
+    assert (board.pure_board_max == 361)
+    assert (board.board_size == 23)
+    assert (board.board_max == 529)
+    assert (board.max_string == 288)
+    assert (board.max_neighbor == 288)
+    assert (board.board_start == 2)
+    assert (board.board_end == 20)
+    assert (board.string_lib_max == 483)
+    assert (board.string_pos_max == 483)
+    assert (board.string_end == 482)
+    assert (board.liberty_end == 482)
+    assert (board.max_records == 1083)
+    assert (board.max_moves == 1082)
 
 
 def test_add_liberty_to_isolated_one():
@@ -61,20 +59,20 @@ def test_add_liberty_to_isolated_one():
     neighbor4 = board.neighbor4_pos[origin]
 
     board.add_liberty(string, neighbor4[0], 0)
-    ok_(string.lib[0] == neighbor4[0])
-    ok_(string.libs == 1)
+    assert (string.lib[0] == neighbor4[0])
+    assert (string.libs == 1)
 
     board.add_liberty(string, neighbor4[1], neighbor4[0])
-    ok_(string.lib[neighbor4[0]] == neighbor4[1])
-    ok_(string.libs == 2)
+    assert (string.lib[neighbor4[0]] == neighbor4[1])
+    assert (string.libs == 2)
 
     board.add_liberty(string, neighbor4[2], neighbor4[1])
-    ok_(string.lib[neighbor4[1]] == neighbor4[2])
-    ok_(string.libs == 3)
+    assert (string.lib[neighbor4[1]] == neighbor4[2])
+    assert (string.libs == 3)
 
     board.add_liberty(string, neighbor4[3], neighbor4[2])
-    ok_(string.lib[neighbor4[2]] == neighbor4[3])
-    ok_(string.libs == 4)
+    assert (string.lib[neighbor4[2]] == neighbor4[3])
+    assert (string.libs == 4)
 
     board.free_game(game)
 
@@ -97,19 +95,19 @@ def test_remove_liberty_of_isolated_one():
     south = neighbor4[3]
 
     board.remove_liberty(string, north)
-    ok_(string.lib[north] == 0)
-    ok_(string.lib[0] == west)
+    assert (string.lib[north] == 0)
+    assert (string.lib[0] == west)
 
     board.remove_liberty(string, west)
-    ok_(string.lib[west] == 0)
-    ok_(string.lib[0] == east)
+    assert (string.lib[west] == 0)
+    assert (string.lib[0] == east)
 
     board.remove_liberty(string, east)
-    ok_(string.lib[east] == 0)
-    ok_(string.lib[0] == south)
+    assert (string.lib[east] == 0)
+    assert (string.lib[0] == south)
 
     board.remove_liberty(string, south)
-    ok_(string.lib[south] == 0)
+    assert (string.lib[south] == 0)
 
     board.free_game(game)
 
@@ -124,15 +122,15 @@ def test_make_string_of_isolated_one():
     board.make_string(game, pos, board.S_BLACK)
     new_string = &game.string[1]
 
-    eq_(new_string.lib[0], pos - board.board_size)
-    eq_(new_string.lib[pos - board.board_size], pos - 1)
-    eq_(new_string.lib[pos - 1], pos + 1)
-    eq_(new_string.lib[pos + 1], pos + board.board_size)
-    eq_(new_string.lib[pos + board.board_size], board.string_lib_max - 1)
-    eq_(new_string.libs, 4)
+    assert (new_string.lib[0] == pos - board.board_size)
+    assert (new_string.lib[pos - board.board_size] == pos - 1)
+    assert (new_string.lib[pos - 1] == pos + 1)
+    assert (new_string.lib[pos + 1] == pos + board.board_size)
+    assert (new_string.lib[pos + board.board_size] == board.string_lib_max - 1)
+    assert (new_string.libs == 4)
 
-    eq_(game.string_id[pos], 1)
-    eq_(game.string_next[pos], board.string_pos_max - 1)
+    assert (game.string_id[pos] == 1)
+    assert (game.string_next[pos] == board.string_pos_max - 1)
 
     board.free_game(game)
 
@@ -155,18 +153,18 @@ def test_add_neighbor_to_isolated_one():
     string_id = game.string_id[pos]
     neighbor_string_id = game.string_id[south]
 
-    ok_(string_id == 1)
-    ok_(neighbor_string_id == 2)
-    ok_(game.string[1].neighbor[0] == board.NEIGHBOR_END)
-    ok_(game.string[2].neighbor[0] == board.NEIGHBOR_END)
+    assert (string_id == 1)
+    assert (neighbor_string_id == 2)
+    assert (game.string[1].neighbor[0] == board.NEIGHBOR_END)
+    assert (game.string[2].neighbor[0] == board.NEIGHBOR_END)
 
     board.add_neighbor(&game.string[string_id], neighbor_string_id, 0)
     board.add_neighbor(&game.string[neighbor_string_id], string_id, 0)
 
-    ok_(game.string[1].neighbor[0] == 2)
-    ok_(game.string[1].neighbor[2] == board.NEIGHBOR_END)
-    ok_(game.string[2].neighbor[0] == 1)
-    ok_(game.string[2].neighbor[1] == board.NEIGHBOR_END)
+    assert (game.string[1].neighbor[0] == 2)
+    assert (game.string[1].neighbor[2] == board.NEIGHBOR_END)
+    assert (game.string[2].neighbor[0] == 1)
+    assert (game.string[2].neighbor[1] == board.NEIGHBOR_END)
 
     board.free_game(game)
 
@@ -180,15 +178,15 @@ def test_add_stone_to_string_less_position():
 
     board.make_string(game, origin, board.S_BLACK)
 
-    ok_(game.string_id[origin] == 1)
+    assert (game.string_id[origin] == 1)
 
     string = &game.string[1]
     board.add_stone_to_string(game, string, add_stone, head)
 
-    ok_(string.size == 2)
-    ok_(string.origin == add_stone)
-    ok_(game.string_next[add_stone] == origin)
-    ok_(game.string_next[origin] == board.string_pos_max - 1)
+    assert (string.size == 2)
+    assert (string.origin == add_stone)
+    assert (game.string_next[add_stone] == origin)
+    assert (game.string_next[origin] == board.string_pos_max - 1)
 
     board.free_game(game)
 
@@ -202,14 +200,14 @@ def test_add_stone_to_string_larger_position_from_zero_head():
 
     board.make_string(game, origin, board.S_BLACK)
 
-    ok_(game.string_id[origin] == 1)
+    assert (game.string_id[origin] == 1)
 
     string = &game.string[1]
     board.add_stone_to_string(game, string, add_stone, head)
 
-    ok_(string.size == 2)
-    ok_(game.string_next[origin] == add_stone)
-    ok_(game.string_next[add_stone] == board.string_pos_max - 1)
+    assert (string.size == 2)
+    assert (game.string_next[origin] == add_stone)
+    assert (game.string_next[add_stone] == board.string_pos_max - 1)
 
     board.free_game(game)
 
@@ -228,19 +226,19 @@ def test_add_stone_to_isolated_stone():
 
     board.make_string(game, origin, board.S_BLACK)
 
-    ok_(game.string_id[origin] == 1)
+    assert (game.string_id[origin] == 1)
     
     string = &game.string[1]
-    ok_(string.libs == 4)
-    ok_(string.size == 1)
+    assert (string.libs == 4)
+    assert (string.size == 1)
 
     board.add_stone(game, add_pos, board.S_BLACK, 1)
 
-    ok_(string.libs == 8)
-    ok_(string.size == 2)
-    ok_(game.string_id[add_pos] == 1)
-    ok_(game.string_next[origin] == add_pos)
-    ok_(game.string_next[add_pos] == board.string_pos_max - 1)
+    assert (string.libs == 8)
+    assert (string.size == 2)
+    assert (game.string_id[add_pos] == 1)
+    assert (game.string_next[origin] == add_pos)
+    assert (game.string_next[add_pos] == board.string_pos_max - 1)
 
     board.free_game(game)
 
@@ -257,25 +255,25 @@ def test_merge_string_two():
     board.make_string(game, first, board.S_BLACK)
     board.make_string(game, second, board.S_BLACK)
 
-    ok_(game.string_id[first], 1)
-    ok_(game.string_id[second], 2)
+    assert (game.string_id[first], 1)
+    assert (game.string_id[second], 2)
 
-    ok_(game.string_next[first], board.string_pos_max - 1)
-    ok_(game.string_next[second], board.string_pos_max - 1)
+    assert (game.string_next[first], board.string_pos_max - 1)
+    assert (game.string_next[second], board.string_pos_max - 1)
 
-    ok_(game.string[1].neighbor[0] == board.NEIGHBOR_END)
-    ok_(game.string[2].neighbor[0] == board.NEIGHBOR_END)
+    assert (game.string[1].neighbor[0] == board.NEIGHBOR_END)
+    assert (game.string[2].neighbor[0] == board.NEIGHBOR_END)
 
-    ok_(game.string[1].lib[first + board.board_size] == board.string_lib_max - 1)
-    ok_(game.string[2].lib[second + board.board_size] == board.string_lib_max - 1)
+    assert (game.string[1].lib[first + board.board_size] == board.string_lib_max - 1)
+    assert (game.string[2].lib[second + board.board_size] == board.string_lib_max - 1)
 
     string[0] = &game.string[2]
 
     board.add_stone(game, add_pos, board.S_BLACK, 1)
     
-    ok_(game.string_next[first], add_pos)
-    ok_(game.string_next[add_pos], board.string_pos_max - 1)
-    ok_(game.string_next[second], board.string_pos_max - 1)
+    assert (game.string_next[first], add_pos)
+    assert (game.string_next[add_pos], board.string_pos_max - 1)
+    assert (game.string_next[second], board.string_pos_max - 1)
 
     board.merge_string(game, &game.string[1], string, 1)
 
@@ -296,31 +294,31 @@ def test_merge_string_three():
     board.make_string(game, second, board.S_BLACK)
     board.make_string(game, third, board.S_BLACK)
 
-    ok_(game.string_id[first], 1)
-    ok_(game.string_id[second], 2)
-    ok_(game.string_id[third], 3)
+    assert (game.string_id[first], 1)
+    assert (game.string_id[second], 2)
+    assert (game.string_id[third], 3)
 
-    ok_(game.string_next[first], board.string_pos_max - 1)
-    ok_(game.string_next[second], board.string_pos_max - 1)
-    ok_(game.string_next[third], board.string_pos_max - 1)
+    assert (game.string_next[first], board.string_pos_max - 1)
+    assert (game.string_next[second], board.string_pos_max - 1)
+    assert (game.string_next[third], board.string_pos_max - 1)
 
-    ok_(game.string[1].neighbor[0] == board.NEIGHBOR_END)
-    ok_(game.string[2].neighbor[0] == board.NEIGHBOR_END)
-    ok_(game.string[3].neighbor[0] == board.NEIGHBOR_END)
+    assert (game.string[1].neighbor[0] == board.NEIGHBOR_END)
+    assert (game.string[2].neighbor[0] == board.NEIGHBOR_END)
+    assert (game.string[3].neighbor[0] == board.NEIGHBOR_END)
 
-    ok_(game.string[1].lib[first + board.board_size] == board.string_lib_max - 1)
-    ok_(game.string[2].lib[second + board.board_size] == board.string_lib_max - 1)
-    ok_(game.string[3].lib[third + board.board_size] == board.string_lib_max - 1)
+    assert (game.string[1].lib[first + board.board_size] == board.string_lib_max - 1)
+    assert (game.string[2].lib[second + board.board_size] == board.string_lib_max - 1)
+    assert (game.string[3].lib[third + board.board_size] == board.string_lib_max - 1)
 
     string[0] = &game.string[2]
     string[1] = &game.string[3]
 
     board.add_stone(game, add_pos, board.S_BLACK, 1)
     
-    ok_(game.string_next[first], add_pos)
-    ok_(game.string_next[add_pos], board.string_pos_max - 1)
-    ok_(game.string_next[second], board.string_pos_max - 1)
-    ok_(game.string_next[third], board.string_pos_max - 1)
+    assert (game.string_next[first], add_pos)
+    assert (game.string_next[add_pos], board.string_pos_max - 1)
+    assert (game.string_next[second], board.string_pos_max - 1)
+    assert (game.string_next[third], board.string_pos_max - 1)
 
     board.merge_string(game, &game.string[1], string, 1)
 
@@ -335,8 +333,8 @@ def test_is_legal_stone_exists():
 
     board.put_stone(game, pos, board.S_BLACK)
 
-    ok_(board.is_legal(game, pos, board.S_BLACK) == False)
-    ok_(board.is_legal(game, pos, board.S_WHITE) == False)
+    assert (board.is_legal(game, pos, board.S_BLACK) == False)
+    assert (board.is_legal(game, pos, board.S_WHITE) == False)
 
     board.free_game(game)
 
@@ -352,7 +350,7 @@ def test_is_legal_nb4_empty_is_zero():
                                  ". . . . . . .|"
                                  ". . . . . . .|")
 
-    eq_(board.is_legal(game, moves['a'], board.S_WHITE), False)
+    assert (board.is_legal(game, moves['a'], board.S_WHITE) == False)
     board.free_game(game)
 
 
@@ -367,7 +365,7 @@ def test_is_legal_nb4_empty_is_zero_edge():
                                  ". . . . . . .|"
                                  ". . . . . . .|")
 
-    eq_(board.is_legal(game, moves['a'], board.S_WHITE), False)
+    assert (board.is_legal(game, moves['a'], board.S_WHITE) == False)
     board.free_game(game)
 
 
@@ -386,80 +384,80 @@ def test_string_add_and_remove_empty():
     a = moves['a']
     board.put_stone(game, a, board.S_BLACK)
     string1 = &game.string[1]
-    eq_(string1.empties, 8)
-    eq_(string1.empty[0], a-board.board_size)
-    eq_(string1.empty[a-board.board_size], a-1)
-    eq_(string1.empty[a-1], a+1)
-    eq_(string1.empty[a+1], a+board.board_size)
-    eq_(string1.empty[a+board.board_size], a-board.board_size-1)
-    eq_(string1.empty[a-board.board_size-1], a-board.board_size+1)
-    eq_(string1.empty[a-board.board_size+1], a+board.board_size-1)
-    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
-    eq_(string1.empty[a+board.board_size+1], STRING_EMPTY_END)
+    assert (string1.empties == 8)
+    assert (string1.empty[0] == a-board.board_size)
+    assert (string1.empty[a-board.board_size] == a-1)
+    assert (string1.empty[a-1] == a+1)
+    assert (string1.empty[a+1] == a+board.board_size)
+    assert (string1.empty[a+board.board_size] == a-board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a-board.board_size+1)
+    assert (string1.empty[a-board.board_size+1] == a+board.board_size-1)
+    assert (string1.empty[a+board.board_size-1] == a+board.board_size+1)
+    assert (string1.empty[a+board.board_size+1] == STRING_EMPTY_END)
 
     # put B[b]
     b = moves['b']
     board.put_stone(game, b, board.S_BLACK)
-    eq_(string1.empties, 10)
-    eq_(string1.empty[0], a-board.board_size)
-    eq_(string1.empty[a-board.board_size], a-1)
-    eq_(string1.empty[a-1], a+1)
-    eq_(string1.empty[a+1], a-board.board_size-1)
-    eq_(string1.empty[a-board.board_size-1], a+board.board_size*2-1)
-    eq_(string1.empty[a+board.board_size*2-1], a-board.board_size+1)
-    eq_(string1.empty[a-board.board_size+1], a+board.board_size*2+1)
-    eq_(string1.empty[a+board.board_size*2+1], a+board.board_size-1)
-    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
-    eq_(string1.empty[a+board.board_size+1], a+board.board_size*2)
-    eq_(string1.empty[a+board.board_size*2], STRING_EMPTY_END)
+    assert (string1.empties == 10)
+    assert (string1.empty[0] == a-board.board_size)
+    assert (string1.empty[a-board.board_size] == a-1)
+    assert (string1.empty[a-1] == a+1)
+    assert (string1.empty[a+1] == a-board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a+board.board_size*2-1)
+    assert (string1.empty[a+board.board_size*2-1] == a-board.board_size+1)
+    assert (string1.empty[a-board.board_size+1] == a+board.board_size*2+1)
+    assert (string1.empty[a+board.board_size*2+1] == a+board.board_size-1)
+    assert (string1.empty[a+board.board_size-1] == a+board.board_size+1)
+    assert (string1.empty[a+board.board_size+1] == a+board.board_size*2)
+    assert (string1.empty[a+board.board_size*2] == STRING_EMPTY_END)
 
     # put W[c]
     c = moves['c']
     board.put_stone(game, c, board.S_WHITE)
-    eq_(string1.empties, 9)
-    eq_(string1.empty[0], a-board.board_size)
-    eq_(string1.empty[a-board.board_size], a+1)
-    eq_(string1.empty[a+1], a-board.board_size-1)
-    eq_(string1.empty[a-board.board_size-1], a+board.board_size*2-1)
-    eq_(string1.empty[a+board.board_size*2-1], a-board.board_size+1)
-    eq_(string1.empty[a-board.board_size+1], a+board.board_size*2+1)
-    eq_(string1.empty[a+board.board_size*2+1], a+board.board_size-1)
-    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
-    eq_(string1.empty[a+board.board_size+1], a+board.board_size*2)
-    eq_(string1.empty[a+board.board_size*2], STRING_EMPTY_END)
+    assert (string1.empties == 9)
+    assert (string1.empty[0] == a-board.board_size)
+    assert (string1.empty[a-board.board_size] == a+1)
+    assert (string1.empty[a+1] == a-board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a+board.board_size*2-1)
+    assert (string1.empty[a+board.board_size*2-1] == a-board.board_size+1)
+    assert (string1.empty[a-board.board_size+1] == a+board.board_size*2+1)
+    assert (string1.empty[a+board.board_size*2+1] == a+board.board_size-1)
+    assert (string1.empty[a+board.board_size-1] == a+board.board_size+1)
+    assert (string1.empty[a+board.board_size+1] == a+board.board_size*2)
+    assert (string1.empty[a+board.board_size*2] == STRING_EMPTY_END)
     string2 = &game.string[2]
-    eq_(string2.empties, 6)
-    eq_(string2.empty[0], c-board.board_size)
-    eq_(string2.empty[c-board.board_size], c-1)
-    eq_(string2.empty[c-1], c+board.board_size)
-    eq_(string2.empty[c+board.board_size], c-board.board_size-1)
-    eq_(string2.empty[c-board.board_size-1], c-board.board_size+1)
-    eq_(string2.empty[c-board.board_size+1], c+board.board_size-1)
-    eq_(string2.empty[c+board.board_size-1], STRING_EMPTY_END)
+    assert (string2.empties == 6)
+    assert (string2.empty[0] == c-board.board_size)
+    assert (string2.empty[c-board.board_size] == c-1)
+    assert (string2.empty[c-1] == c+board.board_size)
+    assert (string2.empty[c+board.board_size] == c-board.board_size-1)
+    assert (string2.empty[c-board.board_size-1] == c-board.board_size+1)
+    assert (string2.empty[c-board.board_size+1] == c+board.board_size-1)
+    assert (string2.empty[c+board.board_size-1] == STRING_EMPTY_END)
 
     # put W[d]
     d = moves['d']
     board.put_stone(game, d, board.S_WHITE)
-    eq_(string1.empties, 8)
-    eq_(string1.empty[0], a-board.board_size)
-    eq_(string1.empty[a-board.board_size], a+1)
-    eq_(string1.empty[a+1], a-board.board_size-1)
-    eq_(string1.empty[a-board.board_size-1], a+board.board_size*2-1)
-    eq_(string1.empty[a+board.board_size*2-1], a+board.board_size*2+1)
-    eq_(string1.empty[a+board.board_size*2+1], a+board.board_size-1)
-    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
-    eq_(string1.empty[a+board.board_size+1], a+board.board_size*2)
-    eq_(string1.empty[a+board.board_size*2], STRING_EMPTY_END)
+    assert (string1.empties == 8)
+    assert (string1.empty[0] == a-board.board_size)
+    assert (string1.empty[a-board.board_size] == a+1)
+    assert (string1.empty[a+1] == a-board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a+board.board_size*2-1)
+    assert (string1.empty[a+board.board_size*2-1] == a+board.board_size*2+1)
+    assert (string1.empty[a+board.board_size*2+1] == a+board.board_size-1)
+    assert (string1.empty[a+board.board_size-1] == a+board.board_size+1)
+    assert (string1.empty[a+board.board_size+1] == a+board.board_size*2)
+    assert (string1.empty[a+board.board_size*2] == STRING_EMPTY_END)
     string3 = &game.string[3]
-    eq_(string3.empties, 7)
-    eq_(string3.empty[0], d-board.board_size)
-    eq_(string3.empty[d-board.board_size], d-1)
-    eq_(string3.empty[d-1], d+1)
-    eq_(string3.empty[d+1], d+board.board_size)
-    eq_(string3.empty[d+board.board_size], d-board.board_size-1)
-    eq_(string3.empty[d-board.board_size-1], d-board.board_size+1)
-    eq_(string3.empty[d-board.board_size+1], d+board.board_size+1)
-    eq_(string3.empty[d+board.board_size+1], STRING_EMPTY_END)
+    assert (string3.empties == 7)
+    assert (string3.empty[0] == d-board.board_size)
+    assert (string3.empty[d-board.board_size] == d-1)
+    assert (string3.empty[d-1] == d+1)
+    assert (string3.empty[d+1] == d+board.board_size)
+    assert (string3.empty[d+board.board_size] == d-board.board_size-1)
+    assert (string3.empty[d-board.board_size-1] == d-board.board_size+1)
+    assert (string3.empty[d-board.board_size+1] == d+board.board_size+1)
+    assert (string3.empty[d+board.board_size+1] == STRING_EMPTY_END)
 
 
 def test_string_merge_empty():
@@ -477,102 +475,102 @@ def test_string_merge_empty():
     a = moves['a']
     board.put_stone(game, a, board.S_BLACK)
     string1 = &game.string[1]
-    eq_(string1.empties, 8)
-    eq_(string1.empty[0], a-board.board_size)
-    eq_(string1.empty[a-board.board_size], a-1)
-    eq_(string1.empty[a-1], a+1)
-    eq_(string1.empty[a+1], a+board.board_size)
-    eq_(string1.empty[a+board.board_size], a-board.board_size-1)
-    eq_(string1.empty[a-board.board_size-1], a-board.board_size+1)
-    eq_(string1.empty[a-board.board_size+1], a+board.board_size-1)
-    eq_(string1.empty[a+board.board_size-1], a+board.board_size+1)
-    eq_(string1.empty[a+board.board_size+1], STRING_EMPTY_END)
+    assert (string1.empties == 8)
+    assert (string1.empty[0] == a-board.board_size)
+    assert (string1.empty[a-board.board_size] == a-1)
+    assert (string1.empty[a-1] == a+1)
+    assert (string1.empty[a+1] == a+board.board_size)
+    assert (string1.empty[a+board.board_size] == a-board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a-board.board_size+1)
+    assert (string1.empty[a-board.board_size+1] == a+board.board_size-1)
+    assert (string1.empty[a+board.board_size-1] == a+board.board_size+1)
+    assert (string1.empty[a+board.board_size+1] == STRING_EMPTY_END)
 
     # put B[b]
     b = moves['b']
     board.put_stone(game, b, board.S_BLACK)
     string2 = &game.string[2]
-    eq_(string2.empties, 7)
-    eq_(string2.empty[0], b-board.board_size)
-    eq_(string2.empty[b-board.board_size], b-1)
-    eq_(string2.empty[b-1], b+1)
-    eq_(string2.empty[b+1], b+board.board_size)
-    eq_(string2.empty[b+board.board_size], b-board.board_size-1)
-    eq_(string2.empty[b-board.board_size-1], b+board.board_size-1)
-    eq_(string2.empty[b+board.board_size-1], b+board.board_size+1)
-    eq_(string1.empties, 7)
-    eq_(string1.empty[0], a-board.board_size)
-    eq_(string1.empty[a-board.board_size], a-1)
-    eq_(string1.empty[a-1], a+1)
-    eq_(string1.empty[a+1], a+board.board_size)
-    eq_(string1.empty[a+board.board_size], a-board.board_size-1)
-    eq_(string1.empty[a-board.board_size-1], a-board.board_size+1)
-    eq_(string1.empty[a-board.board_size+1], a+board.board_size+1)
-    eq_(string1.empty[a+board.board_size+1], STRING_EMPTY_END)
-    eq_(string1.empty[a+board.board_size-1], 0) # removed by 'b'
+    assert (string2.empties == 7)
+    assert (string2.empty[0] == b-board.board_size)
+    assert (string2.empty[b-board.board_size] == b-1)
+    assert (string2.empty[b-1] == b+1)
+    assert (string2.empty[b+1] == b+board.board_size)
+    assert (string2.empty[b+board.board_size] == b-board.board_size-1)
+    assert (string2.empty[b-board.board_size-1] == b+board.board_size-1)
+    assert (string2.empty[b+board.board_size-1] == b+board.board_size+1)
+    assert (string1.empties == 7)
+    assert (string1.empty[0] == a-board.board_size)
+    assert (string1.empty[a-board.board_size] == a-1)
+    assert (string1.empty[a-1] == a+1)
+    assert (string1.empty[a+1] == a+board.board_size)
+    assert (string1.empty[a+board.board_size] == a-board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a-board.board_size+1)
+    assert (string1.empty[a-board.board_size+1] == a+board.board_size+1)
+    assert (string1.empty[a+board.board_size+1] == STRING_EMPTY_END)
+    assert (string1.empty[a+board.board_size-1] == 0) # removed by 'b'
 
     # put B[c]
     c = moves['c']
     board.put_stone(game, c, board.S_BLACK)
     string3 = &game.string[3]
-    eq_(string3.empties, 7)
-    eq_(string3.empty[0], c-board.board_size)
-    eq_(string3.empty[c-board.board_size], c-1)
-    eq_(string3.empty[c-1], c+1)
-    eq_(string3.empty[c+1], c+board.board_size)
-    eq_(string3.empty[c+board.board_size], c-board.board_size+1)
-    eq_(string3.empty[c-board.board_size+1], c+board.board_size-1)
-    eq_(string3.empty[c+board.board_size-1], c+board.board_size+1)
-    eq_(string1.empties, 6)
-    eq_(string1.empty[0], a-board.board_size)
-    eq_(string1.empty[a-board.board_size], a-1)
-    eq_(string1.empty[a-1], a+1)
-    eq_(string1.empty[a+1], a+board.board_size)
-    eq_(string1.empty[a+board.board_size], a-board.board_size-1)
-    eq_(string1.empty[a-board.board_size-1], a-board.board_size+1)
-    eq_(string1.empty[a-board.board_size+1], STRING_EMPTY_END)
-    eq_(string1.empty[a+board.board_size-1], 0) # removed by 'c'
+    assert (string3.empties == 7)
+    assert (string3.empty[0] == c-board.board_size)
+    assert (string3.empty[c-board.board_size] == c-1)
+    assert (string3.empty[c-1] == c+1)
+    assert (string3.empty[c+1] == c+board.board_size)
+    assert (string3.empty[c+board.board_size] == c-board.board_size+1)
+    assert (string3.empty[c-board.board_size+1] == c+board.board_size-1)
+    assert (string3.empty[c+board.board_size-1] == c+board.board_size+1)
+    assert (string1.empties == 6)
+    assert (string1.empty[0] == a-board.board_size)
+    assert (string1.empty[a-board.board_size] == a-1)
+    assert (string1.empty[a-1] == a+1)
+    assert (string1.empty[a+1] == a+board.board_size)
+    assert (string1.empty[a+board.board_size] == a-board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a-board.board_size+1)
+    assert (string1.empty[a-board.board_size+1] == STRING_EMPTY_END)
+    assert (string1.empty[a+board.board_size-1] == 0) # removed by 'c'
 
     # put B[d]
     d = moves['d']
     board.put_stone(game, d, board.S_BLACK)
     string1 = &game.string[1]
-    eq_(string1.empties, 8)
-    eq_(string1.empty[0], d-board.board_size)
-    eq_(string1.empty[d-board.board_size], d+board.board_size-1)
-    eq_(string1.empty[d+board.board_size-1], d+board.board_size+1)
-    eq_(string1.empty[d+board.board_size+1], d+board.board_size*2)
-    eq_(string1.empty[d+board.board_size*2], d-1)
-    eq_(string1.empty[d-1], d+1)
-    eq_(string1.empty[d+1], d-board.board_size-1)
-    eq_(string1.empty[d-board.board_size-1], d-board.board_size+1)
-    eq_(string1.empty[d-board.board_size+1], STRING_EMPTY_END)
+    assert (string1.empties == 8)
+    assert (string1.empty[0] == d-board.board_size)
+    assert (string1.empty[d-board.board_size] == d+board.board_size-1)
+    assert (string1.empty[d+board.board_size-1] == d+board.board_size+1)
+    assert (string1.empty[d+board.board_size+1] == d+board.board_size*2)
+    assert (string1.empty[d+board.board_size*2] == d-1)
+    assert (string1.empty[d-1] == d+1)
+    assert (string1.empty[d+1] == d-board.board_size-1)
+    assert (string1.empty[d-board.board_size-1] == d-board.board_size+1)
+    assert (string1.empty[d-board.board_size+1] == STRING_EMPTY_END)
 
     # put B[e]
     e = moves['e']
     board.put_stone(game, e, board.S_BLACK)
     string1 = &game.string[1]
-    eq_(string1.empties, 16)
-    eq_(string1.empty[0], e+board.board_size)
-    eq_(string1.empty[e+board.board_size], e-board.board_size*3)
-    eq_(string1.empty[e-board.board_size*3], e+board.board_size+2)
-    eq_(string1.empty[e+board.board_size+2], e-board.board_size-1)
-    eq_(string1.empty[e-board.board_size-1], e-2)
-    eq_(string1.empty[e-2], e-board.board_size+1)
-    eq_(string1.empty[e-board.board_size+1], e-board.board_size*2-1)
-    eq_(string1.empty[e-board.board_size*2-1], e+2)
-    eq_(string1.empty[e+2], e+board.board_size-1)
-    eq_(string1.empty[e+board.board_size-1], e-board.board_size*2+1)
-    eq_(string1.empty[e-board.board_size*2+1], e-board.board_size*3-1)
-    eq_(string1.empty[e-board.board_size*3-1], e-board.board_size-2)
-    eq_(string1.empty[e-board.board_size-2], e+board.board_size-2)
-    eq_(string1.empty[e+board.board_size-2], e+board.board_size+1)
-    eq_(string1.empty[e-board.board_size*3+1], e-board.board_size+2)
-    eq_(string1.empty[e-board.board_size+2], STRING_EMPTY_END)
+    assert (string1.empties == 16)
+    assert (string1.empty[0] == e+board.board_size)
+    assert (string1.empty[e+board.board_size] == e-board.board_size*3)
+    assert (string1.empty[e-board.board_size*3] == e+board.board_size+2)
+    assert (string1.empty[e+board.board_size+2] == e-board.board_size-1)
+    assert (string1.empty[e-board.board_size-1] == e-2)
+    assert (string1.empty[e-2] == e-board.board_size+1)
+    assert (string1.empty[e-board.board_size+1] == e-board.board_size*2-1)
+    assert (string1.empty[e-board.board_size*2-1] == e+2)
+    assert (string1.empty[e+2] == e+board.board_size-1)
+    assert (string1.empty[e+board.board_size-1] == e-board.board_size*2+1)
+    assert (string1.empty[e-board.board_size*2+1] == e-board.board_size*3-1)
+    assert (string1.empty[e-board.board_size*3-1] == e-board.board_size-2)
+    assert (string1.empty[e-board.board_size-2] == e+board.board_size-2)
+    assert (string1.empty[e+board.board_size-2] == e+board.board_size+1)
+    assert (string1.empty[e-board.board_size*3+1] == e-board.board_size+2)
+    assert (string1.empty[e-board.board_size+2] == STRING_EMPTY_END)
 
-    eq_(string1.flag, True)
-    eq_(string2.flag, False)
-    eq_(string3.flag, False)
+    assert (string1.flag == True)
+    assert (string2.flag == False)
+    assert (string3.flag == False)
 
     board.free_game(game)
 
@@ -597,14 +595,14 @@ def test_ko():
     board.put_stone(game, moves['b'], game.current_color)
     game.current_color = board.FLIP_COLOR(game.current_color)
 
-    eq_(board.is_legal(game, moves['a'], game.current_color), False)
+    assert (board.is_legal(game, moves['a'], game.current_color) == False)
 
     board.put_stone(game, moves['c'], game.current_color)
     game.current_color = board.FLIP_COLOR(game.current_color)
     board.put_stone(game, moves['d'], game.current_color)
     game.current_color = board.FLIP_COLOR(game.current_color)
 
-    eq_(board.is_legal(game, moves['a'], game.current_color), True)
+    assert (board.is_legal(game, moves['a'], game.current_color) == True)
 
     board.free_game(game)
 
@@ -627,7 +625,7 @@ def test_ko():
     board.put_stone(game, moves['b'], game.current_color)
     game.current_color = board.FLIP_COLOR(game.current_color)
 
-    eq_(board.is_legal(game, moves['a'], game.current_color), False)
+    assert (board.is_legal(game, moves['a'], game.current_color) == False)
 
 
 cdef board.game_state_t* __initialize_game(int board_size=9):

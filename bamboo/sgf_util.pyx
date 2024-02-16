@@ -199,7 +199,7 @@ cdef void save_gamestate_to_sgf(game_state_t *game,
                                 white_player_name):
     """Creates a simplified sgf for viewing playouts or positions
     """
-    cdef char *stone = ['+', 'B', 'W']
+    cdef char *stone = [b'+', b'B', b'W']
     cdef int i
     cdef move_t move
     cdef int pos, x, y, color

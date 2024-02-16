@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #cython: boundscheck=False
 #cython: wraparound=False
 
@@ -11,42 +10,49 @@ from libc.string cimport memset, memcpy
 from libc.stdint cimport intptr_t
 from libc.stdio cimport printf
 
-cimport board 
-cimport printer
+from . cimport board 
+from . cimport printer
 
-from bamboo.board cimport PURE_BOARD_MAX, LIBERTY_END, NEIGHBOR_END
-from bamboo.board cimport NORTH, WEST, EAST, SOUTH
-from bamboo.board cimport board_size, liberty_end, string_end, onboard_index, board_dis_x, board_dis_y
-from bamboo.board cimport is_true_eye, get_neighbor4
-from bamboo.pattern cimport pat3
-from bamboo.tree_search cimport tree_node_t 
+from .board cimport PURE_BOARD_MAX, LIBERTY_END, NEIGHBOR_END
+from .board cimport NORTH, WEST, EAST, SOUTH
+from .board cimport board_size, liberty_end, string_end, onboard_index, board_dis_x, board_dis_y
+from .board cimport is_true_eye, get_neighbor4
+from .board cimport game_state_t
+from .pattern cimport pat3
+from .tree_search cimport tree_node_t 
 
 
-cdef policy_feature_t *allocate_feature(int n_planes):
-    cdef policy_feature_t *feature
-    cdef int i
+cdef PolicyFeature allocate_feature(int n_planes):
+    cdef PolicyFeature feature
 
-    feature = <policy_feature_t *>malloc(sizeof(policy_feature_t))
-    memset(feature, 0, sizeof(policy_feature_t))
-
+    feature = PolicyFeature()
     feature.planes = np.zeros((n_planes, board.pure_board_max), dtype=np.int32)
-    feature.n_planes = feature.planes.shape[0]
+    feature.n_planes = n_planes
 
     return feature
 
 
-cdef void initialize_feature(policy_feature_t *feature):
+cdef void initialize_feature(PolicyFeature feature):
+    cdef game_state_t *game
+    
     feature.planes[...] = 0
+
+    game = <game_state_t *>malloc(80 * sizeof(game_state_t))
+    memset(game, 0, 80 * sizeof(game_state_t))
+
     for i in range(80):
-        board.initialize_board(&feature.search_games[i])
+        board.initialize_board(&game[i])
+
+    feature.search_games = game
 
 
-cdef void free_feature(policy_feature_t *feature):
+
+cdef void free_feature(PolicyFeature feature):
     if feature:
-        free(feature)
+        del feature
 
 
-cdef void update(policy_feature_t *feature, tree_node_t *node):
+cdef void update(PolicyFeature feature, tree_node_t *node):
     cdef int[:, ::1] F = feature.planes
 
     cdef board.game_state_t *game = node.game
@@ -313,7 +319,7 @@ cdef int is_ladder_capture(board.game_state_t *game,
                             int string_id,
                             int pos,
                             int atari_pos,
-                            board.game_state_t search_games[80],
+                            board.game_state_t *search_games,
                             int depth,
                             int *ladder_moves):
     cdef board.game_state_t *ladder_game = &search_games[depth]
@@ -381,7 +387,7 @@ cdef int is_ladder_escape(board.game_state_t *game,
                           int string_id,
                           int pos,
                           bint is_atari_pos,
-                          board.game_state_t search_games[80],
+                          board.game_state_t *search_games,
                           int depth,
                           int *ladder_moves):
     cdef board.game_state_t *ladder_game = &search_games[depth]
