@@ -1,4 +1,4 @@
-from bamboo.board cimport game_state_t
+from .board cimport game_state_t
 
 
 cdef extern from "ray.h":

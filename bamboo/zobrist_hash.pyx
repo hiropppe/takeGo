@@ -3,10 +3,10 @@ import sys
 from libc.stdlib cimport malloc, free
 from libc.stdio cimport printf
 
-from bamboo.board cimport BOARD_MAX
-from bamboo.board cimport game_state_t
+from .board cimport BOARD_MAX
+from .board cimport game_state_t
 
-from cpprand cimport uniform_int_distribution, mt19937_64, random_device
+from .cpprand cimport uniform_int_distribution, mt19937_64, random_device
 
 
 ctypedef uniform_int_distribution[long long] int_dist
