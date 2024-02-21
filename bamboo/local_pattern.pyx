@@ -33,14 +33,14 @@ cpdef void read_rands(object mt_file):
     with open(mt_file, 'r') as mt_in:
         for i in range(13):
             for j in range(4):
-                color_mt[i][j] = long(mt_in.next())
-                liberty_mt[i][j] = long(mt_in.next())
+                color_mt[i][j] = int(next(mt_in))
+                liberty_mt[i][j] = int(next(mt_in))
 
-        player_mt[<int>S_BLACK] = long(mt_in.next())
-        player_mt[<int>S_WHITE] = long(mt_in.next())
+        player_mt[<int>S_BLACK] = int(next(mt_in))
+        player_mt[<int>S_WHITE] = int(next(mt_in))
 
         for i in range(12):
-            d12_pos_mt[1 << i] = long(mt_in.next())
+            d12_pos_mt[1 << i] = int(next(mt_in))
 
 
 cpdef void write_rands(object mt_file, int n=118):

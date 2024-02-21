@@ -445,7 +445,7 @@ def run_training(cluster, server, num_workers):
                                  saver=tf.train.Saver(max_to_keep=100),
                                  init_op=init_op)
 
-        config = tf.ConfigProto(allow_soft_placement=True)
+        config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
 
         print("Wait for session ...")
         """
@@ -562,7 +562,7 @@ def main(argv=None):
     cluster = tf.train.ClusterSpec(cluster_spec)
 
     # start a server for a specific task
-    config = tf.ConfigProto(log_device_placement=FLAGS.log_device_placement,
+    config = tf.compat.v1.ConfigProto(log_device_placement=FLAGS.log_device_placement,
                             device_count={'GPU': 1})
     config.gpu_options.per_process_gpu_memory_fraction = FLAGS.gpu_memory_fraction
 

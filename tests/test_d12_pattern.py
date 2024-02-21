@@ -1,9 +1,8 @@
 from bamboo import test_d12_pattern as ctest
 
-import unittest
 
-
-class Test12DiamondPattern(unittest.TestCase):
+class Test12DiamondPattern():
+    
     def test_d12_rsp_bits_0(self):
         ctest.test_d12_rsp_bits_0()
 

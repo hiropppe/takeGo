@@ -5,8 +5,8 @@
 import numpy as np
 import os
 
-from tensorflow.contrib.keras.python import keras
-from tensorflow.contrib.keras.python.keras import backend as K
+from tensorflow.python import keras
+from tensorflow.python.keras import backend as K
 
 from bamboo.models.keras_dcnn_policy import CNNPolicy
 from bamboo.gtp import gtp

@@ -1067,9 +1067,9 @@ cdef class MCTS(object):
 
     def run_pn_session(self, policy_net, temperature=0.67):
         printf('>> Set PN Session\n')
-        config = tf.ConfigProto()
+        config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
-        K.set_session(tf.Session(config=config))
+        K.set_session(tf.compat.v1.Session(config=config))
         pn = CNNPolicy(init_network=True, nogpu=self.nogpu)
         pn.model.load_weights(policy_net)
         self.pn = pn
@@ -1085,9 +1085,9 @@ cdef class MCTS(object):
             # TODO return -1 if is_training is False
             self.vn_op = inference_agz(self.vn_inputs, is_training=True)
             saver = tf.train.Saver()
-            config = tf.ConfigProto()
+            config = tf.compat.v1.ConfigProto()
             config.gpu_options.per_process_gpu_memory_fraction = 0.3
-            self.vn_session = tf.Session(config=config, graph=graph)
+            self.vn_session = tf.compat.v1.Session(config=config, graph=graph)
             saver.restore(self.vn_session, value_net)
 
         self.use_vn = True

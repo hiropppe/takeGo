@@ -1,15 +1,14 @@
 from bamboo import test_rollout_preprocess as ctest
 
-import unittest
 
-
-class TestRolloutPreprocess(unittest.TestCase):
+class TestRolloutPreprocess():
+    
     @classmethod
-    def setUpClass(clazz):
+    def setup_class(clazz):
         ctest.setup()
 
     @classmethod
-    def tearDownClass(clazz):
+    def teardown_class(clazz):
         ctest.teardown()
 
     def test_update_self_atari(self):

@@ -1,7 +1,5 @@
 from libc.string cimport memset
 
-from nose.tools import ok_, eq_
-
 import numpy as np
 cimport numpy as np
 
@@ -37,10 +35,10 @@ def test_seki_0():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
 
-    eq_(12, np.asarray(seki).sum())
+    assert (12 == np.asarray(seki).sum())
 
 
 def test_seki_1():
@@ -62,10 +60,10 @@ def test_seki_1():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
 
-    eq_(9, np.asarray(seki).sum())
+    assert (9 == np.asarray(seki).sum())
 
 
 def test_seki_2():
@@ -87,11 +85,11 @@ def test_seki_2():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
-    eq_(True, seki[moves['c']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
+    assert (True == seki[moves['c']])
 
-    eq_(14, np.asarray(seki).sum())
+    assert (14 == np.asarray(seki).sum())
 
 
 def test_seki_3():
@@ -113,11 +111,11 @@ def test_seki_3():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
-    eq_(True, seki[moves['c']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
+    assert (True == seki[moves['c']])
 
-    eq_(22, np.asarray(seki).sum())
+    assert (22 == np.asarray(seki).sum())
 
 
 def test_seki_4():
@@ -139,11 +137,11 @@ def test_seki_4():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
-    eq_(True, seki[moves['c']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
+    assert (True == seki[moves['c']])
 
-    eq_(20, np.asarray(seki).sum())
+    assert (20 == np.asarray(seki).sum())
 
 
 def test_seki_5():
@@ -165,11 +163,11 @@ def test_seki_5():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
-    eq_(True, seki[moves['c']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
+    assert (True == seki[moves['c']])
 
-    eq_(25, np.asarray(seki).sum())
+    assert (25 == np.asarray(seki).sum())
 
 
 def test_seki_6():
@@ -191,12 +189,12 @@ def test_seki_6():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
-    eq_(True, seki[moves['c']])
-    eq_(True, seki[moves['d']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
+    assert (True == seki[moves['c']])
+    assert (True == seki[moves['d']])
 
-    eq_(16, np.asarray(seki).sum())
+    assert (16 == np.asarray(seki).sum())
 
 
 def test_seki_7():
@@ -218,11 +216,11 @@ def test_seki_7():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
-    eq_(True, seki[moves['c']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
+    assert (True == seki[moves['c']])
 
-    eq_(14, np.asarray(seki).sum())
+    assert (14 == np.asarray(seki).sum())
 
 
 def test_seki_8():
@@ -244,11 +242,11 @@ def test_seki_8():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
-    eq_(True, seki[moves['c']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
+    assert (True == seki[moves['c']])
 
-    eq_(13, np.asarray(seki).sum())
+    assert (13 == np.asarray(seki).sum())
 
 
 def test_seki_9():
@@ -270,10 +268,10 @@ def test_seki_9():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
 
-    eq_(15, np.asarray(seki).sum())
+    assert (15 == np.asarray(seki).sum())
 
 
 def test_bent4():
@@ -295,7 +293,7 @@ def test_bent4():
 
     check_seki(game, seki)
 
-    eq_(True, seki[moves['a']])
-    eq_(True, seki[moves['b']])
+    assert (True == seki[moves['a']])
+    assert (True == seki[moves['b']])
 
-    eq_(12, np.asarray(seki).sum())
+    assert (12 == np.asarray(seki).sum())

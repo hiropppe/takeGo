@@ -48,10 +48,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     import tensorflow as tf
-    from tensorflow.contrib.keras.python.keras.backend import set_session
-    config = tf.ConfigProto()
+    from tensorflow.python.keras import backend as K
+    config = tf.compat.v1.ConfigProto()
     config.gpu_options.per_process_gpu_memory_fraction = 0.2
-    set_session(tf.Session(config=config))
+    K.set_session(tf.compat.v1.Session(config=config))
 
     # init SL Policy
     sl_policy = CNNPolicy(init_network=True)

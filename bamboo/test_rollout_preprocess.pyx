@@ -5,8 +5,6 @@ from operator import itemgetter
 
 from libc.stdlib cimport malloc, free
 
-from nose.tools import ok_, eq_
-
 from bamboo.board cimport BOARD_MAX, PURE_BOARD_SIZE, PURE_BOARD_MAX, S_EMPTY, S_BLACK, S_WHITE, PASS
 from bamboo.board cimport FLIP_COLOR, Y
 from bamboo.board cimport game_state_t, rollout_feature_t, board_size, board_max, pure_board_size, pure_board_max
@@ -712,8 +710,8 @@ def test_update_nakade_3_0():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -736,8 +734,8 @@ def test_update_nakade_3_0():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     free_game(game)
 
@@ -769,8 +767,8 @@ def test_update_nakade_3_1():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 1) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 1) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     game.current_color = S_WHITE
 
@@ -795,8 +793,8 @@ def test_update_nakade_3_1():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 1) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 1) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -819,8 +817,8 @@ def test_update_nakade_3_1():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 1) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 1) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -843,8 +841,8 @@ def test_update_nakade_3_1():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 1) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 1) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     free_game(game)
 
@@ -876,8 +874,8 @@ def test_update_nakade_4():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 2) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 2) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -900,8 +898,8 @@ def test_update_nakade_4():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 2) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 2) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -924,8 +922,8 @@ def test_update_nakade_4():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 2) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 2) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -948,8 +946,8 @@ def test_update_nakade_4():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 2) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 2) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     free_game(game)
 
@@ -981,8 +979,8 @@ def test_update_nakade_5_0():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 3) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 3) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     free_game(game)
 
@@ -1014,8 +1012,8 @@ def test_update_nakade_5_1():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 4) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 4) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -1038,8 +1036,8 @@ def test_update_nakade_5_1():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 4) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 4) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -1062,8 +1060,8 @@ def test_update_nakade_5_1():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 4) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 4) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -1084,8 +1082,8 @@ def test_update_nakade_5_1():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 4) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 4) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
@@ -1108,8 +1106,8 @@ def test_update_nakade_5_1():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 4) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 4) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
@@ -1132,8 +1130,8 @@ def test_update_nakade_5_1():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 4) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 4) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
@@ -1156,8 +1154,8 @@ def test_update_nakade_5_1():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 4) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 4) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
@@ -1180,8 +1178,8 @@ def test_update_nakade_5_1():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 4) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 4) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
@@ -1215,8 +1213,8 @@ def test_update_nakade_6():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 5) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 5) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -1239,8 +1237,8 @@ def test_update_nakade_6():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 5) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 5) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -1263,8 +1261,8 @@ def test_update_nakade_6():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 5) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 5) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -1287,8 +1285,8 @@ def test_update_nakade_6():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_NAKADE][moves['a']], nakade_start + 5) 
-    eq_(number_of_active_positions(feature, F_NAKADE), 1)
+    assert (feature.tensor[F_NAKADE][moves['a']] == nakade_start + 5) 
+    assert (number_of_active_positions(feature, F_NAKADE) == 1)
 
     free_game(game)
 
@@ -1312,8 +1310,8 @@ def test_update_self_atari():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_SELF_ATARI][moves['a']], self_atari_start) 
-    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+    assert (feature.tensor[F_SELF_ATARI][moves['a']] == self_atari_start) 
+    assert (number_of_active_positions(feature, F_SELF_ATARI) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -1330,8 +1328,8 @@ def test_update_self_atari():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_SELF_ATARI][moves['a']], self_atari_start) 
-    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+    assert (feature.tensor[F_SELF_ATARI][moves['a']] == self_atari_start) 
+    assert (number_of_active_positions(feature, F_SELF_ATARI) == 1)
 
     (moves, pure_moves) = parse(game,
                               "B a . . . . .|"
@@ -1348,8 +1346,8 @@ def test_update_self_atari():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_SELF_ATARI][moves['a']], self_atari_start) 
-    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+    assert (feature.tensor[F_SELF_ATARI][moves['a']] == self_atari_start) 
+    assert (number_of_active_positions(feature, F_SELF_ATARI) == 1)
 
     (moves, pure_moves) = parse(game,
                               "a B . . . . .|"
@@ -1366,8 +1364,8 @@ def test_update_self_atari():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_SELF_ATARI][moves['a']], self_atari_start) 
-    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+    assert (feature.tensor[F_SELF_ATARI][moves['a']] == self_atari_start) 
+    assert (number_of_active_positions(feature, F_SELF_ATARI) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -1384,8 +1382,8 @@ def test_update_self_atari():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_SELF_ATARI][moves['a']], self_atari_start) 
-    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+    assert (feature.tensor[F_SELF_ATARI][moves['a']] == self_atari_start) 
+    assert (number_of_active_positions(feature, F_SELF_ATARI) == 1)
 
     (moves, pure_moves) = parse(game,
                               ". . . . . . .|"
@@ -1402,8 +1400,8 @@ def test_update_self_atari():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_SELF_ATARI][moves['a']], self_atari_start) 
-    eq_(number_of_active_positions(feature, F_SELF_ATARI), 1)
+    assert (feature.tensor[F_SELF_ATARI][moves['a']] == self_atari_start) 
+    assert (number_of_active_positions(feature, F_SELF_ATARI) == 1)
 
     free_game(game)
 
@@ -1439,16 +1437,16 @@ def test_update_last_move_distance():
 
     feature = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['a']], last_move_distance_start + 2) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['b']], last_move_distance_start + 2) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['c']], last_move_distance_start + 2) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['d']], last_move_distance_start + 2) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['e']], last_move_distance_start + 16) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['f']], last_move_distance_start + 17) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['g']], last_move_distance_start + 16) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['h']], last_move_distance_start + 17) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['i']], last_move_distance_start + 15) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['j']], last_move_distance_start + 17) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['a']] == last_move_distance_start + 2) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['b']] == last_move_distance_start + 2) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['c']] == last_move_distance_start + 2) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['d']] == last_move_distance_start + 2) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['e']] == last_move_distance_start + 16) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['f']] == last_move_distance_start + 17) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['g']] == last_move_distance_start + 16) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['h']] == last_move_distance_start + 17) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['i']] == last_move_distance_start + 15) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['j']] == last_move_distance_start + 17) 
 
     put_stone(game, moves['a'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
@@ -1456,15 +1454,15 @@ def test_update_last_move_distance():
 
     feature = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['b']], last_move_distance_start + 3 + 2) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['c']], last_move_distance_start + 3 + 2) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['d']], last_move_distance_start + 4 + 2) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['e']], last_move_distance_start + 17 + 16) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['f']], last_move_distance_start + 17 + 17) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['g']], last_move_distance_start + 17 + 16) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['h']], last_move_distance_start + 17 + 17) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['i']], last_move_distance_start + 17 + 15) 
-    eq_(feature.tensor[F_LAST_MOVE_DISTANCE][moves['j']], last_move_distance_start + 17 + 17) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['b']] == last_move_distance_start + 3 + 2) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['c']] == last_move_distance_start + 3 + 2) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['d']] == last_move_distance_start + 4 + 2) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['e']] == last_move_distance_start + 17 + 16) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['f']] == last_move_distance_start + 17 + 17) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['g']] == last_move_distance_start + 17 + 16) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['h']] == last_move_distance_start + 17 + 17) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['i']] == last_move_distance_start + 17 + 15) 
+    assert (feature.tensor[F_LAST_MOVE_DISTANCE][moves['j']] == last_move_distance_start + 17 + 17) 
 
     free_game(game)
 
@@ -1494,82 +1492,82 @@ def test_update_12diamond():
     game.current_color = FLIP_COLOR(game.current_color)
     update_tree_planes_all(game)
 
-    eq_(white.tensor[F_D12_PAT][moves['a']-board_size*2], d12_start + 4) 
-    eq_(white.tensor[F_D12_PAT][moves['a']-board_size-1], d12_start + 1) 
-    eq_(white.tensor[F_D12_PAT][moves['a']-board_size],   d12_start) 
-    eq_(white.tensor[F_D12_PAT][moves['a']-board_size+1], d12_start + 1) 
-    eq_(white.tensor[F_D12_PAT][moves['a']-2], d12_start + 4) 
-    eq_(white.tensor[F_D12_PAT][moves['a']-1], d12_start) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+1], d12_start) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+2], d12_start + 6) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+board_size-1], d12_start + 8) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+board_size],   d12_start + 9) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+board_size+1], d12_start + 8) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+board_size*2], d12_start + 10) 
-    eq_(number_of_active_positions(white, F_D12_PAT), 12)
+    assert (white.tensor[F_D12_PAT][moves['a']-board_size*2] == d12_start + 4) 
+    assert (white.tensor[F_D12_PAT][moves['a']-board_size-1] == d12_start + 1) 
+    assert (white.tensor[F_D12_PAT][moves['a']-board_size] == d12_start) 
+    assert (white.tensor[F_D12_PAT][moves['a']-board_size+1] == d12_start + 1) 
+    assert (white.tensor[F_D12_PAT][moves['a']-2] == d12_start + 4) 
+    assert (white.tensor[F_D12_PAT][moves['a']-1] == d12_start) 
+    assert (white.tensor[F_D12_PAT][moves['a']+1] == d12_start) 
+    assert (white.tensor[F_D12_PAT][moves['a']+2] == d12_start + 6) 
+    assert (white.tensor[F_D12_PAT][moves['a']+board_size-1] == d12_start + 8) 
+    assert (white.tensor[F_D12_PAT][moves['a']+board_size] == d12_start + 9) 
+    assert (white.tensor[F_D12_PAT][moves['a']+board_size+1] == d12_start + 8) 
+    assert (white.tensor[F_D12_PAT][moves['a']+board_size*2] == d12_start + 10) 
+    assert (number_of_active_positions(white, F_D12_PAT) == 12)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_tree_planes_all(game)
 
-    eq_(black.tensor[F_D12_PAT][moves['b']-board_size*2], d12_start + 6) 
-    eq_(black.tensor[F_D12_PAT][moves['b']-board_size-1], d12_start + 1) 
-    eq_(black.tensor[F_D12_PAT][moves['b']-board_size], d12_start) 
-    eq_(black.tensor[F_D12_PAT][moves['b']-board_size+1], d12_start + 1) 
-    eq_(black.tensor[F_D12_PAT][moves['b']-2], d12_start + 4) 
-    eq_(black.tensor[F_D12_PAT][moves['b']-1], d12_start) 
-    eq_(black.tensor[F_D12_PAT][moves['b']+1], d12_start) 
-    eq_(black.tensor[F_D12_PAT][moves['b']+2], d12_start + 6) 
-    eq_(black.tensor[F_D12_PAT][moves['b']+board_size-1], d12_start + 1) 
-    eq_(black.tensor[F_D12_PAT][moves['b']+board_size], d12_start + 11) 
-    eq_(black.tensor[F_D12_PAT][moves['b']+board_size+1], d12_start + 1) 
+    assert (black.tensor[F_D12_PAT][moves['b']-board_size*2] == d12_start + 6) 
+    assert (black.tensor[F_D12_PAT][moves['b']-board_size-1] == d12_start + 1) 
+    assert (black.tensor[F_D12_PAT][moves['b']-board_size] == d12_start) 
+    assert (black.tensor[F_D12_PAT][moves['b']-board_size+1] == d12_start + 1) 
+    assert (black.tensor[F_D12_PAT][moves['b']-2] == d12_start + 4) 
+    assert (black.tensor[F_D12_PAT][moves['b']-1] == d12_start) 
+    assert (black.tensor[F_D12_PAT][moves['b']+1] == d12_start) 
+    assert (black.tensor[F_D12_PAT][moves['b']+2] == d12_start + 6) 
+    assert (black.tensor[F_D12_PAT][moves['b']+board_size-1] == d12_start + 1) 
+    assert (black.tensor[F_D12_PAT][moves['b']+board_size] == d12_start + 11) 
+    assert (black.tensor[F_D12_PAT][moves['b']+board_size+1] == d12_start + 1) 
 
-    eq_(black.tensor[F_D12_PAT][moves['a']-board_size-1], d12_start + 3) 
-    eq_(black.tensor[F_D12_PAT][moves['a']-board_size], d12_start + 12) 
-    eq_(black.tensor[F_D12_PAT][moves['a']-board_size+1], d12_start + 3) 
-    eq_(black.tensor[F_D12_PAT][moves['a']-2], d12_start + 5) 
-    eq_(black.tensor[F_D12_PAT][moves['a']-1], d12_start + 2) 
-    eq_(black.tensor[F_D12_PAT][moves['a']+1], d12_start + 2) 
-    eq_(black.tensor[F_D12_PAT][moves['a']+2], d12_start + 7) 
-    eq_(black.tensor[F_D12_PAT][moves['a']+board_size-1], d12_start + 14) 
-    eq_(black.tensor[F_D12_PAT][moves['a']+board_size], d12_start + 13) 
-    eq_(black.tensor[F_D12_PAT][moves['a']+board_size+1], d12_start + 14) 
-    eq_(black.tensor[F_D12_PAT][moves['a']+board_size*2], d12_start + 15) 
-    eq_(number_of_active_positions(black, F_D12_PAT), 22)
+    assert (black.tensor[F_D12_PAT][moves['a']-board_size-1] == d12_start + 3) 
+    assert (black.tensor[F_D12_PAT][moves['a']-board_size] == d12_start + 12) 
+    assert (black.tensor[F_D12_PAT][moves['a']-board_size+1] == d12_start + 3) 
+    assert (black.tensor[F_D12_PAT][moves['a']-2] == d12_start + 5) 
+    assert (black.tensor[F_D12_PAT][moves['a']-1] == d12_start + 2) 
+    assert (black.tensor[F_D12_PAT][moves['a']+1] == d12_start + 2) 
+    assert (black.tensor[F_D12_PAT][moves['a']+2] == d12_start + 7) 
+    assert (black.tensor[F_D12_PAT][moves['a']+board_size-1] == d12_start + 14) 
+    assert (black.tensor[F_D12_PAT][moves['a']+board_size] == d12_start + 13) 
+    assert (black.tensor[F_D12_PAT][moves['a']+board_size+1] == d12_start + 14) 
+    assert (black.tensor[F_D12_PAT][moves['a']+board_size*2] == d12_start + 15) 
+    assert (number_of_active_positions(black, F_D12_PAT) == 22)
 
     # put B[c]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_tree_planes_all(game)
 
-    eq_(white.tensor[F_D12_PAT][moves['c']-board_size*2], d12_start + 16) 
-    eq_(white.tensor[F_D12_PAT][moves['c']-board_size], d12_start + 17) 
-    eq_(white.tensor[F_D12_PAT][moves['c']-board_size+1], d12_start + 18) 
-    eq_(white.tensor[F_D12_PAT][moves['c']-2], d12_start + 19) 
-    eq_(white.tensor[F_D12_PAT][moves['c']-1], d12_start + 20) 
-    eq_(white.tensor[F_D12_PAT][moves['c']+1], d12_start + 9) 
-    eq_(white.tensor[F_D12_PAT][moves['c']+2], d12_start + 10) 
-    eq_(white.tensor[F_D12_PAT][moves['c']+board_size-1], d12_start + 21) 
-    eq_(white.tensor[F_D12_PAT][moves['c']+board_size], d12_start + 22) 
-    eq_(white.tensor[F_D12_PAT][moves['c']+board_size+1], d12_start + 8) 
-    eq_(white.tensor[F_D12_PAT][moves['c']+board_size*2], d12_start + 23) 
+    assert (white.tensor[F_D12_PAT][moves['c']-board_size*2] == d12_start + 16) 
+    assert (white.tensor[F_D12_PAT][moves['c']-board_size] == d12_start + 17) 
+    assert (white.tensor[F_D12_PAT][moves['c']-board_size+1] == d12_start + 18) 
+    assert (white.tensor[F_D12_PAT][moves['c']-2] == d12_start + 19) 
+    assert (white.tensor[F_D12_PAT][moves['c']-1] == d12_start + 20) 
+    assert (white.tensor[F_D12_PAT][moves['c']+1] == d12_start + 9) 
+    assert (white.tensor[F_D12_PAT][moves['c']+2] == d12_start + 10) 
+    assert (white.tensor[F_D12_PAT][moves['c']+board_size-1] == d12_start + 21) 
+    assert (white.tensor[F_D12_PAT][moves['c']+board_size] == d12_start + 22) 
+    assert (white.tensor[F_D12_PAT][moves['c']+board_size+1] == d12_start + 8) 
+    assert (white.tensor[F_D12_PAT][moves['c']+board_size*2] == d12_start + 23) 
     
-    eq_(white.tensor[F_D12_PAT][moves['b']-board_size*2], d12_start + 7) 
-    eq_(white.tensor[F_D12_PAT][moves['b']-board_size-1], d12_start + 3) 
-    eq_(white.tensor[F_D12_PAT][moves['b']-board_size], d12_start + 2) 
-    eq_(white.tensor[F_D12_PAT][moves['b']-2], d12_start + 5) 
-    eq_(white.tensor[F_D12_PAT][moves['b']-1], d12_start + 2) 
+    assert (white.tensor[F_D12_PAT][moves['b']-board_size*2] == d12_start + 7) 
+    assert (white.tensor[F_D12_PAT][moves['b']-board_size-1] == d12_start + 3) 
+    assert (white.tensor[F_D12_PAT][moves['b']-board_size] == d12_start + 2) 
+    assert (white.tensor[F_D12_PAT][moves['b']-2] == d12_start + 5) 
+    assert (white.tensor[F_D12_PAT][moves['b']-1] == d12_start + 2) 
 
-    eq_(white.tensor[F_D12_PAT][moves['a']-board_size-1], d12_start + 1) 
-    eq_(white.tensor[F_D12_PAT][moves['a']-2], d12_start + 4) 
-    eq_(white.tensor[F_D12_PAT][moves['a']-1], d12_start) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+2], d12_start + 6) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+board_size-1], d12_start + 8) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+board_size],   d12_start + 9) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+board_size+1], d12_start + 8) 
-    eq_(white.tensor[F_D12_PAT][moves['a']+board_size*2], d12_start + 10) 
-    eq_(number_of_active_positions(white, F_D12_PAT), 24)
+    assert (white.tensor[F_D12_PAT][moves['a']-board_size-1] == d12_start + 1) 
+    assert (white.tensor[F_D12_PAT][moves['a']-2] == d12_start + 4) 
+    assert (white.tensor[F_D12_PAT][moves['a']-1] == d12_start) 
+    assert (white.tensor[F_D12_PAT][moves['a']+2] == d12_start + 6) 
+    assert (white.tensor[F_D12_PAT][moves['a']+board_size-1] == d12_start + 8) 
+    assert (white.tensor[F_D12_PAT][moves['a']+board_size] == d12_start + 9) 
+    assert (white.tensor[F_D12_PAT][moves['a']+board_size+1] == d12_start + 8) 
+    assert (white.tensor[F_D12_PAT][moves['a']+board_size*2] == d12_start + 10) 
+    assert (number_of_active_positions(white, F_D12_PAT) == 24)
 
     """
     # put W[d]
@@ -1577,25 +1575,25 @@ def test_update_12diamond():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['c']
-    eq_(black.tensor[F_D12_PAT][moves['c']-board_size-1], -1) 
-    eq_(black.tensor[F_D12_PAT][moves['c']-board_size], d12_start + 6) 
-    eq_(black.tensor[F_D12_PAT][moves['c']-board_size+1], d12_start + 2) 
-    eq_(black.tensor[F_D12_PAT][moves['c']-1], -1) 
-    eq_(black.tensor[F_D12_PAT][moves['c']+1], d12_start + 3) 
-    eq_(black.tensor[F_D12_PAT][moves['c']+board_size-1], d12_start + 7) 
-    eq_(black.tensor[F_D12_PAT][moves['c']+board_size], d12_start + 8) 
-    eq_(black.tensor[F_D12_PAT][moves['c']+board_size+1], d12_start + 2) 
+    assert (black.tensor[F_D12_PAT][moves['c']-board_size-1] == -1) 
+    assert (black.tensor[F_D12_PAT][moves['c']-board_size], d12_start + 6) 
+    assert (black.tensor[F_D12_PAT][moves['c']-board_size+1], d12_start + 2) 
+    assert (black.tensor[F_D12_PAT][moves['c']-1] == -1) 
+    assert (black.tensor[F_D12_PAT][moves['c']+1], d12_start + 3) 
+    assert (black.tensor[F_D12_PAT][moves['c']+board_size-1], d12_start + 7) 
+    assert (black.tensor[F_D12_PAT][moves['c']+board_size], d12_start + 8) 
+    assert (black.tensor[F_D12_PAT][moves['c']+board_size+1], d12_start + 2) 
     # updated around move['d']
-    eq_(black.tensor[F_D12_PAT][moves['b']-board_size-1], d12_start) 
-    eq_(black.tensor[F_D12_PAT][moves['b']-board_size], d12_start + 1) 
-    eq_(black.tensor[F_D12_PAT][moves['b']-board_size+1], d12_start) 
-    eq_(black.tensor[F_D12_PAT][moves['b']-1], d12_start + 9) 
-    eq_(black.tensor[F_D12_PAT][moves['b']+1], d12_start + 6) 
-    eq_(black.tensor[F_D12_PAT][moves['d']-1], d12_start + 9) 
-    eq_(black.tensor[F_D12_PAT][moves['d']+board_size-1], d12_start + 10) 
-    eq_(black.tensor[F_D12_PAT][moves['d']+board_size], d12_start + 7) 
-    eq_(black.tensor[F_D12_PAT][moves['d']+board_size+1], d12_start + 8) 
-    eq_(number_of_active_positions(black, F_D12_PAT), 17)
+    assert (black.tensor[F_D12_PAT][moves['b']-board_size-1], d12_start) 
+    assert (black.tensor[F_D12_PAT][moves['b']-board_size], d12_start + 1) 
+    assert (black.tensor[F_D12_PAT][moves['b']-board_size+1], d12_start) 
+    assert (black.tensor[F_D12_PAT][moves['b']-1], d12_start + 9) 
+    assert (black.tensor[F_D12_PAT][moves['b']+1], d12_start + 6) 
+    assert (black.tensor[F_D12_PAT][moves['d']-1], d12_start + 9) 
+    assert (black.tensor[F_D12_PAT][moves['d']+board_size-1], d12_start + 10) 
+    assert (black.tensor[F_D12_PAT][moves['d']+board_size], d12_start + 7) 
+    assert (black.tensor[F_D12_PAT][moves['d']+board_size+1], d12_start + 8) 
+    assert (number_of_active_positions(black, F_D12_PAT) == 17)
     """
     print_board(game)
 
@@ -1621,8 +1619,8 @@ def test_update_save_atari():
 
     black = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(black.tensor[F_SAVE_ATARI][moves['a']], save_atari_start) 
-    eq_(number_of_active_positions(black, F_SAVE_ATARI), 1)
+    assert (black.tensor[F_SAVE_ATARI][moves['a']] == save_atari_start) 
+    assert (number_of_active_positions(black, F_SAVE_ATARI) == 1)
 
     free_game(game)
 
@@ -1646,8 +1644,8 @@ def test_update_save_atari_connect_string():
 
     white = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(white.tensor[F_SAVE_ATARI][moves['a']], save_atari_start) 
-    eq_(number_of_active_positions(white, F_SAVE_ATARI), 1)
+    assert (white.tensor[F_SAVE_ATARI][moves['a']] == save_atari_start) 
+    assert (number_of_active_positions(white, F_SAVE_ATARI) == 1)
 
     free_game(game)
 
@@ -1671,8 +1669,8 @@ def test_update_save_atari_not_escape():
 
     black = &game.rollout_feature_planes[<int>S_BLACK]
 
-    eq_(black.tensor[F_SAVE_ATARI][moves['a']], -1) 
-    eq_(number_of_active_positions(black, F_SAVE_ATARI), 0)
+    assert (black.tensor[F_SAVE_ATARI][moves['a']] == -1) 
+    assert (number_of_active_positions(black, F_SAVE_ATARI) == 0)
 
     free_game(game)
 
@@ -1696,8 +1694,8 @@ def test_update_save_atari_not_escape_on_edge():
 
     white = &game.rollout_feature_planes[<int>S_WHITE]
 
-    eq_(white.tensor[F_SAVE_ATARI][moves['a']], -1) 
-    eq_(number_of_active_positions(white, F_SAVE_ATARI), 0)
+    assert (white.tensor[F_SAVE_ATARI][moves['a']] == -1) 
+    assert (number_of_active_positions(white, F_SAVE_ATARI) == 0)
 
     free_game(game)
 
@@ -1724,59 +1722,59 @@ def test_update_neighbor_0():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['a'] 
-    eq_(white.tensor[F_NEIGHBOR][moves['a']-board_size-1], neighbor_start) 
-    eq_(white.tensor[F_NEIGHBOR][moves['a']-board_size], neighbor_start+1) 
-    eq_(white.tensor[F_NEIGHBOR][moves['a']-board_size+1], neighbor_start+2) 
-    eq_(white.tensor[F_NEIGHBOR][moves['a']-1], neighbor_start+3) 
-    eq_(white.tensor[F_NEIGHBOR][moves['a']+1], neighbor_start+4) 
-    eq_(white.tensor[F_NEIGHBOR][moves['a']+board_size-1], neighbor_start+5) 
-    eq_(white.tensor[F_NEIGHBOR][moves['a']+board_size], neighbor_start+6) 
-    eq_(white.tensor[F_NEIGHBOR][moves['a']+board_size+1], neighbor_start+7) 
-    eq_(number_of_active_positions(white, F_NEIGHBOR), 8)
+    assert (white.tensor[F_NEIGHBOR][moves['a']-board_size-1] == neighbor_start) 
+    assert (white.tensor[F_NEIGHBOR][moves['a']-board_size] == neighbor_start+1) 
+    assert (white.tensor[F_NEIGHBOR][moves['a']-board_size+1] == neighbor_start+2) 
+    assert (white.tensor[F_NEIGHBOR][moves['a']-1] == neighbor_start+3) 
+    assert (white.tensor[F_NEIGHBOR][moves['a']+1] == neighbor_start+4) 
+    assert (white.tensor[F_NEIGHBOR][moves['a']+board_size-1] == neighbor_start+5) 
+    assert (white.tensor[F_NEIGHBOR][moves['a']+board_size] == neighbor_start+6) 
+    assert (white.tensor[F_NEIGHBOR][moves['a']+board_size+1] == neighbor_start+7) 
+    assert (number_of_active_positions(white, F_NEIGHBOR) == 8)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['b'] 
-    eq_(black.tensor[F_NEIGHBOR][moves['b']-board_size-1], neighbor_start) 
-    eq_(black.tensor[F_NEIGHBOR][moves['b']-board_size], neighbor_start+1) 
-    eq_(black.tensor[F_NEIGHBOR][moves['b']-board_size+1], neighbor_start+2) 
-    eq_(black.tensor[F_NEIGHBOR][moves['b']-1], -1) 
-    eq_(black.tensor[F_NEIGHBOR][moves['b']+1], neighbor_start+4) 
-    eq_(black.tensor[F_NEIGHBOR][moves['b']+board_size-1], neighbor_start+5) 
-    eq_(black.tensor[F_NEIGHBOR][moves['b']+board_size], neighbor_start+6) 
-    eq_(black.tensor[F_NEIGHBOR][moves['b']+board_size+1], neighbor_start+7) 
-    eq_(number_of_active_positions(black, F_NEIGHBOR), 7)
+    assert (black.tensor[F_NEIGHBOR][moves['b']-board_size-1] == neighbor_start) 
+    assert (black.tensor[F_NEIGHBOR][moves['b']-board_size] == neighbor_start+1) 
+    assert (black.tensor[F_NEIGHBOR][moves['b']-board_size+1] == neighbor_start+2) 
+    assert (black.tensor[F_NEIGHBOR][moves['b']-1] == -1) 
+    assert (black.tensor[F_NEIGHBOR][moves['b']+1] == neighbor_start+4) 
+    assert (black.tensor[F_NEIGHBOR][moves['b']+board_size-1] == neighbor_start+5) 
+    assert (black.tensor[F_NEIGHBOR][moves['b']+board_size] == neighbor_start+6) 
+    assert (black.tensor[F_NEIGHBOR][moves['b']+board_size+1] == neighbor_start+7) 
+    assert (number_of_active_positions(black, F_NEIGHBOR) == 7)
 
     # put B[c]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['c'] 
-    eq_(white.tensor[F_NEIGHBOR][moves['c']-board_size-1], neighbor_start) 
-    eq_(white.tensor[F_NEIGHBOR][moves['c']-board_size], neighbor_start+1) 
-    eq_(white.tensor[F_NEIGHBOR][moves['c']-board_size+1], -1) 
-    eq_(white.tensor[F_NEIGHBOR][moves['c']-1], -1) 
-    eq_(white.tensor[F_NEIGHBOR][moves['c']+1], -1) 
-    eq_(white.tensor[F_NEIGHBOR][moves['c']+board_size-1], neighbor_start+5) 
-    eq_(white.tensor[F_NEIGHBOR][moves['c']+board_size], neighbor_start+6) 
-    eq_(white.tensor[F_NEIGHBOR][moves['c']+board_size+1], -1) 
-    eq_(number_of_active_positions(white, F_NEIGHBOR), 4)
+    assert (white.tensor[F_NEIGHBOR][moves['c']-board_size-1] == neighbor_start) 
+    assert (white.tensor[F_NEIGHBOR][moves['c']-board_size] == neighbor_start+1) 
+    assert (white.tensor[F_NEIGHBOR][moves['c']-board_size+1] == -1) 
+    assert (white.tensor[F_NEIGHBOR][moves['c']-1] == -1) 
+    assert (white.tensor[F_NEIGHBOR][moves['c']+1] == -1) 
+    assert (white.tensor[F_NEIGHBOR][moves['c']+board_size-1] == neighbor_start+5) 
+    assert (white.tensor[F_NEIGHBOR][moves['c']+board_size] == neighbor_start+6) 
+    assert (white.tensor[F_NEIGHBOR][moves['c']+board_size+1] == -1) 
+    assert (number_of_active_positions(white, F_NEIGHBOR) == 4)
 
     # PASS W
     put_stone(game, PASS, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # cleared around move['b'] 
-    eq_(number_of_active_positions(black, F_NEIGHBOR), 0)
+    assert (number_of_active_positions(black, F_NEIGHBOR) == 0)
 
     # PASS B
     put_stone(game, PASS, game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # cleared around move['c'] 
-    eq_(number_of_active_positions(white, F_NEIGHBOR), 0)
+    assert (number_of_active_positions(white, F_NEIGHBOR) == 0)
 
 
 def test_update_12diamond_rspos_0():
@@ -1805,116 +1803,116 @@ def test_update_12diamond_rspos_0():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['a'] 
-    eq_(white.tensor[F_RESPONSE][moves['a']-2*board_size], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']-board_size-1], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']-board_size], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']-board_size+1], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']-2], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']-1], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']+1], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']+2], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']+board_size-1], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']+board_size], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']+board_size+1], response_start) 
-    eq_(white.tensor[F_RESPONSE][moves['a']+2*board_size], response_start) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']-2*board_size], d12_rsp_start) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']-board_size-1], d12_rsp_start+1) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']-board_size], d12_rsp_start+2) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']-board_size+1], d12_rsp_start+1) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']-2], d12_rsp_start) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']-1], d12_rsp_start+2) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']+1], d12_rsp_start+2) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']+2], d12_rsp_start) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']+board_size-1], d12_rsp_start+1) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']+board_size], d12_rsp_start+2) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']+board_size+1], d12_rsp_start+1) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['a']+2*board_size], d12_rsp_start) 
-    eq_(number_of_active_positions(white, F_RESPONSE), 12)
-    eq_(number_of_active_positions(white, F_D12_RSP_PAT), 12)
+    assert (white.tensor[F_RESPONSE][moves['a']-2*board_size] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']-board_size-1] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']-board_size] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']-board_size+1] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']-2] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']-1] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']+1] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']+2] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']+board_size-1] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']+board_size] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']+board_size+1] == response_start) 
+    assert (white.tensor[F_RESPONSE][moves['a']+2*board_size] == response_start) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']-2*board_size] == d12_rsp_start) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']-board_size-1] == d12_rsp_start+1) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']-board_size] == d12_rsp_start+2) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']-board_size+1] == d12_rsp_start+1) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']-2] == d12_rsp_start) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']-1] == d12_rsp_start+2) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']+1] == d12_rsp_start+2) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']+2] == d12_rsp_start) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']+board_size-1] == d12_rsp_start+1) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']+board_size] == d12_rsp_start+2) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']+board_size+1] == d12_rsp_start+1) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['a']+2*board_size] == d12_rsp_start) 
+    assert (number_of_active_positions(white, F_RESPONSE) == 12)
+    assert (number_of_active_positions(white, F_D12_RSP_PAT) == 12)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['b']
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']-2*board_size], d12_rsp_start) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']-board_size-1], d12_rsp_start+1) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']-board_size], d12_rsp_start+2) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']-board_size+1], d12_rsp_start+1) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']-2], d12_rsp_start) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']-1], d12_rsp_start+2) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']+1], d12_rsp_start+2) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']+2], d12_rsp_start) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']+board_size-1], d12_rsp_start+1) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']+board_size], d12_rsp_start+2) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']+board_size+1], d12_rsp_start+1) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['b']+2*board_size], d12_rsp_start) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']-2*board_size] == d12_rsp_start) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']-board_size-1] == d12_rsp_start+1) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']-board_size] == d12_rsp_start+2) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']-board_size+1] == d12_rsp_start+1) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']-2] == d12_rsp_start) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']-1] == d12_rsp_start+2) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']+1] == d12_rsp_start+2) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']+2] == d12_rsp_start) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']+board_size-1] == d12_rsp_start+1) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']+board_size] == d12_rsp_start+2) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']+board_size+1] == d12_rsp_start+1) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['b']+2*board_size] == d12_rsp_start) 
     # no others
-    eq_(number_of_active_positions(black, F_RESPONSE), 12)
-    eq_(number_of_active_positions(black, F_D12_RSP_PAT), 12)
+    assert (number_of_active_positions(black, F_RESPONSE) == 12)
+    assert (number_of_active_positions(black, F_D12_RSP_PAT) == 12)
 
     # put B[b]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['c']
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']-2*board_size], d12_rsp_start+13) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']-board_size-1], -1) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']-board_size], d12_rsp_start+12) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']-board_size+1], d12_rsp_start+11) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']-2], d12_rsp_start+10) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']-1], d12_rsp_start+9) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']+1], d12_rsp_start+8) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']+2], d12_rsp_start+7) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']+board_size-1], d12_rsp_start+6) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']+board_size], d12_rsp_start+5) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']+board_size+1], d12_rsp_start+4) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['c']+2*board_size], d12_rsp_start+3) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']-2*board_size] == d12_rsp_start+13) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']-board_size-1] == -1) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']-board_size] == d12_rsp_start+12) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']-board_size+1] == d12_rsp_start+11) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']-2] == d12_rsp_start+10) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']-1] == d12_rsp_start+9) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']+1] == d12_rsp_start+8) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']+2] == d12_rsp_start+7) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']+board_size-1] == d12_rsp_start+6) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']+board_size] == d12_rsp_start+5) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']+board_size+1] == d12_rsp_start+4) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['c']+2*board_size] == d12_rsp_start+3) 
     # no others
-    eq_(number_of_active_positions(white, F_RESPONSE), 11)
-    eq_(number_of_active_positions(white, F_D12_RSP_PAT), 11)
+    assert (number_of_active_positions(white, F_RESPONSE) == 11)
+    assert (number_of_active_positions(white, F_D12_RSP_PAT) == 11)
 
     # put W[d]
     put_stone(game, moves['d'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['d']
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']-2*board_size], d12_rsp_start+22) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']-board_size-1], d12_rsp_start+21) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']-board_size], -1) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']-board_size+1], d12_rsp_start+20) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']-2], d12_rsp_start+19) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']-1], d12_rsp_start+18) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']+1], -1) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']+2], d12_rsp_start+17) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']+board_size-1], d12_rsp_start+16) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']+board_size], d12_rsp_start+15) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']+board_size+1], d12_rsp_start+14) 
-    eq_(black.tensor[F_D12_RSP_PAT][moves['d']+2*board_size], -1) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']-2*board_size] == d12_rsp_start+22) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']-board_size-1] == d12_rsp_start+21) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']-board_size] == -1) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']-board_size+1] == d12_rsp_start+20) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']-2] == d12_rsp_start+19) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']-1] == d12_rsp_start+18) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']+1] == -1) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']+2] == d12_rsp_start+17) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']+board_size-1] == d12_rsp_start+16) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']+board_size] == d12_rsp_start+15) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']+board_size+1] == d12_rsp_start+14) 
+    assert (black.tensor[F_D12_RSP_PAT][moves['d']+2*board_size] == -1) 
     # no others, previous positions are cleared
-    eq_(number_of_active_positions(black, F_RESPONSE), 9)
-    eq_(number_of_active_positions(black, F_D12_RSP_PAT), 9)
+    assert (number_of_active_positions(black, F_RESPONSE), 9)
+    assert (number_of_active_positions(black, F_D12_RSP_PAT), 9)
 
     # put B[e]
     put_stone(game, moves['e'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['e']
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']-2*board_size], d12_rsp_start+31) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']-board_size-1], d12_rsp_start+30) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']-board_size], d12_rsp_start+29) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']-board_size+1], d12_rsp_start+28) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']-2], d12_rsp_start+27) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']-1], -1) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']+1], d12_rsp_start+26) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']+2], d12_rsp_start+25) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']+board_size-1], -1) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']+board_size], -1) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']+board_size+1], d12_rsp_start+24) 
-    eq_(white.tensor[F_D12_RSP_PAT][moves['e']+2*board_size], d12_rsp_start+23) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']-2*board_size] == d12_rsp_start+31) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']-board_size-1] == d12_rsp_start+30) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']-board_size] == d12_rsp_start+29) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']-board_size+1] == d12_rsp_start+28) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']-2] == d12_rsp_start+27) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']-1] == -1) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']+1] == d12_rsp_start+26) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']+2] == d12_rsp_start+25) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']+board_size-1] == -1) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']+board_size] == -1) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']+board_size+1] == d12_rsp_start+24) 
+    assert (white.tensor[F_D12_RSP_PAT][moves['e']+2*board_size] == d12_rsp_start+23) 
     # no others, previous positions are cleared
-    eq_(number_of_active_positions(white, F_RESPONSE), 9)
-    eq_(number_of_active_positions(white, F_D12_RSP_PAT), 9)
+    assert (number_of_active_positions(white, F_RESPONSE), 9)
+    assert (number_of_active_positions(white, F_D12_RSP_PAT), 9)
 
     # print_board(game)
 
@@ -1957,7 +1955,7 @@ def test_update_12diamond_rspos_after_pass_0():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
 
-    eq_(number_of_active_positions(white, F_D12_RSP_PAT), 0)
+    assert (number_of_active_positions(white, F_D12_RSP_PAT) == 0)
 
     free_game(game)
 
@@ -1988,88 +1986,88 @@ def test_update_3x3_0():
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['a'] 
-    eq_(white.tensor[F_X33_PAT][moves['a']-board_size-1], x33_start) 
-    eq_(white.tensor[F_X33_PAT][moves['a']-board_size], x33_start+1) 
-    eq_(white.tensor[F_X33_PAT][moves['a']-board_size+1], x33_start) 
-    eq_(white.tensor[F_X33_PAT][moves['a']-1], x33_start+1) 
-    eq_(white.tensor[F_X33_PAT][moves['a']+1], x33_start+1) 
-    eq_(white.tensor[F_X33_PAT][moves['a']+board_size-1], x33_start) 
-    eq_(white.tensor[F_X33_PAT][moves['a']+board_size], x33_start+1) 
-    eq_(white.tensor[F_X33_PAT][moves['a']+board_size+1], x33_start) 
-    eq_(number_of_active_positions(white, F_X33_PAT), 8)
+    assert (white.tensor[F_X33_PAT][moves['a']-board_size-1] == x33_start) 
+    assert (white.tensor[F_X33_PAT][moves['a']-board_size] == x33_start+1) 
+    assert (white.tensor[F_X33_PAT][moves['a']-board_size+1] == x33_start) 
+    assert (white.tensor[F_X33_PAT][moves['a']-1] == x33_start+1) 
+    assert (white.tensor[F_X33_PAT][moves['a']+1] == x33_start+1) 
+    assert (white.tensor[F_X33_PAT][moves['a']+board_size-1] == x33_start) 
+    assert (white.tensor[F_X33_PAT][moves['a']+board_size] == x33_start+1) 
+    assert (white.tensor[F_X33_PAT][moves['a']+board_size+1] == x33_start) 
+    assert (number_of_active_positions(white, F_X33_PAT), 8)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['a'] 
-    eq_(black.tensor[F_X33_PAT][moves['a']-board_size-1], x33_start + 2) 
-    eq_(black.tensor[F_X33_PAT][moves['a']-board_size], x33_start + 3) 
-    eq_(black.tensor[F_X33_PAT][moves['a']-board_size+1], x33_start + 2) 
-    eq_(black.tensor[F_X33_PAT][moves['a']-1], x33_start + 3) 
-    eq_(black.tensor[F_X33_PAT][moves['a']+1], x33_start + 3) 
-    eq_(black.tensor[F_X33_PAT][moves['a']+board_size-1], x33_start + 2) 
-    eq_(black.tensor[F_X33_PAT][moves['a']+board_size], x33_start + 3) 
-    eq_(black.tensor[F_X33_PAT][moves['a']+board_size+1], x33_start + 2) 
+    assert (black.tensor[F_X33_PAT][moves['a']-board_size-1] == x33_start + 2) 
+    assert (black.tensor[F_X33_PAT][moves['a']-board_size] == x33_start + 3) 
+    assert (black.tensor[F_X33_PAT][moves['a']-board_size+1] == x33_start + 2) 
+    assert (black.tensor[F_X33_PAT][moves['a']-1] == x33_start + 3) 
+    assert (black.tensor[F_X33_PAT][moves['a']+1] == x33_start + 3) 
+    assert (black.tensor[F_X33_PAT][moves['a']+board_size-1] == x33_start + 2) 
+    assert (black.tensor[F_X33_PAT][moves['a']+board_size] == x33_start + 3) 
+    assert (black.tensor[F_X33_PAT][moves['a']+board_size+1] == x33_start + 2) 
     # updated around move['b']
-    eq_(black.tensor[F_X33_PAT][moves['b']-board_size-1], x33_start) 
-    eq_(black.tensor[F_X33_PAT][moves['b']-board_size], x33_start+1) 
-    eq_(black.tensor[F_X33_PAT][moves['b']-board_size+1], x33_start) 
-    eq_(black.tensor[F_X33_PAT][moves['b']-1], x33_start+1) 
-    eq_(black.tensor[F_X33_PAT][moves['b']+1], x33_start+1) 
-    eq_(black.tensor[F_X33_PAT][moves['b']+board_size-1], x33_start) 
-    eq_(black.tensor[F_X33_PAT][moves['b']+board_size], x33_start+1) 
-    eq_(black.tensor[F_X33_PAT][moves['b']+board_size+1], x33_start) 
-    eq_(number_of_active_positions(black, F_X33_PAT), 16)
+    assert (black.tensor[F_X33_PAT][moves['b']-board_size-1] == x33_start) 
+    assert (black.tensor[F_X33_PAT][moves['b']-board_size] == x33_start+1) 
+    assert (black.tensor[F_X33_PAT][moves['b']-board_size+1] == x33_start) 
+    assert (black.tensor[F_X33_PAT][moves['b']-1] == x33_start+1) 
+    assert (black.tensor[F_X33_PAT][moves['b']+1] == x33_start+1) 
+    assert (black.tensor[F_X33_PAT][moves['b']+board_size-1] == x33_start) 
+    assert (black.tensor[F_X33_PAT][moves['b']+board_size] == x33_start+1) 
+    assert (black.tensor[F_X33_PAT][moves['b']+board_size+1] == x33_start) 
+    assert (number_of_active_positions(black, F_X33_PAT) == 16)
 
     # put B[c]
     put_stone(game, moves['c'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['b']
-    eq_(white.tensor[F_X33_PAT][moves['b']-board_size-1], x33_start + 2) 
-    eq_(white.tensor[F_X33_PAT][moves['b']-board_size], x33_start + 3) 
-    eq_(white.tensor[F_X33_PAT][moves['b']-board_size+1], x33_start + 2) 
-    eq_(white.tensor[F_X33_PAT][moves['b']-1], x33_start + 3) 
-    eq_(white.tensor[F_X33_PAT][moves['b']+1], x33_start + 4) 
-    eq_(white.tensor[F_X33_PAT][moves['b']+board_size-1], x33_start + 2) 
-    eq_(white.tensor[F_X33_PAT][moves['b']+board_size], x33_start + 4) 
-    eq_(white.tensor[F_X33_PAT][moves['b']+board_size+1], -1) 
+    assert (white.tensor[F_X33_PAT][moves['b']-board_size-1] == x33_start + 2) 
+    assert (white.tensor[F_X33_PAT][moves['b']-board_size] == x33_start + 3) 
+    assert (white.tensor[F_X33_PAT][moves['b']-board_size+1] == x33_start + 2) 
+    assert (white.tensor[F_X33_PAT][moves['b']-1] == x33_start + 3) 
+    assert (white.tensor[F_X33_PAT][moves['b']+1] == x33_start + 4) 
+    assert (white.tensor[F_X33_PAT][moves['b']+board_size-1] == x33_start + 2) 
+    assert (white.tensor[F_X33_PAT][moves['b']+board_size] == x33_start + 4) 
+    assert (white.tensor[F_X33_PAT][moves['b']+board_size+1] == -1) 
     # updated around move['c']
-    eq_(white.tensor[F_X33_PAT][moves['c']-board_size-1], -1) 
-    eq_(white.tensor[F_X33_PAT][moves['c']-board_size], x33_start + 4) 
-    eq_(white.tensor[F_X33_PAT][moves['c']-board_size+1], x33_start) 
-    eq_(white.tensor[F_X33_PAT][moves['c']-1], x33_start + 4) 
-    eq_(white.tensor[F_X33_PAT][moves['c']+1], x33_start + 1) 
-    eq_(white.tensor[F_X33_PAT][moves['c']+board_size-1], x33_start + 5) 
-    eq_(white.tensor[F_X33_PAT][moves['c']+board_size], x33_start + 5) 
-    eq_(white.tensor[F_X33_PAT][moves['c']+board_size+1], x33_start) 
-    eq_(number_of_active_positions(white, F_X33_PAT), 18)
+    assert (white.tensor[F_X33_PAT][moves['c']-board_size-1] == -1) 
+    assert (white.tensor[F_X33_PAT][moves['c']-board_size] == x33_start + 4) 
+    assert (white.tensor[F_X33_PAT][moves['c']-board_size+1] == x33_start) 
+    assert (white.tensor[F_X33_PAT][moves['c']-1] == x33_start + 4) 
+    assert (white.tensor[F_X33_PAT][moves['c']+1] == x33_start + 1) 
+    assert (white.tensor[F_X33_PAT][moves['c']+board_size-1] == x33_start + 5) 
+    assert (white.tensor[F_X33_PAT][moves['c']+board_size] == x33_start + 5) 
+    assert (white.tensor[F_X33_PAT][moves['c']+board_size+1] == x33_start) 
+    assert (number_of_active_positions(white, F_X33_PAT) == 18)
 
     # put W[d]
     put_stone(game, moves['d'], game.current_color)
     game.current_color = FLIP_COLOR(game.current_color)
     update_planes(game)
     # updated around move['c']
-    eq_(black.tensor[F_X33_PAT][moves['c']-board_size-1], -1) 
-    eq_(black.tensor[F_X33_PAT][moves['c']-board_size], x33_start + 6) 
-    eq_(black.tensor[F_X33_PAT][moves['c']-board_size+1], x33_start + 2) 
-    eq_(black.tensor[F_X33_PAT][moves['c']-1], -1) 
-    eq_(black.tensor[F_X33_PAT][moves['c']+1], x33_start + 3) 
-    eq_(black.tensor[F_X33_PAT][moves['c']+board_size-1], x33_start + 7) 
-    eq_(black.tensor[F_X33_PAT][moves['c']+board_size], x33_start + 8) 
-    eq_(black.tensor[F_X33_PAT][moves['c']+board_size+1], x33_start + 2) 
+    assert (black.tensor[F_X33_PAT][moves['c']-board_size-1] == -1) 
+    assert (black.tensor[F_X33_PAT][moves['c']-board_size] == x33_start + 6) 
+    assert (black.tensor[F_X33_PAT][moves['c']-board_size+1] == x33_start + 2) 
+    assert (black.tensor[F_X33_PAT][moves['c']-1] == -1) 
+    assert (black.tensor[F_X33_PAT][moves['c']+1] == x33_start + 3) 
+    assert (black.tensor[F_X33_PAT][moves['c']+board_size-1] == x33_start + 7) 
+    assert (black.tensor[F_X33_PAT][moves['c']+board_size] == x33_start + 8) 
+    assert (black.tensor[F_X33_PAT][moves['c']+board_size+1] == x33_start + 2) 
     # updated around move['d']
-    eq_(black.tensor[F_X33_PAT][moves['b']-board_size-1], x33_start) 
-    eq_(black.tensor[F_X33_PAT][moves['b']-board_size], x33_start + 1) 
-    eq_(black.tensor[F_X33_PAT][moves['b']-board_size+1], x33_start) 
-    eq_(black.tensor[F_X33_PAT][moves['b']-1], x33_start + 9) 
-    eq_(black.tensor[F_X33_PAT][moves['b']+1], x33_start + 6) 
-    eq_(black.tensor[F_X33_PAT][moves['d']-1], x33_start + 9) 
-    eq_(black.tensor[F_X33_PAT][moves['d']+board_size-1], x33_start + 10) 
-    eq_(black.tensor[F_X33_PAT][moves['d']+board_size], x33_start + 7) 
-    eq_(black.tensor[F_X33_PAT][moves['d']+board_size+1], x33_start + 8) 
-    eq_(number_of_active_positions(black, F_X33_PAT), 17)
+    assert (black.tensor[F_X33_PAT][moves['b']-board_size-1] == x33_start) 
+    assert (black.tensor[F_X33_PAT][moves['b']-board_size] == x33_start + 1) 
+    assert (black.tensor[F_X33_PAT][moves['b']-board_size+1] == x33_start) 
+    assert (black.tensor[F_X33_PAT][moves['b']-1] == x33_start + 9) 
+    assert (black.tensor[F_X33_PAT][moves['b']+1] == x33_start + 6) 
+    assert (black.tensor[F_X33_PAT][moves['d']-1] == x33_start + 9) 
+    assert (black.tensor[F_X33_PAT][moves['d']+board_size-1] == x33_start + 10) 
+    assert (black.tensor[F_X33_PAT][moves['d']+board_size] == x33_start + 7) 
+    assert (black.tensor[F_X33_PAT][moves['d']+board_size+1] == x33_start + 8) 
+    assert (number_of_active_positions(black, F_X33_PAT) == 17)
 
     # print_board(game)
 
@@ -2082,26 +2080,26 @@ def test_memorize_updated():
 
     initialize_planes(game)
 
-    eq_(black.updated[0], BOARD_MAX)
+    assert (black.updated[0] == BOARD_MAX)
 
     # add 264
-    eq_(memorize_updated(black, 264), True)
-    eq_(black.updated[0], 264)
-    eq_(black.updated[264], BOARD_MAX)
+    assert (memorize_updated(black, 264) == True)
+    assert (black.updated[0] == 264)
+    assert (black.updated[264] == BOARD_MAX)
 
     # 264 already exists
-    eq_(memorize_updated(black, 264), False)
+    assert (memorize_updated(black, 264) == False)
 
     # add 48, 480
-    eq_(memorize_updated(black, 48), True)
-    eq_(black.updated[0], 48)
-    eq_(black.updated[48], 264)
-    eq_(black.updated[264], BOARD_MAX)
-    eq_(memorize_updated(black, 480), True)
-    eq_(black.updated[0], 480)
-    eq_(black.updated[480], 48)
-    eq_(black.updated[48], 264)
-    eq_(black.updated[264], BOARD_MAX)
+    assert (memorize_updated(black, 48) == True)
+    assert (black.updated[0] == 48)
+    assert (black.updated[48] == 264)
+    assert (black.updated[264] == BOARD_MAX)
+    assert (memorize_updated(black, 480) == True)
+    assert (black.updated[0] == 480)
+    assert (black.updated[480] == 48)
+    assert (black.updated[48] == 264)
+    assert (black.updated[264] == BOARD_MAX)
 
 
 def test_choice_rollout_move():
@@ -2129,14 +2127,14 @@ def test_choice_rollout_move():
 
     for i in range(100):
         pos = choice_rollout_move(game)
-        ok_(pos in (120, 132, 396, 408))
+        assert (pos in (120, 132, 396, 408))
 
     set_illegal(game, 120)
     set_illegal(game, 132)
     set_illegal(game, 396)
     set_illegal(game, 408)
 
-    eq_(choice_rollout_move(game), PASS)
+    assert (choice_rollout_move(game) == PASS)
 
 
 def test_set_illegal():
@@ -2163,19 +2161,19 @@ def test_set_illegal():
                game.rollout_logits_sum[color])
 
     set_illegal(game, 120)
-    eq_(game.rollout_logits_sum[color], 100)
-    eq_(round(game.rollout_probs[color][72] + game.rollout_probs[color][288] + game.rollout_probs[color][300]), 1)
+    assert (game.rollout_logits_sum[color] == 100)
+    assert (round(game.rollout_probs[color][72] + game.rollout_probs[color][288] + game.rollout_probs[color][300]) == 1)
 
     set_illegal(game, 132)
-    eq_(game.rollout_logits_sum[color], 50)
-    eq_(round(game.rollout_probs[color][288] + game.rollout_probs[color][300]), 1)
+    assert (game.rollout_logits_sum[color] == 50)
+    assert (round(game.rollout_probs[color][288] + game.rollout_probs[color][300]) == 1)
 
     set_illegal(game, 396)
-    eq_(game.rollout_logits_sum[color], 30)
-    eq_(round(game.rollout_probs[color][288] + game.rollout_probs[color][300]), 1)
+    assert (game.rollout_logits_sum[color] == 30)
+    assert (round(game.rollout_probs[color][288] + game.rollout_probs[color][300]) == 1)
 
     set_illegal(game, 408)
-    eq_(game.rollout_logits_sum[color], 0)
+    assert (game.rollout_logits_sum[color] == 0)
 
 
 def test_copy_game():
@@ -2229,41 +2227,41 @@ def test_copy_game():
 
     copy_game(copy, game)
 
-    eq_(copy.rollout_feature_planes[black].color, black)
-    eq_(copy.rollout_feature_planes[black].tensor[0][0], 1)
-    eq_(copy.rollout_feature_planes[black].tensor[5][360], 1)
-    eq_(copy.rollout_feature_planes[black].prev_neighbor8[0], 96)
-    eq_(copy.rollout_feature_planes[black].prev_neighbor8[7], 144)
-    eq_(copy.rollout_feature_planes[black].prev_neighbor8_num, 8)
-    eq_(copy.rollout_feature_planes[black].prev_d12[0], 74)
-    eq_(copy.rollout_feature_planes[black].prev_d12[11], 143)
-    eq_(copy.rollout_feature_planes[black].prev_d12_num, 12)
-    eq_(copy.rollout_feature_planes[black].updated[0], 120)
-    eq_(copy.rollout_feature_planes[black].updated[528], 132)
-    eq_(copy.rollout_feature_planes[black].updated_num, 2)
+    assert (copy.rollout_feature_planes[black].color == black)
+    assert (copy.rollout_feature_planes[black].tensor[0][0] == 1)
+    assert (copy.rollout_feature_planes[black].tensor[5][360] == 1)
+    assert (copy.rollout_feature_planes[black].prev_neighbor8[0] == 96)
+    assert (copy.rollout_feature_planes[black].prev_neighbor8[7] == 144)
+    assert (copy.rollout_feature_planes[black].prev_neighbor8_num == 8)
+    assert (copy.rollout_feature_planes[black].prev_d12[0] == 74)
+    assert (copy.rollout_feature_planes[black].prev_d12[11] == 143)
+    assert (copy.rollout_feature_planes[black].prev_d12_num == 12)
+    assert (copy.rollout_feature_planes[black].updated[0] == 120)
+    assert (copy.rollout_feature_planes[black].updated[528] == 132)
+    assert (copy.rollout_feature_planes[black].updated_num == 2)
 
-    eq_(copy.rollout_feature_planes[white].color, white)
-    eq_(copy.rollout_feature_planes[white].tensor[0][0], 1)
-    eq_(copy.rollout_feature_planes[white].tensor[5][360], 1)
-    eq_(copy.rollout_feature_planes[white].prev_neighbor8[0], 108)
-    eq_(copy.rollout_feature_planes[white].prev_neighbor8[7], 156)
-    eq_(copy.rollout_feature_planes[white].prev_neighbor8_num, 8)
-    eq_(copy.rollout_feature_planes[white].prev_d12[0], 88)
-    eq_(copy.rollout_feature_planes[white].prev_d12[11], 178)
-    eq_(copy.rollout_feature_planes[white].prev_d12_num, 12)
-    eq_(copy.rollout_feature_planes[white].updated[0], 120)
-    eq_(copy.rollout_feature_planes[white].updated[528], 132)
-    eq_(copy.rollout_feature_planes[white].updated_num, 2)
+    assert (copy.rollout_feature_planes[white].color == white)
+    assert (copy.rollout_feature_planes[white].tensor[0][0] == 1)
+    assert (copy.rollout_feature_planes[white].tensor[5][360] == 1)
+    assert (copy.rollout_feature_planes[white].prev_neighbor8[0] == 108)
+    assert (copy.rollout_feature_planes[white].prev_neighbor8[7] == 156)
+    assert (copy.rollout_feature_planes[white].prev_neighbor8_num == 8)
+    assert (copy.rollout_feature_planes[white].prev_d12[0] == 88)
+    assert (copy.rollout_feature_planes[white].prev_d12[11] == 178)
+    assert (copy.rollout_feature_planes[white].prev_d12_num == 12)
+    assert (copy.rollout_feature_planes[white].updated[0] == 120)
+    assert (copy.rollout_feature_planes[white].updated[528] == 132)
+    assert (copy.rollout_feature_planes[white].updated_num == 2)
 
-    eq_(copy.rollout_logits[black][0], 1)
-    eq_(copy.rollout_logits[white][360], 2)
-    eq_(copy.rollout_logits_sum[black], 1)
-    eq_(copy.rollout_logits_sum[white], 2)
+    assert (copy.rollout_logits[black][0] == 1)
+    assert (copy.rollout_logits[white][360] == 2)
+    assert (copy.rollout_logits_sum[black] == 1)
+    assert (copy.rollout_logits_sum[white] == 2)
 
-    eq_(copy.rollout_probs[black][0], 1)
-    eq_(copy.rollout_probs[white][360], 2)
-    eq_(copy.rollout_row_probs[black][0], 1)
-    eq_(copy.rollout_row_probs[white][18], 2)
+    assert (copy.rollout_probs[black][0] == 1)
+    assert (copy.rollout_probs[white][360] == 2)
+    assert (copy.rollout_row_probs[black][0] == 1)
+    assert (copy.rollout_row_probs[white][18] == 2)
 
 
 cdef int number_of_active_positions(rollout_feature_t *feature, int feature_id):

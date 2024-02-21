@@ -124,12 +124,12 @@ def run_training():
         summary_op = tf.summary.merge_all()
         init_op = tf.global_variables_initializer()
 
-        config = tf.ConfigProto(allow_soft_placement=True,
+        config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
                                 log_device_placement=FLAGS.log_device_placement)
         if FLAGS.gpu_memory_fraction:
             config.gpu_options.per_process_gpu_memory_fraction = FLAGS.gpu_memory_fraction
 
-        sess = tf.Session(config=config)
+        sess = tf.compat.v1.Session(config=config)
         sess.run(iterator.initializer, feed_dict={filenames: [FLAGS.train_data]})
         sess.run(init_op)
 

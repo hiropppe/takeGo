@@ -1,13 +1,16 @@
 from bamboo import test_seki as ctest
 
-import unittest
 
+class TestSeki():
 
-class TestSeki(unittest.TestCase):
     @classmethod
-    def setUpClass(clazz):
+    def setup_class(self):
         ctest.setup()
-
+        
+    @classmethod
+    def teardown_class(self):
+        pass
+    
     def test_seki_0(self):
         ctest.test_seki_0()
 

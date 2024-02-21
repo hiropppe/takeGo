@@ -1,9 +1,8 @@
 from bamboo import test_policy_feature as ctest
 
-import unittest
 
-
-class TestPolicyFeature(unittest.TestCase):
+class TestPolicyFeature():
+    
     def test_stone_color(self):
         ctest.test_stone_color()
 

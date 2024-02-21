@@ -24,7 +24,7 @@ def print_value(vn_path, sgf, moves=[4, 5, 50, 51, 100, 101, 150, 151, 250, 251,
         inputs = tf.placeholder(tf.float32, [None, 49, 19, 19])
         op = inference_agz(inputs, is_training=True)
 
-        sess = tf.Session(graph=graph)
+        sess = tf.compat.v1.Session(graph=graph)
         # init_op = tf.global_variables_initializer()
         # sess.run(init_op)
         saver = tf.train.Saver()

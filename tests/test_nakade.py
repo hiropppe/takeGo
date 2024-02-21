@@ -1,11 +1,10 @@
 from bamboo import test_nakade as ctest
 
-import unittest
 
+class TestNakade():
 
-class TestNakade(unittest.TestCase):
     @classmethod
-    def setUpClass(clazz):
+    def setup_class(clazz):
         ctest.setup()
 
     def test_nakade3(self):

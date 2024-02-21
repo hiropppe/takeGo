@@ -53,7 +53,7 @@ class CNNPolicy(NeuralNetBase):
             input_shape = (params["input_dim"], params["board"], params["board"])
 
         # create first layer
-        network.add(keras.layers.convolutional.Convolution2D(
+        network.add(keras.layers.Conv2D(
             params["filters_per_layer"],
             (params["filter_width_1"], params["filter_width_1"]),
             kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
@@ -72,7 +72,7 @@ class CNNPolicy(NeuralNetBase):
             filter_count_key = "filters_per_layer_%d" % i
             filter_nb = params.get(filter_count_key, params["filters_per_layer"])
 
-            network.add(keras.layers.convolutional.Convolution2D(
+            network.add(keras.layers.Conv2D(
                 filter_nb,
                 (filter_width, filter_width),
                 kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
@@ -81,7 +81,7 @@ class CNNPolicy(NeuralNetBase):
                 name='Conv2D_' + str(i)))
 
         # the last layer maps each <filters_per_layer> feature to a number
-        network.add(keras.layers.convolutional.Convolution2D(
+        network.add(keras.layers.Conv2D(
             1,
             (1, 1),
             kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
@@ -158,7 +158,7 @@ class ResnetPolicy(CNNPolicy):
         model_input = keras.layers.Input(shape=(params["input_dim"], params["board"], params["board"]))
 
         # create first layer
-        convolution_path = keras.layers.convolutional.Convolution2D(
+        convolution_path = keras.layers.Conv2D(
             input_shape=(),
             nb_filter=params["filters_per_layer"],
             nb_row=params["filter_width_1"],
@@ -191,7 +191,7 @@ class ResnetPolicy(CNNPolicy):
                 filter_key = "filter_width_%d" % layer
                 filter_width = params.get(filter_key, 3)
                 # add Conv2D
-                path = keras.layers.convolutional.Convolution2D(
+                path = keras.layers.Conv2D(
                     nb_filter=params["filters_per_layer"],
                     nb_row=filter_width,
                     nb_col=filter_width,
@@ -214,7 +214,7 @@ class ResnetPolicy(CNNPolicy):
         convolution_path = keras.layers.core.Activation('relu')(convolution_path)
 
         # the last layer maps each <filters_per_layer> featuer to a number
-        convolution_path = keras.layers.convolutional.Convolution2D(
+        convolution_path = keras.layers.Conv2D(
             nb_filter=1,
             nb_row=1,
             nb_col=1,

@@ -3,11 +3,9 @@ import numpy as np
 
 import tensorflow as tf
 
-from tensorflow import keras
-from tensorflow.keras import backend as K
-#from tensorflow.contrib.keras.python import keras
-#from tensorflow.contrib.keras.python.keras import backend as K
-from tensorflow.keras.layers import Layer
+from tensorflow.python import keras
+from tensorflow.python.keras import backend as K
+from tensorflow.python.keras.layers import Layer
 
 
 class NeuralNetBase(object):

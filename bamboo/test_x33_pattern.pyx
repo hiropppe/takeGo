@@ -4,8 +4,6 @@ cimport numpy as np
 
 from libc.stdlib cimport malloc, free
 
-from nose.tools import ok_, eq_
-
 from bamboo.board cimport S_EMPTY, S_BLACK, S_WHITE
 from bamboo.board cimport game_state_t, allocate_game, free_game
 from bamboo.parseboard cimport parse
@@ -28,7 +26,7 @@ def test_x33_bit():
 
     bits = x33_bits(game, moves['a'], S_BLACK)
 
-    eq_(bits, <unsigned long long>6787556593)
+    assert (bits == <unsigned long long>6787556593)
     
     free_game(game)
 
@@ -49,7 +47,7 @@ def test_x33_hash_from_bits_0():
     hash1 = x33_hash(game, moves['a'], <int>S_BLACK)
     hash2 = x33_hash_from_bits(x33_bits(game, moves['a'], <int>S_BLACK))
 
-    eq_(hash1, hash2)
+    assert (hash1 == hash2)
 
     free_game(game)
 
@@ -72,6 +70,6 @@ def test_x33_hash_from_bits_1():
     hash1 = x33_hash(game, moves['a'], <int>S_BLACK)
     hash2 = x33_hash_from_bits(x33_bits(game, moves['a'], <int>S_BLACK))
 
-    eq_(hash1, hash2)
+    assert (hash1 == hash2)
 
     free_game(game)

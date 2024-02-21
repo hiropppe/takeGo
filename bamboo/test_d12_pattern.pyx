@@ -4,8 +4,6 @@ cimport numpy as np
 
 from libc.stdlib cimport malloc, free
 
-from nose.tools import ok_, eq_
-
 from bamboo.board cimport S_EMPTY, S_BLACK, S_WHITE
 from bamboo.board cimport game_state_t, allocate_game, free_game, put_stone
 from bamboo.parseboard cimport parse
@@ -35,7 +33,7 @@ def test_d12_rsp_bits_0():
     put_stone(game, moves['a'], S_WHITE)
     bits = d12_rsp_bits(game, moves['a'], S_WHITE, empty_ix, empty_pos, n_empty)
 
-    eq_(bits, <unsigned long long>0b1001100100010101000110011011111111001111110011011111)
+    assert (bits == <unsigned long long>0b1001100100010101000110011011111111001111110011011111)
     
     free_game(game)
 
@@ -66,7 +64,7 @@ def test_d12_rsp_hash_0():
     bits = d12_rsp_bits(game, moves['a'], S_WHITE, empty_ix, empty_pos, n_empty)
     hash2 = d12_rsp_hash_from_bits(bits)
 
-    eq_(hash1, hash2)
+    assert (hash1 == hash2)
 
     free_game(game)
 
@@ -92,12 +90,12 @@ def test_d12_rspos_bits_0():
     bits = d12_rspos_bits(game, moves['a'], S_WHITE, empty_ix, empty_pos, n_empty)
     bits |= (1 << 3) 
 
-    eq_(bits, <unsigned long long>0b1001100100010101000110011011111111001111110011011111000000001000)
-    eq_(n_empty[0], 2)
-    eq_(empty_ix[0], 3)
-    eq_(empty_ix[1], 7)
-    eq_(empty_pos[0], 50)
-    eq_(empty_pos[1], 62)
+    assert (bits == <unsigned long long>0b1001100100010101000110011011111111001111110011011111000000001000)
+    assert(n_empty[0] == 2)
+    assert(empty_ix[0] == 3)
+    assert(empty_ix[1] == 7)
+    assert(empty_pos[0] == 50)
+    assert(empty_pos[1] == 62)
     
     free_game(game)
 
@@ -127,23 +125,23 @@ def test_d12_rspos_hash_0():
     hash1 = d12_rspos_hash(game, moves['a'], <int>S_WHITE, empty_ix, empty_pos, n_empty)
     hash1 ^= d12_pos_mt[1 << 3]
 
-    eq_(n_empty[0], 2)
-    eq_(empty_ix[0], 3)
-    eq_(empty_ix[1], 7)
-    eq_(empty_pos[0], 50)
-    eq_(empty_pos[1], 62)
+    assert(n_empty[0] == 2)
+    assert(empty_ix[0] == 3)
+    assert (empty_ix[1] == 7)
+    assert (empty_pos[0] == 50)
+    assert (empty_pos[1] == 62)
 
     bits = d12_rspos_bits(game, moves['a'], S_WHITE, empty_ix, empty_pos, n_empty)
     bits |= (1 << 3) 
 
-    eq_(n_empty[0], 2)
-    eq_(empty_ix[0], 3)
-    eq_(empty_ix[1], 7)
-    eq_(empty_pos[0], 50)
-    eq_(empty_pos[1], 62)
+    assert (n_empty[0] == 2)
+    assert (empty_ix[0] == 3)
+    assert (empty_ix[1] == 7)
+    assert (empty_pos[0] == 50)
+    assert (empty_pos[1] == 62)
 
     hash2 = d12_rspos_hash_from_bits(bits)
 
-    eq_(hash1, hash2)
+    assert (hash1, hash2)
 
     free_game(game)

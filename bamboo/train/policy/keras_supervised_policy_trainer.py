@@ -6,8 +6,8 @@ import numpy as np
 import sys
 import tensorflow as tf
 
-from tensorflow.contrib.keras.python import keras
-from tensorflow.contrib.keras.python.keras import backend as K
+from tensorflow import keras
+from tensorflow.python.keras import backend as K
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 from bamboo.models.keras_dcnn_policy import CNNPolicy
@@ -76,7 +76,7 @@ def confirm(prompt=None, resp=False):
         if not ans:
             return resp
         if ans not in ['y', 'Y', 'n', 'N']:
-            print 'please enter y or n.'
+            print('please enter y or n.')
             continue
         if ans == 'y' or ans == 'Y':
             return True
@@ -623,9 +623,9 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
 
     # Limit the GPU memory usage
     if K.backend() == 'tensorflow':
-        config = tf.ConfigProto()
+        config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
-        keras.backend.set_session(tf.Session(config=config))
+        keras.backend.set_session(tf.compat.v1.Session(config=config))
 
     # load model from json spec
     policy = CNNPolicy(init_network=True, nogpu=nogpu)

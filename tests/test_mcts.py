@@ -1,18 +1,19 @@
+import os
+
 from bamboo import test_mcts as ctest
 
-import os
-import unittest
 
+class TestMCTS():
 
-class TestMCTS(unittest.TestCase):
     @classmethod
-    def setUpClass(clazz):
+    def setup_class(clazz):
         import tensorflow as tf
-        from tensorflow.contrib.keras.python.keras.backend import set_session
-        # config = tf.ConfigProto(device_count={"GPU": 0})
-        config = tf.ConfigProto()
+        from tensorflow.python.keras import backend as K
+
+        # config = tf.compat.v1.ConfigProto(device_count={"GPU": 0})
+        config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
-        set_session(tf.Session(config=config))
+        K.set_session(tf.compat.v1.Session(config=config))
 
         d = os.path.dirname(os.path.abspath(__file__))
         # setup supervised policy
@@ -28,13 +29,13 @@ class TestMCTS(unittest.TestCase):
         ctest.setup_pattern(rands_file, d12_file, x33_file)
 
     @classmethod
-    def tearDownClass(clazz):
+    def teardown_class(clazz):
         pass
 
-    def setUp(self):
+    def setup_method(self, method):
         ctest.setup()
 
-    def tearDown(self):
+    def teardown_method(self, method):
         ctest.teardown()
 
     def test_seek_root(self):

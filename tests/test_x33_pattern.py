@@ -1,9 +1,8 @@
 from bamboo import test_x33_pattern as ctest
 
-import unittest
 
-
-class TestX33Pattern(unittest.TestCase):
+class TestX33Pattern():
+    
     def test_x33_bit(self):
         ctest.test_x33_bit()
 

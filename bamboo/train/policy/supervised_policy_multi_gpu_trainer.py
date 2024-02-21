@@ -241,14 +241,14 @@ def run_training():
         # Start running operations on the Graph. allow_soft_placement must be set to
         # True to build towers on GPU, as some of the ops do not have GPU
         # implementations.
-        config = tf.ConfigProto(
+        config = tf.compat.v1.ConfigProto(
             allow_soft_placement=True,
             log_device_placement=FLAGS.log_device_placement)
 
         if FLAGS.gpu_memory_fraction:
             config.gpu_options.per_process_gpu_memory_fraction = FLAGS.gpu_memory_fraction
 
-        sess = tf.Session(config=config)
+        sess = tf.compat.v1.Session(config=config)
         sess.run(iterator.initializer, feed_dict={filenames: [FLAGS.train_data]})
         sess.run(init)
 

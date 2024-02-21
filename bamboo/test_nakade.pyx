@@ -1,5 +1,3 @@
-from nose.tools import ok_, eq_
-
 from bamboo.board cimport S_BLACK, S_WHITE
 from bamboo.board cimport FLIP_COLOR
 from bamboo.board cimport game_state_t
@@ -32,7 +30,7 @@ def test_nakade3():
     game.current_color = S_WHITE
     put_stone(game, moves['b'], game.current_color)
 
-    eq_(nakade_at_captured_stone(game, <int>S_BLACK), moves['a'])
+    assert (nakade_at_captured_stone(game, <int>S_BLACK) == moves['a'])
 
     (moves, pure_moves) = parse(game,
                               "W a W b . . .|"
@@ -50,7 +48,7 @@ def test_nakade3():
     game.current_color = S_BLACK
     put_stone(game, moves['b'], game.current_color)
 
-    eq_(nakade_at_captured_stone(game, <int>S_WHITE), moves['a'])
+    assert (nakade_at_captured_stone(game, <int>S_WHITE) == moves['a'])
 
     (moves, pure_moves) = parse(game,
                               "a W b . . . .|"
@@ -68,7 +66,7 @@ def test_nakade3():
     game.current_color = S_BLACK
     put_stone(game, moves['b'], game.current_color)
 
-    eq_(nakade_at_captured_stone(game, <int>S_WHITE), moves['a'])
+    assert (nakade_at_captured_stone(game, <int>S_WHITE) == moves['a'])
 
 
 def test_nakade4():
