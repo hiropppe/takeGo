@@ -51,7 +51,7 @@ def start_training(args):
 
     states = dataset['states']
     actions = dataset['actions']
-    feature_size = dataset['n_features'].value
+    feature_size = dataset['n_features'][()]
     if args.policy == 'rollout':
         n_features = 6
     else:
@@ -68,7 +68,7 @@ def start_training(args):
         params = {'W': rgen.normal(loc=0.0, scale=0.01, size=feature_size)}
     else:
         with h5.File(args.weights) as weights_h5:
-            params = {'W': weights_h5['W'].value}
+            params = {'W': weights_h5['W'][()]}
 
     if args.optimizer == 'sgd':
         optimizer = SGD(lr=args.learning_rate, decay_every=args.decay_every, decay_rate=args.decay)
