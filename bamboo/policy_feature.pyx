@@ -22,13 +22,22 @@ from .pattern cimport pat3
 from .tree_search cimport tree_node_t 
 
 
+# todo. Fixing PolicyFeature implementation from struct to cdef class
+cdef class PolicyFeature:
+
+    def __cinit__(self, n_planes):
+        self.planes = np.zeros((n_planes, board.pure_board_max), dtype=np.int32)
+        self.n_planes = n_planes
+        self.search_games = NULL
+    
+    def __dealloc__(self):
+        if self.search_games:
+            free(self.search_games)
+            self.search_games = NULL
+
+
 cdef PolicyFeature allocate_feature(int n_planes):
-    cdef PolicyFeature feature
-
-    feature = PolicyFeature()
-    feature.planes = np.zeros((n_planes, board.pure_board_max), dtype=np.int32)
-    feature.n_planes = n_planes
-
+    cdef PolicyFeature feature = PolicyFeature(n_planes)
     return feature
 
 
@@ -46,10 +55,15 @@ cdef void initialize_feature(PolicyFeature feature):
     feature.search_games = game
 
 
-
 cdef void free_feature(PolicyFeature feature):
     if feature:
         del feature
+
+
+cdef void free_feature_games(PolicyFeature feature):
+    if feature.search_games:
+        free(feature.search_games)
+        feature.search_games = NULL
 
 
 cdef void update(PolicyFeature feature, tree_node_t *node):
@@ -295,7 +309,7 @@ cdef int get_escape_options(board.game_state_t *game,
                             int string_id):
     cdef board.string_t *string
     cdef board.string_t *neighbor
-    cdef int neighbor_id
+    cdef int neighbor_id, next_neighbor_id
     cdef int escape_options_num = 0 
 
     # Add capturing atari neighbor to options
@@ -306,7 +320,12 @@ cdef int get_escape_options(board.game_state_t *game,
         if neighbor.libs == 1 and board.is_legal(game, neighbor.lib[0], escape_color):
             escape_options[escape_options_num] = neighbor.lib[0]
             escape_options_num += 1
-        neighbor_id = string.neighbor[neighbor_id]
+        next_neighbor_id = string.neighbor[neighbor_id]
+        if next_neighbor_id == neighbor_id:
+            # todo. test the cases that come here.
+            break
+        else:
+            neighbor_id = next_neighbor_id
 
     # prior capture to escape
     escape_options[escape_options_num] = atari_pos

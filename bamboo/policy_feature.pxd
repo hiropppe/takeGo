@@ -21,6 +21,7 @@ cdef class PolicyFeature:
 cdef PolicyFeature allocate_feature(int n_planes)
 cdef void initialize_feature(PolicyFeature feature)
 cdef void free_feature(PolicyFeature feature)
+cdef void free_feature_games(PolicyFeature feature)
 
 cdef void update(PolicyFeature feature, tree_node_t *node)
 

@@ -23,7 +23,7 @@ from bamboo.sgf_util cimport SGFMoveIterator
 from bamboo.board cimport PASS
 from bamboo.board cimport game_state_t, pure_board_max, onboard_index
 from bamboo.policy_feature cimport MAX_POLICY_PLANES
-from bamboo.policy_feature cimport PolicyFeature, allocate_feature, initialize_feature, free_feature, update
+from bamboo.policy_feature cimport PolicyFeature, allocate_feature, initialize_feature, free_feature, update, free_feature_games
 from bamboo.tree_search cimport tree_node_t
 from bamboo.printer cimport print_board
 
@@ -59,24 +59,29 @@ cdef class GameConverter(object):
         for i in range(self.bsize**2):
             node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
         initialize_feature(self.feature)
+        try:
+            with open(file_name, 'r') as file_object:
+                sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
 
-        with open(file_name, 'r') as file_object:
-            sgf_iter = SGFMoveIterator(self.bsize, file_object.read())
-
-        game = sgf_iter.game
-        node.game = game
-        for i, move in enumerate(sgf_iter):
-            if move[0] != PASS:
-                s = time.time()
-                update(self.feature, node)
-                self.update_speeds.append(time.time()-s)
-                if onboard_index[move[0]] >= pure_board_max:
-                    continue
-                else:
-                    planes = np.asarray(self.feature.planes)
-                    planes = planes.reshape(1, self.n_features, self.bsize, self.bsize)
-                    planes = planes.transpose(0, 1, 3, 2)  # required?
-                    yield (planes, onboard_index_to_np_move(onboard_index[move[0]], self.bsize))
+            game = sgf_iter.game
+            node.game = game
+            for i, move in enumerate(sgf_iter):
+                if move[0] != PASS:
+                    s = time.time()
+                    update(self.feature, node)
+                    self.update_speeds.append(time.time()-s)
+                    if onboard_index[move[0]] >= pure_board_max:
+                        continue
+                    else:
+                        planes = np.asarray(self.feature.planes)
+                        planes = planes.reshape(1, self.n_features, self.bsize, self.bsize)
+                        planes = planes.transpose(0, 1, 3, 2)  # required?
+                        yield (planes, onboard_index_to_np_move(onboard_index[move[0]], self.bsize))
+        finally:
+            free_feature_games(self.feature)
+            for i in range(self.bsize**2):
+                free(node.children[i])
+            free(node)
 
     def sgfs_to_hdf5(self,
                      sgf_files,
