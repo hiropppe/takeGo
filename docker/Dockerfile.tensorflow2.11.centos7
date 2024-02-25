@@ -83,6 +83,8 @@ RUN pip3 --no-cache-dir install \
         Cython \
         h5py \
         sgf \
+        pandas \
+        pyarrow \
         python-jsonrpc \
         flask \
         pytest \
