@@ -46,17 +46,18 @@ class CNNPolicy(NeuralNetBase):
         # such that the output dimensions are also board x board
         network = keras.models.Sequential()
 
-        if kwargs.get('nogpu', False):
-            print('CPU BiasOp only supports NHWC.')
-            input_shape = (params["board"], params["board"], params["input_dim"])
-        else:
-            input_shape = (params["input_dim"], params["board"], params["board"])
+        input_shape = (params["board"], params["board"], params["input_dim"])
+        #if kwargs.get('nogpu', False):
+        #    print('CPU BiasOp only supports NHWC.')
+        #    input_shape = (params["board"], params["board"], params["input_dim"])
+        #else:
+        #    input_shape = (params["input_dim"], params["board"], params["board"])
 
         # create first layer
         network.add(keras.layers.Conv2D(
             params["filters_per_layer"],
             (params["filter_width_1"], params["filter_width_1"]),
-            kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
+            kernel_initializer=tf.compat.v1.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
             activation='relu',
             padding='same',
             input_shape=input_shape,
@@ -75,7 +76,7 @@ class CNNPolicy(NeuralNetBase):
             network.add(keras.layers.Conv2D(
                 filter_nb,
                 (filter_width, filter_width),
-                kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
+                kernel_initializer=tf.compat.v1.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
                 activation='relu',
                 padding='same',
                 name='Conv2D_' + str(i)))
@@ -84,15 +85,15 @@ class CNNPolicy(NeuralNetBase):
         network.add(keras.layers.Conv2D(
             1,
             (1, 1),
-            kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
+            kernel_initializer=tf.compat.v1.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
             padding='same',
             name='Conv2D_13'))
         # reshape output to be board x board
-        network.add(keras.layers.core.Flatten())
+        network.add(keras.layers.Flatten())
         # add a bias to each board location
         network.add(Bias())
         # softmax makes it into a probability distribution
-        network.add(keras.layers.core.Activation('softmax'))
+        network.add(keras.layers.Activation('softmax'))
 
         return network
 
@@ -186,7 +187,7 @@ class ResnetPolicy(CNNPolicy):
                 # add BatchNorm
                 path = keras.layers.BatchNormalization()(path)
                 # add ReLU
-                path = keras.layers.core.Activation('relu')(path)
+                path = keras.layers.Activation('relu')(path)
                 # use filter_width_K if it is there, otherwise use 3
                 filter_key = "filter_width_%d" % layer
                 filter_width = params.get(filter_key, 3)
@@ -211,7 +212,7 @@ class ResnetPolicy(CNNPolicy):
                   .format(layer, params['layers']))
 
         # since each layer's activation was linear, need one more ReLu
-        convolution_path = keras.layers.core.Activation('relu')(convolution_path)
+        convolution_path = keras.layers.Activation('relu')(convolution_path)
 
         # the last layer maps each <filters_per_layer> featuer to a number
         convolution_path = keras.layers.Conv2D(
@@ -221,10 +222,10 @@ class ResnetPolicy(CNNPolicy):
             init='uniform',
             border_mode='same')(convolution_path)
         # flatten output
-        network_output = keras.layers.core.Flatten()(convolution_path)
+        network_output = keras.layers.Flatten()(convolution_path)
         # add a bias to each board location
         network_output = Bias()(network_output)
         # softmax makes it into a probability distribution
-        network_output = keras.layers.core.Activation('softmax')(network_output)
+        network_output = keras.layers.Activation('softmax')(network_output)
 
         return keras.models.Model(input=[model_input], output=[network_output])

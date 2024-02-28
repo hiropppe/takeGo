@@ -8,6 +8,7 @@ import tensorflow as tf
 
 from tensorflow import keras
 from tensorflow.python.keras import backend as K
+#from tensorflow.keras import backend as K
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 from bamboo.models.keras_dcnn_policy import CNNPolicy
@@ -108,7 +109,7 @@ class threading_shuffled_hdf5_batch_generator:
         # check if seed is provided or generate random
         if seed is None:
             # create random seed
-            self.metadata['generator_seed'] = np.random.random_integers(4294967295)
+            self.metadata['generator_seed'] = np.random.randint(1, 4294967295 + 1)
 
         # feed numpy.random with seed in order to continue with certain batch
         np.random.seed(self.metadata['generator_seed'])
@@ -166,18 +167,20 @@ class threading_shuffled_hdf5_batch_generator:
             # return state, action and transformation
             return state, action, training_sample[1]
 
-    def next(self):
-        if self.nogpu:
-            state_batch_shape = (self.batch_size,) + self.state_dataset.shape[:-4:-1]
-            game_size = state_batch_shape[1]
-        else:
-            state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
-            game_size = state_batch_shape[-1]
+    def __next__(self):
+        state_batch_shape = (self.batch_size,) + self.state_dataset.shape[:-4:-1]
+        game_size = state_batch_shape[1]
+        #if self.nogpu:
+        #    state_batch_shape = (self.batch_size,) + self.state_dataset.shape[:-4:-1]
+        #    game_size = state_batch_shape[1]
+        #else:
+        #    state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
+        #    game_size = state_batch_shape[-1]
 
         Xbatch = np.zeros(state_batch_shape)
         Ybatch = np.zeros((self.batch_size, game_size * game_size))
 
-        for batch_idx in xrange(self.batch_size):
+        for batch_idx in range(self.batch_size):
             state, action, transformation = self.next_indice()
             # get rotation symmetry belonging to state
             transform = BOARD_TRANSFORMATIONS[transformation]
@@ -186,8 +189,9 @@ class threading_shuffled_hdf5_batch_generator:
             # loop comprehension is used so that the transformation acts on the
             # 3rd and 4th dimensions
             state_transform = np.array([transform(plane) for plane in state])
-            if self.nogpu:
-                state_transform = np.transpose(state_transform, (1, 2, 0))
+            state_transform = np.transpose(state_transform, (1, 2, 0))
+            #if self.nogpu:
+            #    state_transform = np.transpose(state_transform, (1, 2, 0))
             action_transform = transform(one_hot_action(action, game_size))
 
             Xbatch[batch_idx] = state_transform
@@ -318,14 +322,14 @@ class EpochDataSaverCallback(keras.callbacks.Callback):
             json.dump(self.metadata, f, indent=2)
 
         # save model to file with correct epoch
-        save_file = os.path.join(self.root, FOLDER_WEIGHT,
-                                 "weights.{epoch:05d}.hdf5".format(epoch=epoch))
-        self.model.save(save_file)
+        #save_file = os.path.join(self.root, FOLDER_WEIGHT,
+        #                         "weights.{epoch:05d}.hdf5".format(epoch=epoch))
+        #self.model.save(save_file)
 
 
 def load_indices_from_file(shuffle_file):
     # load indices from shuffle_file
-    with open(shuffle_file, "r") as f:
+    with open(shuffle_file, "rb") as f:
         indices = np.load(f)
 
     return indices
@@ -333,7 +337,7 @@ def load_indices_from_file(shuffle_file):
 
 def save_indices_to_file(shuffle_file, indices):
     # save indices to shuffle_file
-    with open(shuffle_file, "w") as f:
+    with open(shuffle_file, "wb") as f:
         np.save(f, indices)
 
 
@@ -358,7 +362,7 @@ def create_and_save_shuffle_indices(train_val_test, max_validation,
         seperate those sets and save them to seperate files.
     """
 
-    symmetries = TRANSFORMATION_INDICES.values()
+    symmetries = list(TRANSFORMATION_INDICES.values())
 
     # Create an array with a unique row for each combination of a training example
     # and a symmetry.
@@ -625,11 +629,13 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
     if K.backend() == 'tensorflow':
         config = tf.compat.v1.ConfigProto()
         config.gpu_options.per_process_gpu_memory_fraction = 0.2
-        keras.backend.set_session(tf.compat.v1.Session(config=config))
+        K.set_session(tf.compat.v1.Session(config=config))
 
     # load model from json spec
     policy = CNNPolicy(init_network=True, nogpu=nogpu)
     model = policy.model
+    model.summary()
+
     # load weights
     if resume:
         model.load_weights(os.path.join(out_directory, FOLDER_WEIGHT, weight_file))
@@ -674,7 +680,7 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
 
     tfboard_callback = keras.callbacks.TensorBoard(histogram_freq=1)
 
-    sgd = keras.optimizers.SGD(lr=metadata["learning_rate"])
+    sgd = keras.optimizers.SGD(learning_rate=metadata["learning_rate"])
     model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=["accuracy"])
 
     if verbose:

@@ -6,6 +6,9 @@ import tensorflow as tf
 from tensorflow.python import keras
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.layers import Layer
+#from tensorflow import keras
+#from tensorflow.keras import backend as K
+#from tensorflow.keras.layers import Layer
 
 
 class NeuralNetBase(object):
@@ -29,7 +32,7 @@ class NeuralNetBase(object):
             # need to override create_network()
             self.model = self.__class__.create_network(**kwargs)
             # self.forward is a lambda function wrapping a Keras function
-            self.forward = self._model_forward()
+            #self.forward = self._model_forward()
 
     def _model_forward(self):
         """Construct a function using the current keras backend that, when given a batch
@@ -122,7 +125,7 @@ class Bias(Layer):
     """
 
     def __init__(self, **kwargs):
-        super(Bias, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def build(self, input_shape):
         self.W = self.add_weight(name='bias',
@@ -130,7 +133,15 @@ class Bias(Layer):
                                  dtype=np.float32,
                                  initializer=tf.zeros_initializer,
                                  trainable=True)
-        super(Bias, self).build(input_shape)  # Be sure to call this somewhere!
+        super().build(input_shape)  # Be sure to call this somewhere!
 
-    def call(self, x, mask=None):
+    def get_config(self):
+        config = super().get_config()
+        return config
+
+    def call(self, x):
         return x + self.W
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
