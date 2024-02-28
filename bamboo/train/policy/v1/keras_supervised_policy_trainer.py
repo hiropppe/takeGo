@@ -7,7 +7,8 @@ import sys
 import tensorflow as tf
 
 from tensorflow import keras
-from tensorflow.keras import backend as K
+from tensorflow.python.keras import backend as K
+#from tensorflow.keras import backend as K
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 from bamboo.models.keras_dcnn_policy import CNNPolicy
@@ -205,7 +206,7 @@ class LrDecayCallback(keras.callbacks.Callback):
     """
 
     def __init__(self, metadata):
-        super().__init__()
+        super(LrDecayCallback, self).__init__()
         self.learning_rate = metadata["learning_rate"]
         self.decay = metadata["decay"]
         self.metadata = metadata
@@ -215,7 +216,7 @@ class LrDecayCallback(keras.callbacks.Callback):
         new_lr = self.learning_rate * (1. / (1. + self.decay * self.metadata["current_batch"]))
 
         # set new learning rate
-        K.set_value(self.model.optimizer.lr, K.get_value(new_lr))
+        K.set_value(self.model.optimizer.lr, new_lr)
 
     def on_train_begin(self, logs={}):
         # set initial learning rate
@@ -239,7 +240,7 @@ class LrStepDecayCallback(keras.callbacks.Callback):
     """
 
     def __init__(self, metadata, verbose):
-        super().__init__()
+        super(LrStepDecayCallback, self).__init__()
         self.learning_rate = metadata["learning_rate"]
         self.decay_every = metadata["decay_every"]
         self.decay = metadata["decay"]
@@ -252,7 +253,7 @@ class LrStepDecayCallback(keras.callbacks.Callback):
         new_lr = self.learning_rate * (self.decay ** n_decay)
 
         # set new learning rate
-        K.set_value(self.model.optimizer.lr, K.get_value(new_lr))
+        K.set_value(self.model.optimizer.lr, new_lr)
 
         # print new learning rate if verbose
         if self.verbose:
@@ -289,7 +290,7 @@ class EpochDataSaverCallback(keras.callbacks.Callback):
     """
 
     def __init__(self, path, root, metadata):
-        super().__init__()
+        super(EpochDataSaverCallback, self).__init__()
         self.file = path
         self.root = root
         self.metadata = metadata
@@ -321,9 +322,9 @@ class EpochDataSaverCallback(keras.callbacks.Callback):
             json.dump(self.metadata, f, indent=2)
 
         # save model to file with correct epoch
-        save_file = os.path.join(self.root, FOLDER_WEIGHT,
-                                 "weights.{epoch:05d}.hdf5".format(epoch=epoch))
-        self.model.save(save_file)
+        #save_file = os.path.join(self.root, FOLDER_WEIGHT,
+        #                         "weights.{epoch:05d}.hdf5".format(epoch=epoch))
+        #self.model.save(save_file)
 
 
 def load_indices_from_file(shuffle_file):
@@ -626,20 +627,12 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
 
     # Limit the GPU memory usage
     if K.backend() == 'tensorflow':
-        gpus = tf.config.experimental.list_physical_devices('GPU')
-        if gpus:
-            try:
-                # Currently, memory growth needs to be the same across GPUs
-                for gpu in gpus:
-                    tf.config.experimental.set_memory_growth(gpu, True)
-                    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-                    print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-            except RuntimeError as e:
-                # Memory growth must be set before GPUs have been initialized
-                print(e)
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.per_process_gpu_memory_fraction = 0.2
+        K.set_session(tf.compat.v1.Session(config=config))
 
     # load model from json spec
-    policy = CNNPolicy()
+    policy = CNNPolicy(init_network=True, nogpu=nogpu)
     model = policy.model
     model.summary()
 
@@ -676,7 +669,7 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
         metadata["batch_size"],
         validation=True,
         nogpu=nogpu)
-    
+
     # check if step decay has to be applied
     if metadata["decay_every"] is None:
         # use normal decay without momentum
@@ -697,9 +690,9 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
     if metadata["epochs"] <= len(metadata["epoch_logs"]):
         raise ValueError("No more epochs to train!")
 
-    model.fit(
+    model.fit_generator(
         train_data_generator,
-        steps_per_epoch=int(metadata["epoch_length"]/metadata["batch_size"]),
+        int(metadata["epoch_length"]/metadata["batch_size"]),
         epochs=(metadata["epochs"] - len(metadata["epoch_logs"])),
         callbacks=[meta_writer, lr_scheduler_callback, tfboard_callback],
         validation_data=val_data_generator,
