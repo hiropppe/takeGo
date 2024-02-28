@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from tensorflow.keras import layers, models
+from tensorflow.keras import layers, models, initializers
 
 from .keras_nn_util import Bias
 
@@ -43,7 +43,7 @@ class CNNPolicy():
         self.model.add(layers.Conv2D(
             params["filters_per_layer"],
             (params["filter_width_1"], params["filter_width_1"]),
-            kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
+            kernel_initializer=initializers.RandomUniform(minval=-0.05, maxval=0.05),
             activation='relu',
             padding='same',
             input_shape=input_shape,
@@ -62,7 +62,7 @@ class CNNPolicy():
             self.model.add(layers.Conv2D(
                 filter_nb,
                 (filter_width, filter_width),
-                kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
+                kernel_initializer=initializers.RandomUniform(minval=-0.05, maxval=0.05),
                 activation='relu',
                 padding='same',
                 name='Conv2D_' + str(i)))
@@ -71,7 +71,7 @@ class CNNPolicy():
         self.model.add(layers.Conv2D(
             1,
             (1, 1),
-            kernel_initializer=tf.random_uniform_initializer(minval=-0.05, maxval=0.05, dtype=tf.float32),
+            kernel_initializer=initializers.RandomUniform(minval=-0.05, maxval=0.05),
             padding='same',
             name='Conv2D_13'))
         # reshape output to be board x board
