@@ -10,7 +10,7 @@ from tensorflow.python.keras import backend as K
 #from tensorflow.contrib.keras.python.keras.backend import set_session
 
 from bamboo.models.keras_dcnn_policy import CNNPolicy
-from bamboo.models.dcnn_resnet_value import inference_agz
+from bamboo.models.v1.dcnn_resnet_value import inference_agz
 
 cimport numpy as np
 
