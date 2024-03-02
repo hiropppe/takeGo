@@ -10,7 +10,7 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from bamboo.models.keras_dcnn_policy import CNNPolicy
+from bamboo.models.keras_dcnn_policy import CNNPolicy, ResnetPolicy
 
 
 # default settings
@@ -639,7 +639,7 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
                 print(e)
 
     # load model from json spec
-    policy = CNNPolicy()
+    policy = ResnetPolicy()
     model = policy.model
     model.summary()
 
