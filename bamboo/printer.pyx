@@ -6,7 +6,7 @@
 from libcpp.string cimport string as cppstring
 
 from libc.string cimport memset
-from libc.stdio cimport printf, snprintf
+from libc.stdio cimport printf, snprintf, stdout, fflush
 from libc.math cimport sqrt as csqrt
 
 from bamboo.board cimport S_BLACK, S_WHITE, S_MAX
@@ -37,16 +37,21 @@ cdef void print_board(game_state_t *game) nogil:
         printf("-")
     printf("+\n")
 
-    i = 1
+    i = pure_board_size
     for y in range(board_start, board_end + 1):
-        snprintf(buf, sizeof(buf), "%d:|", pure_board_size + 1 - i)
-        s = rjust(buf, 4, " ")
-        printf("%s", s.c_str())
+        #snprintf(buf, sizeof(buf), "%d:|", pure_board_size + 1 - i)
+        #s = rjust(buf, 4, " ")
+        #printf("%s", s.c_str())
+        if 10 <= i:
+            printf("%d:|", i)
+        else:
+            printf(" %d:|", i)
+
         for x in range(board_start, board_end + 1):
             pos = POS(x, y, board_size)
             printf(" %s", cppstring(1, stone[<int>game.board[pos]]).c_str())
         printf(" |\n")
-        i += 1
+        i -= 1
 
     printf("   +")
     for i in range(1, pure_board_size * 2 + 1 + 1):
