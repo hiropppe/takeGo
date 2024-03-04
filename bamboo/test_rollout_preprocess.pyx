@@ -1890,8 +1890,8 @@ def test_update_12diamond_rspos_0():
     assert (black.tensor[F_D12_RSP_PAT][moves['d']+board_size+1] == d12_rsp_start+14) 
     assert (black.tensor[F_D12_RSP_PAT][moves['d']+2*board_size] == -1) 
     # no others, previous positions are cleared
-    assert (number_of_active_positions(black, F_RESPONSE), 9)
-    assert (number_of_active_positions(black, F_D12_RSP_PAT), 9)
+    assert (number_of_active_positions(black, F_RESPONSE) == 9)
+    assert (number_of_active_positions(black, F_D12_RSP_PAT) == 9)
 
     # put B[e]
     put_stone(game, moves['e'], game.current_color)
@@ -1911,8 +1911,8 @@ def test_update_12diamond_rspos_0():
     assert (white.tensor[F_D12_RSP_PAT][moves['e']+board_size+1] == d12_rsp_start+24) 
     assert (white.tensor[F_D12_RSP_PAT][moves['e']+2*board_size] == d12_rsp_start+23) 
     # no others, previous positions are cleared
-    assert (number_of_active_positions(white, F_RESPONSE), 9)
-    assert (number_of_active_positions(white, F_D12_RSP_PAT), 9)
+    assert (number_of_active_positions(white, F_RESPONSE) == 9)
+    assert (number_of_active_positions(white, F_D12_RSP_PAT) == 9)
 
     # print_board(game)
 
@@ -1994,7 +1994,7 @@ def test_update_3x3_0():
     assert (white.tensor[F_X33_PAT][moves['a']+board_size-1] == x33_start) 
     assert (white.tensor[F_X33_PAT][moves['a']+board_size] == x33_start+1) 
     assert (white.tensor[F_X33_PAT][moves['a']+board_size+1] == x33_start) 
-    assert (number_of_active_positions(white, F_X33_PAT), 8)
+    assert (number_of_active_positions(white, F_X33_PAT) == 8)
 
     # put W[b]
     put_stone(game, moves['b'], game.current_color)

@@ -108,7 +108,7 @@ def test_expand():
     # expand empty board
     mcts.expand(node, game)
 
-    assert (node.num_child, 361)
+    assert (node.num_child == 361)
     assert (node.is_edge is False)
 
     # assert child B[Q16]
@@ -145,7 +145,7 @@ def test_expand():
     # expand B[Q16]->W{D4}
     mcts.expand(node, game)
 
-    assert (node.num_child, 359)
+    assert (node.num_child == 359)
     assert (node.is_edge is False)
 
     # assert child B[Q4]
@@ -276,7 +276,7 @@ def test_eval_leaf_by_policy_network():
 
     # eval node0
     eval_node = mcts.policy_network_queue.front()
-    assert (node0.node_i, eval_node.node_i)
+    assert (node0.node_i == eval_node.node_i)
 
     mcts.eval_leaf_by_policy_network(eval_node)
     mcts.policy_network_queue.pop()
