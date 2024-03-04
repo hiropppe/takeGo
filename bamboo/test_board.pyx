@@ -255,11 +255,11 @@ def test_merge_string_two():
     board.make_string(game, first, board.S_BLACK)
     board.make_string(game, second, board.S_BLACK)
 
-    assert (game.string_id[first], 1)
-    assert (game.string_id[second], 2)
+    assert (game.string_id[first] == 1)
+    assert (game.string_id[second] == 2)
 
-    assert (game.string_next[first], board.string_pos_max - 1)
-    assert (game.string_next[second], board.string_pos_max - 1)
+    assert (game.string_next[first] == board.string_pos_max - 1)
+    assert (game.string_next[second] == board.string_pos_max - 1)
 
     assert (game.string[1].neighbor[0] == board.NEIGHBOR_END)
     assert (game.string[2].neighbor[0] == board.NEIGHBOR_END)
@@ -271,9 +271,9 @@ def test_merge_string_two():
 
     board.add_stone(game, add_pos, board.S_BLACK, 1)
     
-    assert (game.string_next[first], add_pos)
-    assert (game.string_next[add_pos], board.string_pos_max - 1)
-    assert (game.string_next[second], board.string_pos_max - 1)
+    assert (game.string_next[first] == add_pos)
+    assert (game.string_next[add_pos] == board.string_pos_max - 1)
+    assert (game.string_next[second] == board.string_pos_max - 1)
 
     board.merge_string(game, &game.string[1], string, 1)
 
@@ -294,13 +294,13 @@ def test_merge_string_three():
     board.make_string(game, second, board.S_BLACK)
     board.make_string(game, third, board.S_BLACK)
 
-    assert (game.string_id[first], 1)
-    assert (game.string_id[second], 2)
-    assert (game.string_id[third], 3)
+    assert (game.string_id[first] == 1)
+    assert (game.string_id[second] == 2)
+    assert (game.string_id[third] == 3)
 
-    assert (game.string_next[first], board.string_pos_max - 1)
-    assert (game.string_next[second], board.string_pos_max - 1)
-    assert (game.string_next[third], board.string_pos_max - 1)
+    assert (game.string_next[first] == board.string_pos_max - 1)
+    assert (game.string_next[second] == board.string_pos_max - 1)
+    assert (game.string_next[third] == board.string_pos_max - 1)
 
     assert (game.string[1].neighbor[0] == board.NEIGHBOR_END)
     assert (game.string[2].neighbor[0] == board.NEIGHBOR_END)
@@ -315,10 +315,10 @@ def test_merge_string_three():
 
     board.add_stone(game, add_pos, board.S_BLACK, 1)
     
-    assert (game.string_next[first], add_pos)
-    assert (game.string_next[add_pos], board.string_pos_max - 1)
-    assert (game.string_next[second], board.string_pos_max - 1)
-    assert (game.string_next[third], board.string_pos_max - 1)
+    assert (game.string_next[first] == add_pos)
+    assert (game.string_next[add_pos] == board.string_pos_max - 1)
+    assert (game.string_next[second] == board.string_pos_max - 1)
+    assert (game.string_next[third] == board.string_pos_max - 1)
 
     board.merge_string(game, &game.string[1], string, 1)
 
@@ -403,13 +403,13 @@ def test_string_add_and_remove_empty():
     assert (string1.empty[a-board.board_size] == a-1)
     assert (string1.empty[a-1] == a+1)
     assert (string1.empty[a+1] == a-board.board_size-1)
-    assert (string1.empty[a-board.board_size-1] == a+board.board_size*2-1)
-    assert (string1.empty[a+board.board_size*2-1] == a-board.board_size+1)
-    assert (string1.empty[a-board.board_size+1] == a+board.board_size*2+1)
-    assert (string1.empty[a+board.board_size*2+1] == a+board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a-board.board_size+1)
+    assert (string1.empty[a-board.board_size+1] == a+board.board_size-1)
     assert (string1.empty[a+board.board_size-1] == a+board.board_size+1)
-    assert (string1.empty[a+board.board_size+1] == a+board.board_size*2)
-    assert (string1.empty[a+board.board_size*2] == STRING_EMPTY_END)
+    assert (string1.empty[a+board.board_size+1] == a+board.board_size*2-1)
+    assert (string1.empty[a+board.board_size*2-1] == a+board.board_size*2)
+    assert (string1.empty[a+board.board_size*2] == a+board.board_size*2+1)
+    assert (string1.empty[a+board.board_size*2+1] == STRING_EMPTY_END)
 
     # put W[c]
     c = moves['c']
@@ -418,13 +418,13 @@ def test_string_add_and_remove_empty():
     assert (string1.empty[0] == a-board.board_size)
     assert (string1.empty[a-board.board_size] == a+1)
     assert (string1.empty[a+1] == a-board.board_size-1)
-    assert (string1.empty[a-board.board_size-1] == a+board.board_size*2-1)
-    assert (string1.empty[a+board.board_size*2-1] == a-board.board_size+1)
-    assert (string1.empty[a-board.board_size+1] == a+board.board_size*2+1)
-    assert (string1.empty[a+board.board_size*2+1] == a+board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a-board.board_size+1)
+    assert (string1.empty[a-board.board_size+1] == a+board.board_size-1)
     assert (string1.empty[a+board.board_size-1] == a+board.board_size+1)
-    assert (string1.empty[a+board.board_size+1] == a+board.board_size*2)
-    assert (string1.empty[a+board.board_size*2] == STRING_EMPTY_END)
+    assert (string1.empty[a+board.board_size+1] == a+board.board_size*2-1)
+    assert (string1.empty[a+board.board_size*2-1] == a+board.board_size*2)
+    assert (string1.empty[a+board.board_size*2] == a+board.board_size*2+1)
+    assert (string1.empty[a+board.board_size*2+1] == STRING_EMPTY_END)
     string2 = &game.string[2]
     assert (string2.empties == 6)
     assert (string2.empty[0] == c-board.board_size)
@@ -442,12 +442,12 @@ def test_string_add_and_remove_empty():
     assert (string1.empty[0] == a-board.board_size)
     assert (string1.empty[a-board.board_size] == a+1)
     assert (string1.empty[a+1] == a-board.board_size-1)
-    assert (string1.empty[a-board.board_size-1] == a+board.board_size*2-1)
-    assert (string1.empty[a+board.board_size*2-1] == a+board.board_size*2+1)
-    assert (string1.empty[a+board.board_size*2+1] == a+board.board_size-1)
+    assert (string1.empty[a-board.board_size-1] == a+board.board_size-1)
     assert (string1.empty[a+board.board_size-1] == a+board.board_size+1)
-    assert (string1.empty[a+board.board_size+1] == a+board.board_size*2)
-    assert (string1.empty[a+board.board_size*2] == STRING_EMPTY_END)
+    assert (string1.empty[a+board.board_size+1] == a+board.board_size*2-1)
+    assert (string1.empty[a+board.board_size*2-1] == a+board.board_size*2)
+    assert (string1.empty[a+board.board_size*2] == a+board.board_size*2+1)
+    assert (string1.empty[a+board.board_size*2+1] == STRING_EMPTY_END)
     string3 = &game.string[3]
     assert (string3.empties == 7)
     assert (string3.empty[0] == d-board.board_size)
@@ -550,23 +550,29 @@ def test_string_merge_empty():
     e = moves['e']
     board.put_stone(game, e, board.S_BLACK)
     string1 = &game.string[1]
+    #    37 38 39
+    #    48 d  50
+    # 58 59 a  61 62
+    # 69 b  e  c  73
+    # 80 81 82 83 84
     assert (string1.empties == 16)
-    assert (string1.empty[0] == e+board.board_size)
-    assert (string1.empty[e+board.board_size] == e-board.board_size*3)
-    assert (string1.empty[e-board.board_size*3] == e+board.board_size+2)
-    assert (string1.empty[e+board.board_size+2] == e-board.board_size-1)
-    assert (string1.empty[e-board.board_size-1] == e-2)
-    assert (string1.empty[e-2] == e-board.board_size+1)
-    assert (string1.empty[e-board.board_size+1] == e-board.board_size*2-1)
-    assert (string1.empty[e-board.board_size*2-1] == e+2)
-    assert (string1.empty[e+2] == e+board.board_size-1)
-    assert (string1.empty[e+board.board_size-1] == e-board.board_size*2+1)
-    assert (string1.empty[e-board.board_size*2+1] == e-board.board_size*3-1)
-    assert (string1.empty[e-board.board_size*3-1] == e-board.board_size-2)
-    assert (string1.empty[e-board.board_size-2] == e+board.board_size-2)
-    assert (string1.empty[e+board.board_size-2] == e+board.board_size+1)
-    assert (string1.empty[e-board.board_size*3+1] == e-board.board_size+2)
-    assert (string1.empty[e-board.board_size+2] == STRING_EMPTY_END)
+    assert (string1.empty[0] == e-board.board_size*3)  # 38
+    assert (string1.empty[e-board.board_size*3] == e-board.board_size-1)  # 59
+    assert (string1.empty[e-board.board_size-1] == e-board.board_size+1)  # 61
+    assert (string1.empty[e-board.board_size+1] == e-board.board_size*2-1)  # 48
+    assert (string1.empty[e-board.board_size*2-1] == e-board.board_size*2+1)  # 50
+    assert (string1.empty[e-board.board_size*2+1] == e-board.board_size*3-1)  # 37
+    assert (string1.empty[e-board.board_size*3-1] == e-board.board_size*3+1)  # 39
+    assert (string1.empty[e-board.board_size*3+1] == e-2)  # 69
+    assert (string1.empty[e-2] == e+2)  # 73
+    assert (string1.empty[e+2] == e+board.board_size-1)  # 81
+    assert (string1.empty[e+board.board_size-1] == e-board.board_size-2)  # 58
+    assert (string1.empty[e-board.board_size-2] == e+board.board_size-2)  # 80
+    assert (string1.empty[e+board.board_size-2] == e+board.board_size)  # 82
+    assert (string1.empty[e+board.board_size] == e+board.board_size+1)  # 83
+    assert (string1.empty[e+board.board_size+1] == e-board.board_size+2)  # 62
+    assert (string1.empty[e-board.board_size+2] == e+board.board_size+2)  # 84
+    assert (string1.empty[e+board.board_size+2] == STRING_EMPTY_END)
 
     assert (string1.flag == True)
     assert (string2.flag == False)
