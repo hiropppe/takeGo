@@ -225,7 +225,7 @@ cdef void save_gamestate_to_sgf(game_state_t *game,
     for i in range(game.moves):
         move = game.record[i]
         # Move color prefix
-        str_list.append(';{:s}'.format(cppstring(1, stone[move.color]).c_str()))
+        str_list.append(';{:s}'.format(cppstring(1, stone[move.color]).decode('utf8')))
         # Move coordinates
         if move.pos == PASS:
             str_list.append('[tt]')
