@@ -90,7 +90,7 @@ cdef void update(PolicyFeature feature, tree_node_t *node):
     cdef int empty_diagonal_top
     cdef short ladder_checked[288]          # MAX_STRING
     cdef int ladder_capture, ladder_escape, ladder_x, ladder_y
-    cdef int escape_options[4]
+    cdef int escape_options[288]
     cdef int escape_options_num
     cdef int ladder_moves_value = 0
     cdef int *ladder_moves = &ladder_moves_value
@@ -303,7 +303,7 @@ cdef void update(PolicyFeature feature, tree_node_t *node):
 
 
 cdef int get_escape_options(board.game_state_t *game,
-                            int escape_options[4],
+                            int escape_options[288],
                             int atari_pos,
                             int escape_color,
                             int string_id):
@@ -345,7 +345,7 @@ cdef int is_ladder_capture(board.game_state_t *game,
     cdef board.string_t *string
     cdef char capture_color = game.current_color
     cdef char escape_color = board.FLIP_COLOR(game.current_color)
-    cdef int escape_options[4]
+    cdef int escape_options[288]
     cdef int escape_options_num
     cdef int escape_result
     cdef int i
