@@ -4,10 +4,16 @@
 # cython: cdivision = True
 
 from libcpp.string cimport string as cppstring
+from libcpp.string cimport to_string
 
 from libc.string cimport memset
 from libc.stdio cimport printf, snprintf, stdout, fflush
-from libc.math cimport sqrt as csqrt
+from libc.math cimport (
+    sqrt as csqrt,
+    ceilf,
+    roundf,
+    powf
+)
 
 from bamboo.board cimport S_BLACK, S_WHITE, S_MAX
 from bamboo.board cimport POS
@@ -20,7 +26,8 @@ cdef void print_board(game_state_t *game) nogil:
     cdef char *stone = [b'+', b'B', b'W', b'#']
     cdef int i, x, y, pos
     cdef char buf[10]
-    cdef cppstring *s
+    cdef cppstring s
+    cdef char fill_char = b' '
 
     printf("Prisoner: [Black] >> %d [White] >> %d\n", game.prisoner[<int>S_BLACK], game.prisoner[<int>S_WHITE])
     printf("Move    : %d\n", game.moves)
@@ -39,14 +46,9 @@ cdef void print_board(game_state_t *game) nogil:
 
     i = pure_board_size
     for y in range(board_start, board_end + 1):
-        #snprintf(buf, sizeof(buf), "%d:|", pure_board_size + 1 - i)
-        #s = rjust(buf, 4, " ")
-        #printf("%s", s.c_str())
-        if 10 <= i:
-            printf("%d:|", i)
-        else:
-            printf(" %d:|", i)
-
+        s = to_string(i)
+        s.insert(0, 2 - s.size(), fill_char)
+        printf("%s:|", s.c_str())
         for x in range(board_start, board_end + 1):
             pos = POS(x, y, board_size)
             printf(" %s", cppstring(1, stone[<int>game.board[pos]]).c_str())
@@ -63,7 +65,8 @@ cdef void print_rollout_count(tree_node_t *root) nogil:
     cdef char *stone = [b'#', b'B', b'W']
     cdef int i, x, y, pos
     cdef char buf[10]
-    cdef cppstring *s
+    cdef cppstring s
+    cdef char fill_char = b' '
     cdef int rollout_count[361]
     cdef tree_node_t *child
 
@@ -89,14 +92,14 @@ cdef void print_rollout_count(tree_node_t *root) nogil:
     printf("+\n")
 
     for y in range(pure_board_size):
-        snprintf(buf, sizeof(buf), "%d:|", pure_board_size-y)
-        s = rjust(buf, 4, " ")
-        printf("%s", s.c_str())
+        s = to_string(pure_board_size-y)
+        s.insert(0, 2 - s.size(), fill_char)
+        printf("%s:|", s.c_str())
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
-            snprintf(buf, sizeof(buf), " %d", rollout_count[pos])
-            s = rjust(buf, 6, " ")
-            printf(' %s', s.c_str())
+            s = to_string(rollout_count[pos])
+            s.insert(0, 7 - s.size(), fill_char)
+            printf("%s", s.c_str())
         printf(" |\n")
 
     printf("   +")
@@ -109,9 +112,11 @@ cdef void print_winning_ratio(tree_node_t *root) nogil:
     cdef char *stone = [b'#', b'B', b'W']
     cdef int i, x, y, pos
     cdef char buf[10]
-    cdef cppstring *s
+    cdef cppstring s
+    cdef char fill_char = b' '
     cdef double winning_ratio[361]
     cdef tree_node_t *child
+    cdef float p
 
     memset(winning_ratio, 0, sizeof(double) * 361);
 
@@ -140,14 +145,15 @@ cdef void print_winning_ratio(tree_node_t *root) nogil:
     printf("+\n")
 
     for y in range(pure_board_size):
-        snprintf(buf, sizeof(buf), "%d:|", pure_board_size-y)
-        s = rjust(buf, 4, " ")
-        printf("%s", s.c_str())
+        s = to_string(pure_board_size-y)
+        s.insert(0, 2 - s.size(), fill_char)
+        printf("%s:|", s.c_str())
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
-            snprintf(buf, sizeof(buf), " %3.2lf", winning_ratio[pos]*100.0)
-            s = rjust(buf, 7, " ")
-            printf(' %s', s.c_str())
+            p = ceilf(winning_ratio[pos]*powf(10, 4))/powf(10, 2)
+            s = to_string(p).substr(0, 5)
+            s.insert(0, 8 - s.size(), fill_char)
+            printf("%s", s.c_str())
         printf(" |\n")
 
     printf("   +")
@@ -160,9 +166,11 @@ cdef void print_PN(tree_node_t *root) nogil:
     cdef char *stone = [b'#', b'B', b'W']
     cdef int i, x, y, pos
     cdef char buf[10]
-    cdef cppstring *s
+    cdef cppstring s
+    cdef char fill_char = b' '
     cdef double prior_prob[361]
     cdef tree_node_t *child
+    cdef float p
 
     memset(prior_prob, 0, sizeof(double) * 361);
 
@@ -186,14 +194,15 @@ cdef void print_PN(tree_node_t *root) nogil:
     printf("+\n")
 
     for y in range(pure_board_size):
-        snprintf(buf, sizeof(buf), "%d:|", pure_board_size-y)
-        s = rjust(buf, 4, " ")
-        printf("%s", s.c_str())
+        s = to_string(pure_board_size-y)
+        s.insert(0, 2 - s.size(), fill_char)
+        printf("%s:|", s.c_str())
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
-            snprintf(buf, sizeof(buf), " %3.2lf", prior_prob[pos])
-            s = rjust(buf, 7, " ")
-            printf(' %s', s.c_str())
+            p = ceilf(prior_prob[pos]*powf(10, 2))/powf(10, 2)
+            s = to_string(p).substr(0, 5)
+            s.insert(0, 8 - s.size(), fill_char)
+            printf("%s", s.c_str())
         printf(" |\n")
 
     printf("   +")
@@ -206,9 +215,11 @@ cdef void print_VN(tree_node_t *root) nogil:
     cdef char *stone = [b'#', b'B', b'W']
     cdef int i, x, y, pos
     cdef char buf[10]
-    cdef cppstring *s
+    cdef cppstring s
+    cdef char fill_char = b' '    
     cdef double values[361]
     cdef tree_node_t *child
+    cdef float p
 
     memset(values, 0, sizeof(double) * 361);
 
@@ -232,14 +243,15 @@ cdef void print_VN(tree_node_t *root) nogil:
     printf("+\n")
 
     for y in range(pure_board_size):
-        snprintf(buf, sizeof(buf), "%d:|", pure_board_size-y)
-        s = rjust(buf, 4, " ")
-        printf("%s", s.c_str())
+        s = to_string(pure_board_size-y)
+        s.insert(0, 2 - s.size(), fill_char)
+        printf("%s:|", s.c_str())
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
-            snprintf(buf, sizeof(buf), " %3.2lf", values[pos])
-            s = rjust(buf, 7, " ")
-            printf(' %s', s.c_str())
+            p = ceilf(values[pos]*powf(10, 2))/powf(10, 2)
+            s = to_string(p).substr(0, 5)
+            s.insert(0, 7 - s.size(), fill_char)
+            printf("%s", s.c_str())
         printf(" |\n")
 
     printf("   +")
@@ -252,9 +264,11 @@ cdef void print_Q(tree_node_t *root) nogil:
     cdef char *stone = [b'#', b'B', b'W']
     cdef int i, x, y, pos
     cdef char buf[10]
-    cdef cppstring *s
+    cdef cppstring s
+    cdef char fill_char = b' '
     cdef double action_value[361]
     cdef tree_node_t *child
+    cdef float p
 
     memset(action_value, 0, sizeof(double) * 361);
 
@@ -278,14 +292,15 @@ cdef void print_Q(tree_node_t *root) nogil:
     printf("+\n")
 
     for y in range(pure_board_size):
-        snprintf(buf, sizeof(buf), "%d:|", pure_board_size-y)
-        s = rjust(buf, 4, " ")
-        printf("%s", s.c_str())
+        s = to_string(pure_board_size-y)
+        s.insert(0, 2 - s.size(), fill_char)
+        printf("%s:|", s.c_str())
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
-            snprintf(buf, sizeof(buf), " %1.4lf", action_value[pos])
-            s = rjust(buf, 6, " ")
-            printf(' %s', s.c_str())
+            p = ceilf(action_value[pos]*powf(10, 4))/powf(10, 4)
+            s = to_string(p).substr(0, 5)
+            s.insert(0, 8 - s.size(), fill_char)
+            printf("%s", s.c_str())
         printf(" |\n")
 
     printf("   +")
@@ -298,9 +313,11 @@ cdef void print_u(tree_node_t *root) nogil:
     cdef char *stone = [b'#', b'B', b'W']
     cdef int i, x, y, pos
     cdef char buf[10]
-    cdef cppstring *s
+    cdef cppstring s
+    cdef char fill_char = b' '
     cdef double bonus[361]
     cdef tree_node_t *child
+    cdef float p
 
     memset(bonus, 0, sizeof(double) * 361);
 
@@ -328,14 +345,15 @@ cdef void print_u(tree_node_t *root) nogil:
     printf("+\n")
 
     for y in range(pure_board_size):
-        snprintf(buf, sizeof(buf), "%d:|", pure_board_size-y)
-        s = rjust(buf, 4, " ")
-        printf("%s", s.c_str())
+        s = to_string(pure_board_size-y)
+        s.insert(0, 2 - s.size(), fill_char)
+        printf("%s:|", s.c_str())
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
-            snprintf(buf, sizeof(buf), " %1.4lf", bonus[pos])
-            s = rjust(buf, 6, " ")
-            printf(' %s', s.c_str())
+            p = ceilf(bonus[pos]*powf(10, 4))/powf(10, 4)
+            s = to_string(p).substr(0, 5)
+            s.insert(0, 8 - s.size(), fill_char)
+            printf("%s", s.c_str())
         printf(" |\n")
 
     printf("   +")
@@ -348,9 +366,11 @@ cdef void print_selection_value(tree_node_t *root) nogil:
     cdef char *stone = [b'#', b'B', b'W']
     cdef int i, x, y, pos
     cdef char buf[10]
-    cdef cppstring *s
+    cdef cppstring s
+    cdef char fill_char = b' '
     cdef double selection[361]
     cdef tree_node_t *child
+    cdef float p
 
     memset(selection, 0, sizeof(double) * 361);
 
@@ -378,14 +398,15 @@ cdef void print_selection_value(tree_node_t *root) nogil:
     printf("+\n")
 
     for y in range(pure_board_size):
-        snprintf(buf, sizeof(buf), "%d:|", pure_board_size-y)
-        s = rjust(buf, 4, " ")
-        printf("%s", s.c_str())
+        s = to_string(pure_board_size-y)
+        s.insert(0, 2 - s.size(), fill_char)
+        printf("%s:|", s.c_str())
         for x in range(pure_board_size):
             pos = POS(x, y, pure_board_size)
-            snprintf(buf, sizeof(buf), " %1.4lf", selection[pos])
-            s = rjust(buf, 6, " ")
-            printf(' %s', s.c_str())
+            p = ceilf(selection[pos]*powf(10, 4))/powf(10, 4)
+            s = to_string(p).substr(0, 5)
+            s.insert(0, 8 - s.size(), fill_char)
+            printf("%s", s.c_str())
         printf(" |\n")
 
     printf("   +")
