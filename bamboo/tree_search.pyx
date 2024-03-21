@@ -253,7 +253,7 @@ cdef class MCTS(object):
                 print_VN(node)
             print_winning_ratio(node)
             print_rollout_count(node)
-
+            
             if node.Nr >= 500.0 and 1.0-node.Wr/node.Nr < RESIGN_THRESHOLD:
                 return RESIGN
 
@@ -1065,18 +1065,12 @@ cdef class MCTS(object):
         probabilities = np.exp(log_probabilities)
         return probabilities / probabilities.sum()
 
-    def run_pn_session(self, policy_net, temperature=0.67):
-        printf('>> Set PN Session\n')
-        config = tf.compat.v1.ConfigProto()
-        config.gpu_options.per_process_gpu_memory_fraction = 0.2
-        K.set_session(tf.compat.v1.Session(config=config))
-        pn = CNNPolicy(init_network=True, nogpu=self.nogpu)
-        pn.model.load_weights(policy_net)
+    def set_policy_network(self, pn, temperature=0.67):
+        printf('>> Set Policy Network\n')
         self.pn = pn
         self.beta = 1.0/temperature
-
         self.use_pn = True
-
+    
     def run_vn_session(self, value_net):
         printf('>> Set VN Session\n')
         with tf.Graph().as_default() as graph:
@@ -1134,8 +1128,8 @@ cdef class PyMCTS(object):
     def __dealloc__(self):
         free_game(self.game)
 
-    def run_pn_session(self, policy_net, temperature=0.67):
-        self.mcts.run_pn_session(policy_net, temperature)
+    def set_policy_network(self, policy_net, temperature=0.67):
+        self.mcts.set_policy_network(policy_net, temperature)
 
     def run_vn_session(self, value_net):
         self.mcts.run_vn_session(value_net)

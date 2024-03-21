@@ -1,3 +1,4 @@
+import copy
 import os
 import json
 import threading
@@ -9,8 +10,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
-from bamboo.models.keras_dcnn_policy import CNNPolicy, ResnetPolicy
+from bamboo.models.keras_dcnn_policy import cnn_policy, resnet_policy
 
 
 # default settings
@@ -24,7 +24,7 @@ DEFAULT_EPOCH = 10
 # metdata file
 FILE_METADATA = 'metadata_policy_supervised.json'
 # weight folder
-FOLDER_WEIGHT = os.path.join('policy_supervised_weights')
+FOLDER_WEIGHT = 'policy_supervised_weights'
 
 # shuffle files
 FILE_VALIDATE = 'shuffle_policy_validate.npz'
@@ -52,36 +52,6 @@ BOARD_TRANSFORMATIONS = {
     6: lambda feature: np.transpose(feature),
     7: lambda feature: np.fliplr(np.rot90(feature, 1))
 }
-
-
-def confirm(prompt=None, resp=False):
-    """prompts for yes or no response from the user. Returns True for yes and
-       False for no.
-       'resp' should be set to the default value assumed by the caller when
-       user simply types ENTER.
-       created by:
-       http://code.activestate.com/recipes/541096-prompt-the-user-for-confirmation/
-    """
-
-    if prompt is None:
-        prompt = 'Confirm'
-
-    if resp:
-        prompt = '%s [%s]|%s: ' % (prompt, 'y', 'n')
-    else:
-        prompt = '%s [%s]|%s: ' % (prompt, 'n', 'y')
-
-    while True:
-        ans = raw_input(prompt)
-        if not ans:
-            return resp
-        if ans not in ['y', 'Y', 'n', 'N']:
-            print('please enter y or n.')
-            continue
-        if ans == 'y' or ans == 'Y':
-            return True
-        if ans == 'n' or ans == 'N':
-            return False
 
 
 def one_hot_action(action, size=19):
@@ -117,7 +87,7 @@ class threading_shuffled_hdf5_batch_generator:
             np.random.shuffle(self.indices)
 
     def __init__(self, state_dataset, action_dataset, indices, batch_size, metadata=None,
-                 validation=False, nogpu=False):
+                 validation=False):
         self.action_dataset = action_dataset
         self.state_dataset = state_dataset
         # lock used for multithreaded workers
@@ -126,7 +96,6 @@ class threading_shuffled_hdf5_batch_generator:
         self.validation = validation
         self.batch_size = batch_size
         self.indices = indices
-        self.nogpu = nogpu
 
         if metadata is not None:
             self.metadata = metadata
@@ -169,12 +138,6 @@ class threading_shuffled_hdf5_batch_generator:
     def __next__(self):
         state_batch_shape = (self.batch_size,) + self.state_dataset.shape[:-4:-1]
         game_size = state_batch_shape[1]
-        #if self.nogpu:
-        #    state_batch_shape = (self.batch_size,) + self.state_dataset.shape[:-4:-1]
-        #    game_size = state_batch_shape[1]
-        #else:
-        #    state_batch_shape = (self.batch_size,) + self.state_dataset.shape[1:]
-        #    game_size = state_batch_shape[-1]
 
         Xbatch = np.zeros(state_batch_shape)
         Ybatch = np.zeros((self.batch_size, game_size * game_size))
@@ -189,8 +152,6 @@ class threading_shuffled_hdf5_batch_generator:
             # 3rd and 4th dimensions
             state_transform = np.array([transform(plane) for plane in state])
             state_transform = np.transpose(state_transform, (1, 2, 0))
-            #if self.nogpu:
-            #    state_transform = np.transpose(state_transform, (1, 2, 0))
             action_transform = transform(one_hot_action(action, game_size))
 
             Xbatch[batch_idx] = state_transform
@@ -299,8 +260,12 @@ class EpochDataSaverCallback(keras.callbacks.Callback):
         self.model.optimizer.current_batch = self.metadata['current_batch']
 
     def on_epoch_end(self, epoch, logs={}):
+        logs = copy.copy(logs)
+
         # in case appending to logs (resuming training), get epoch number ourselves
-        epoch = len(self.metadata["epoch_logs"])
+        # fix epoch to start from 1
+        epoch += 1
+        logs['epoch'] = epoch
 
         # append log to metadata
         self.metadata["epoch_logs"].append(logs)
@@ -312,18 +277,16 @@ class EpochDataSaverCallback(keras.callbacks.Callback):
         else:
             key = "loss"
 
-        best_loss = self.metadata["epoch_logs"][self.metadata["best_epoch"]][key]
+        best_loss = [log[key] for log in self.metadata["epoch_logs"] if log['epoch'] == self.metadata['best_epoch']][0]
         if logs.get(key) < best_loss:
             self.metadata["best_epoch"] = epoch
+            # save complete model
+            model_path = os.path.join(self.root, FOLDER_MODEL)
+            self.model.save(model_path)
 
         # save meta to file
         with open(self.file, "w") as f:
             json.dump(self.metadata, f, indent=2)
-
-        # save model to file with correct epoch
-        save_file = os.path.join(self.root, FOLDER_WEIGHT,
-                                 "weights.{epoch:05d}.hdf5".format(epoch=epoch))
-        self.model.save(save_file)
 
 
 def load_indices_from_file(shuffle_file):
@@ -457,6 +420,36 @@ def load_train_val_test_indices(verbose, arg_symmetries, dataset_length, batch_s
         print("\t%d test samples" % len(test_indices))
 
     return train_indices, val_indices, test_indices
+
+
+def confirm(prompt=None, resp=False):
+    """prompts for yes or no response from the user. Returns True for yes and
+       False for no.
+       'resp' should be set to the default value assumed by the caller when
+       user simply types ENTER.
+       created by:
+       http://code.activestate.com/recipes/541096-prompt-the-user-for-confirmation/
+    """
+
+    if prompt is None:
+        prompt = 'Confirm'
+
+    if resp:
+        prompt = '%s [%s]|%s: ' % (prompt, 'y', 'n')
+    else:
+        prompt = '%s [%s]|%s: ' % (prompt, 'n', 'y')
+
+    while True:
+        ans = raw_input(prompt)
+        if not ans:
+            return resp
+        if ans not in ['y', 'Y', 'n', 'N']:
+            print('please enter y or n.')
+            continue
+        if ans == 'y' or ans == 'Y':
+            return True
+        if ans == 'n' or ans == 'N':
+            return False
 
 
 def set_training_settings(resume, args, metadata, dataset_length):
@@ -620,9 +613,7 @@ def set_training_settings(resume, args, metadata, dataset_length):
             print("created new data shuffling indices")
 
 
-def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False):
-    # set resume
-    resume = weight_file is not None
+def train(model, metadata, out_directory, verbose, weight_file, meta_file, save_weights_only=True, save_best_only=True):
 
     # Limit the GPU memory usage
     if K.backend() == 'tensorflow':
@@ -639,13 +630,7 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
                 print(e)
 
     # load model from json spec
-    policy = ResnetPolicy()
-    model = policy.model
     model.summary()
-
-    # load weights
-    if resume:
-        model.load_weights(os.path.join(out_directory, FOLDER_WEIGHT, weight_file))
 
     # features of training data
     dataset = h5.File(metadata["training_data"])
@@ -655,6 +640,15 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
     # the MetadataWriterCallback only sets 'epoch', 'best_epoch' and 'current_batch'.
     # We can add in anything else we like here
     meta_writer = EpochDataSaverCallback(meta_file, out_directory, metadata)
+
+    #checkpoint_path = os.path.join(out_directory, FOLDER_WEIGHT, "weights.{epoch:05d}.hdf5")
+    checkpoint_path = os.path.join(out_directory, FOLDER_WEIGHT, "model.{epoch:05d}.ckpt")
+
+    # Create a callback that saves the model's weights
+    cp_callback = keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+                                                  save_weights_only=save_weights_only,
+                                                  save_best_only=save_best_only,
+                                                  verbose=1)
 
     # get train/validation/test indices
     train_indices, val_indices, test_indices \
@@ -667,16 +661,14 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
         dataset["actions"],
         train_indices,
         metadata["batch_size"],
-        metadata,
-        nogpu=nogpu)
+        metadata)
     val_data_generator = threading_shuffled_hdf5_batch_generator(
         dataset["states"],
         dataset["actions"],
         val_indices,
         metadata["batch_size"],
-        validation=True,
-        nogpu=nogpu)
-    
+        validation=True)
+
     # check if step decay has to be applied
     if metadata["decay_every"] is None:
         # use normal decay without momentum
@@ -685,28 +677,40 @@ def train(metadata, out_directory, verbose, weight_file, meta_file, nogpu=False)
         # use step decay
         lr_scheduler_callback = LrStepDecayCallback(metadata, verbose)
 
-    tfboard_callback = keras.callbacks.TensorBoard(histogram_freq=1)
+    tfboard_callback = keras.callbacks.TensorBoard(log_dir=os.path.join(out_directory, 'logs'), histogram_freq=1)
 
     sgd = keras.optimizers.SGD(learning_rate=metadata["learning_rate"])
+    #sgd = keras.optimizers.Adam(learning_rate=metadata["learning_rate"])
     model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=["accuracy"])
+
+    # load weights
+    if weight_file:
+      zero_grad = [tf.zeros_like(x) for x in model.weights]
+      model.optimizer.apply_gradients(zip(zero_grad, model.weights))
+      weight_path = os.path.join(out_directory, FOLDER_WEIGHT, weight_file)
+      model.load_weights(weight_path)
+      # print weights and gradients at training resumes
+      print(f'Conv2D_1 weights : {model.weights[0][0, 0, 0, :10]}')
+      print(f'Conv2D_1 gradients : {model.optimizer.variables[1][0, 0, 0, :10]}')
 
     if verbose:
         print("STARTING TRAINING")
-
-    # check that remaining epoch > 0
-    if metadata["epochs"] <= len(metadata["epoch_logs"]):
-        raise ValueError("No more epochs to train!")
-
+    
     model.fit(
         train_data_generator,
         steps_per_epoch=int(metadata["epoch_length"]/metadata["batch_size"]),
-        epochs=(metadata["epochs"] - len(metadata["epoch_logs"])),
-        callbacks=[meta_writer, lr_scheduler_callback, tfboard_callback],
+        epochs=metadata["epochs"],
+        initial_epoch=len(metadata["epoch_logs"]),
+        callbacks=[meta_writer, cp_callback, lr_scheduler_callback, tfboard_callback],
         validation_data=val_data_generator,
         validation_steps=int(len(val_indices)/metadata["batch_size"]))
 
+    # print weights and gradients at training stops
+    print(f'Conv2D_1 weights : {model.weights[0][0, 0, 0, :10]}')
+    print(f'Conv2D_1 gradients : {model.optimizer.variables[1][0, 0, 0, :10]}')
 
-def start_training(args):
+
+def start_training(model, args):
     # set resume
     resume = args.weights is not None
 
@@ -749,8 +753,8 @@ def start_training(args):
         metadata = {
             "epoch_logs": [],
             "current_batch": 0,
-            "current_epoch": 0,
-            "best_epoch": 0,
+            "current_epoch": 1,
+            "best_epoch": 1,
             "generator_seed": None,
             "generator_sample": 0
         }
@@ -766,10 +770,10 @@ def start_training(args):
     set_training_settings(resume, args, metadata, len(dataset["states"]))
 
     # start training
-    train(metadata, args.out_directory, args.verbose, args.weights, meta_file, nogpu=args.nogpu)
+    train(model, metadata, args.out_directory, args.verbose, args.weights, meta_file, args.save_weights_only, args.save_best_only)
 
 
-def resume_training(args):
+def resume_training(model, args):
     # metadata json file location
     meta_file = os.path.join(args.out_directory, FILE_METADATA)
 
@@ -783,7 +787,7 @@ def resume_training(args):
     # determine what weight file to use
     if args.weights is None:
         # newest epoch weight file from json
-        weight_file = "weights.{epoch:05d}.hdf5".format(epoch=metadata["current_epoch"])
+        weight_file = "model.{epoch:05d}.ckpt".format(epoch=metadata["current_epoch"])
     else:
         # user weight argument
         weight_file = args.weights
@@ -797,7 +801,9 @@ def resume_training(args):
               (meta_file, os.path.join(args.out_directory, FOLDER_WEIGHT, weight_file)))
 
     # start training
-    train(metadata, args.out_directory, args.verbose, weight_file, meta_file, nogpu=args.nogpu)
+    train(model, metadata, args.out_directory, args.verbose, weight_file, meta_file, args.save_weights_only, args.save_best_only)
+
+
 
 
 def handle_arguments(cmd_line_args=None):
@@ -823,7 +829,8 @@ def handle_arguments(cmd_line_args=None):
     train.add_argument("--decay", "-d", help=("The rate at which learning decreases. Default: " + str(DEFAULT_DECAY)), type=float, default=None)  # noqa: E501
     train.add_argument("--decay-every", "-de", help="Use step-decay: decay --learning-rate with --decay every --decay-every batches. Default: None", type=int, default=None)  # noqa: E501
     train.add_argument("--override", help="Turn on prompt override mode", default=False, action="store_true")  # noqa: E501
-    train.add_argument("--nogpu", help="Turn on nogpu mode", default=False, action="store_true")  # noqa: E501
+    train.add_argument("--save_weights_only", help="Save weights only at each checkpoint", default=False, action="store_true")  # noqa: E501
+    train.add_argument("--save_best_only", help="Save best only at each checkpoint", default=False, action="store_true")  # noqa: E501
     # slightly fancier args
     train.add_argument("--weights", help="Name of a .h5 weights file (in the output directory) to load to resume training", default=None)  # noqa: E501
     train.add_argument("--train-val-test", help="Fraction of data to use for training/val/test. Must sum to 1. Default: " + str(DEFAULT_TRAIN_VAL_TEST), nargs=3, type=float, default=None)  # noqa: E501
@@ -840,7 +847,6 @@ def handle_arguments(cmd_line_args=None):
     resume.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
     resume.add_argument("--weights", help="Name of a .h5 weights file (in the output directory) to load to resume training. Default: #Newest weight file.", default=None)  # noqa: E501
     resume.add_argument("--epochs", "-E", help="Total number of iterations on the data. Defaukt: #Epochs set on previous run", type=int, default=None)  # noqa: E501
-    resume.add_argument("--nogpu", help="Turn on nogpu mode", default=False, action="store_true")  # noqa: E501
     # function to call when resume training
     resume.set_defaults(func=resume_training)
 
@@ -850,8 +856,10 @@ def handle_arguments(cmd_line_args=None):
     else:
         args = parser.parse_args(cmd_line_args)
 
+    model = cnn_policy()
+
     # execute function (train or resume)
-    args.func(args)
+    args.func(model, args)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 cimport numpy as np
 
-from bamboo.models.keras_dcnn_policy import CNNPolicy
+from bamboo.models.keras_dcnn_policy import KerasPolicy, cnn_policy
 
 from libc.stdio cimport printf
 
@@ -263,7 +263,9 @@ def test_eval_leaf_by_policy_network():
     cdef double prob_sum = 0.0
 
     mcts = MCTS(nogpu=True)
-    mcts.run_pn_session(pn_path)
+    pn = cnn_policy()
+    pn.load_weights(pn_path)
+    mcts.set_policy_network(KerasPolicy(pn))
 
     game.current_color = S_BLACK
 

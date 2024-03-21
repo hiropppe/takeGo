@@ -12,6 +12,7 @@ import traceback
 import time
 
 from bamboo.gtp import gtp
+from bamboo.models.keras_dcnn_policy import KerasPolicy, cnn_policy
 
 cimport numpy as np
 
@@ -120,7 +121,10 @@ def debug():
                   nogpu=args.nogpu,
                   self_play=True)
 
-    mcts.run_pn_session(pn_path, args.policy_temperature)
+    pn = cnn_policy()
+    pn.load_weights(pn_path)
+    mcts.set_policy_network(KerasPolicy(pn), args.policy_temperature)
+
     mcts.set_rollout_parameter(rollout_path)
     mcts.set_tree_parameter(tree_path)
 

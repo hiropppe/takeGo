@@ -8,8 +8,8 @@ import os
 from tensorflow.python import keras
 from tensorflow.python.keras import backend as K
 
-from bamboo.models.keras_dcnn_policy import CNNPolicy
 from bamboo.gtp import gtp
+from bamboo.models.keras_dcnn_policy import KerasPolicy, cnn_policy
 
 cimport numpy as np
 
@@ -31,7 +31,7 @@ from bamboo.printer cimport print_board
 from bamboo.parseboard cimport parse
 
 
-def self_play(const_time=5.0,
+cpdef self_play(const_time=5.0,
               playout_limit=1000,
               const_playout=0,
               n_games=1,
@@ -91,7 +91,9 @@ def self_play(const_time=5.0,
                   self_play=True)
 
     if use_pn:
-        mcts.run_pn_session(pn_path, temperature=0.67)
+        pn = cnn_policy()
+        pn.load_weights(pn_path)
+        mcts.set_policy_network(KerasPolicy(pn), temperature=0.67)
 
     if use_vn:
         mcts.run_vn_session(vn_path)

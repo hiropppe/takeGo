@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 #from tensorflow.contrib.keras.python import keras
 
-from bamboo.models.keras_nn_util import Bias, NeuralNetBase, neuralnet
+from bamboo.models.v1.keras_nn_util import Bias, NeuralNetBase, neuralnet
 
 
 @neuralnet

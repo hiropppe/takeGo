@@ -5,6 +5,7 @@
 import pyjsonrpc 
 
 from bamboo.gtp import gtp
+from bamboo.models.keras_dcnn_policy import KerasPolicy, cnn_policy
 
 from bamboo.board cimport PURE_BOARD_SIZE, BOARD_SIZE, OB_SIZE, PASS, RESIGN, S_BLACK, S_WHITE
 from bamboo.board cimport POS, X, Y, CORRECT_X, CORRECT_Y
@@ -41,7 +42,9 @@ class MCTSConnector(object):
                 read_ahead=False,
                 self_play=False)
         if pn_path:
-            self.mcts.run_pn_session(pn_path, temperature)
+            pn = cnn_policy()
+            pn.load_weights(pn_path)
+            self.mcts.set_policy_network(KerasPolicy(pn), temperature)
 
         if vn_path:
             self.mcts.run_vn_session(vn_path)
