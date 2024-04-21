@@ -51,7 +51,11 @@ extensions = [Extension('bamboo.board', sources=['bamboo/board.pyx'], language="
               Extension('bamboo.test_d12_pattern', sources=["bamboo/test_d12_pattern.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.test_rollout_preprocess', sources=["bamboo/test_rollout_preprocess.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
               Extension('bamboo.test_mcts', sources=["bamboo/test_mcts.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
-              Extension('bamboo.test_sgf_util', sources=["bamboo/test_sgf_util.pyx"], language="c++", extra_compile_args=["-std=c++11"])]
+              Extension('bamboo.test_sgf_util', sources=["bamboo/test_sgf_util.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.player', sources=["bamboo/player.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.self_play_game', sources=["bamboo/self_play_game.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              Extension('bamboo.test_cython', sources=["bamboo/test_cython.pyx"], language="c++", extra_compile_args=["-std=c++11"]),
+              ]
 
 core.setup(
   ext_modules=cythonize(extensions, compiler_directives={'language_level' : "3"}),

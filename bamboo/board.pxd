@@ -1,5 +1,9 @@
-from libcpp.unordered_map cimport unordered_map
+import numpy as np
 
+cimport numpy as np
+
+from libcpp.unordered_map cimport unordered_map
+from libcpp.vector cimport vector as cppvector
 
 cdef extern from "common.h":
     int MAX(int x, int y) nogil
@@ -249,3 +253,6 @@ cdef bint is_true_eye(game_state_t *game, int pos, char color, char other_color,
 cdef bint is_superko(game_state_t *game, int pos, char color) nogil
 cdef int calculate_score(game_state_t *game) nogil
 cdef void check_bent_four_in_the_corner(game_state_t *game) nogil
+
+cdef cppvector[int] get_legal_moves(game_state_t *game, char color) nogil
+cdef np.ndarray[np.npy_bool, ndim=1] get_legal_moves_mask(game_state_t *game, char color)

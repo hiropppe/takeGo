@@ -14,6 +14,7 @@ from libc.math cimport exp as cexp
 from libc.stdio cimport printf
 
 from libcpp.string cimport string as cppstring
+from libcpp.vector cimport vector as cppvector
 
 from . cimport pattern as pat
 from . cimport printer 
@@ -1291,3 +1292,26 @@ cdef void memorize_updated_string(game_state_t *game, int string_id) nogil:
     if num_for_white[0] < MAX_RECORDS:
         game.updated_string_id[<int>S_WHITE][num_for_white[0]] = string_id
         num_for_white[0] += 1
+
+
+cdef cppvector[int] get_legal_moves(game_state_t *game, char color) nogil:
+    cdef int pos
+    cdef cppvector[int] moves
+
+    for i in range(pure_board_max):
+        pos = onboard_pos[i]
+        if is_legal(game, pos, color):
+            moves.push_back(pos)
+    
+    return moves
+
+cdef np.ndarray[np.npy_bool, ndim=1] get_legal_moves_mask(game_state_t *game, char color):
+    cdef int i, pos
+    cdef np.ndarray[np.npy_bool, ndim=1] mask = np.zeros(pure_board_max, dtype=np.bool_)
+
+    for i in range(pure_board_max):
+        pos = onboard_pos[i]
+        if is_legal(game, pos, color):
+            mask[i] = True
+    
+    return mask

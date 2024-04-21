@@ -54,6 +54,9 @@ cdef void initialize_feature(PolicyFeature feature):
 
     feature.search_games = game
 
+    for i in range(PURE_BOARD_MAX):
+        feature.do_not_put[i] = False
+
 
 cdef void free_feature(PolicyFeature feature):
     if feature:
@@ -66,10 +69,9 @@ cdef void free_feature_games(PolicyFeature feature):
         feature.search_games = NULL
 
 
-cdef void update(PolicyFeature feature, tree_node_t *node):
+cdef void update(PolicyFeature feature, board.game_state_t *game):
     cdef int[:, ::1] F = feature.planes
 
-    cdef board.game_state_t *game = node.game
     cdef char current_color = game.current_color
     cdef char other_color = board.FLIP_COLOR(game.current_color)
     cdef int neighbor4[4]
@@ -98,7 +100,7 @@ cdef void update(PolicyFeature feature, tree_node_t *node):
     cdef int second_ladder_capture, second_ladder_escape
     cdef int ladder_result
     cdef int i, j, n
-    cdef tree_node_t *child
+    #cdef tree_node_t *child
 
     F[...] = 0
 
@@ -276,11 +278,11 @@ cdef void update(PolicyFeature feature, tree_node_t *node):
                                             ladder_moves)
                         if ladder_result == 1:
                             F[45, onboard_index[string.lib[0]]] = 1
-                        else:
-                            # Cannot escape !!!
-                            if board.is_legal_not_eye(game, string.lib[0], current_color):
-                                child = node.children[onboard_index[string.lib[0]]]
-                                child.do_not_put = True
+                        #else:
+                        #    # Cannot escape !!!
+                        #    if board.is_legal_not_eye(game, string.lib[0], current_color):
+                        #        child = node.children[onboard_index[string.lib[0]]]
+                        #        child.do_not_put = True
 
                         """ Add capturing opponent stones to escape options
                         escape_option_num = get_escape_options(game,

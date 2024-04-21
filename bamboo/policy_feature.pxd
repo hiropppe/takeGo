@@ -15,6 +15,7 @@ cdef class PolicyFeature:
     cdef:
         int n_planes
         int[:, ::1] planes
+        bint do_not_put[361]   # PURE_BOARD_MAX
         board.game_state_t *search_games
 
 
@@ -23,7 +24,7 @@ cdef void initialize_feature(PolicyFeature feature)
 cdef void free_feature(PolicyFeature feature)
 cdef void free_feature_games(PolicyFeature feature)
 
-cdef void update(PolicyFeature feature, tree_node_t *node)
+cdef void update(PolicyFeature feature, board.game_state_t *game)
 
 cdef int is_ladder_capture(board.game_state_t *game, int string_id, int pos, int othre_pos,
                            board.game_state_t *search_games, int depth, int *ladder_moves)

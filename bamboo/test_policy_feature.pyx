@@ -30,7 +30,7 @@ def test_stone_color():
     board.put_stone(node.game, moves['b'], board.S_WHITE)
 
     node.game.current_color = board.S_BLACK
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
 
     assert (planes[0, pure_moves['a']] == 1)
     assert (planes[1, pure_moves['b']] == 1)
@@ -40,7 +40,7 @@ def test_stone_color():
     assert (planes[2].sum(), 7)
 
     node.game.current_color = board.S_WHITE
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
 
     assert (planes[0, pure_moves['b']] == 1)
     assert (planes[1, pure_moves['a']] == 1)
@@ -68,13 +68,13 @@ def test_turns_since():
 
     # move 'a'
     board.do_move(node.game, moves['a'])
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[4, pure_moves['a']] == 1) # 0 age
     assert (planes[4].sum() == 1)
 
     # move 'b'
     board.do_move(node.game, moves['b'])
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[5, pure_moves['a']] == 1) # 1 age
     assert (planes[4, pure_moves['b']] == 1) # 0 age
     assert (planes[5].sum() == 1)
@@ -83,7 +83,7 @@ def test_turns_since():
     # PASS
     board.do_move(node.game, board.PASS)
     board.do_move(node.game, board.PASS)
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[7, pure_moves['a']] == 1) # 3 age
     assert (planes[6, pure_moves['b']] == 1) # 2 age
     assert (planes[7].sum() == 1)
@@ -93,7 +93,7 @@ def test_turns_since():
     board.do_move(node.game, moves['d'])
     board.do_move(node.game, moves['e'])
     board.do_move(node.game, moves['f'])
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[11, pure_moves['a']] == 1) # 7 age
     assert (planes[10, pure_moves['b']] == 1) # 6 age
     assert (planes[7, pure_moves['c']] == 1)  # 3 age
@@ -101,7 +101,7 @@ def test_turns_since():
     assert (planes[4, pure_moves['f']] == 1)  # 0 age
 
     board.do_move(node.game, moves['g'])
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[11, pure_moves['a']] == 1) # 7 age
     assert (planes[11, pure_moves['b']] == 1) # 7 age
     assert (planes[8, pure_moves['c']] == 1)  # 4 age
@@ -125,18 +125,18 @@ def test_liberties():
     planes = np.asarray(feature.planes)
 
     board.put_stone(node.game, moves['a'], board.S_BLACK)
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[12 + 4 - 1, pure_moves['a']] == 1)
 
     board.put_stone(node.game, moves['b'], board.S_BLACK)
     board.put_stone(node.game, moves['c'], board.S_BLACK)
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[12 + 8 - 1, pure_moves['a']] == 1)
     assert (planes[12 + 8 - 1, pure_moves['b']] == 1)
     assert (planes[12 + 8 - 1, pure_moves['c']] == 1)
 
     board.put_stone(node.game, moves['d'], board.S_BLACK)
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[12 + 8 - 1, pure_moves['a']] == 1)
     assert (planes[12 + 8 - 1, pure_moves['b']] == 1)
     assert (planes[12 + 8 - 1, pure_moves['c']] == 1)
@@ -164,14 +164,14 @@ def test_capture_size():
     planes = np.asarray(feature.planes)
 
     node.game.current_color = board.S_BLACK
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[20 + 1, pure_moves['a']] == 1)
     assert (planes[20 + 1].sum() == 1)
     assert (planes[20 + 7, pure_moves['b']] == 1)
     assert (planes[20 + 7].sum() == 1)
 
     node.game.current_color = board.S_WHITE
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
 
     assert (planes[20 + 7, pure_moves['c']] == 1)
     assert (planes[20 + 7].sum() == 1)
@@ -198,7 +198,7 @@ def test_self_atari_size():
     planes = np.asarray(feature.planes)
 
     node.game.current_color = board.S_WHITE
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
 
     assert (planes[28 + 1 - 1, pure_moves['a']] == 1)
     assert (planes[28 + 1 - 1].sum() == 1)
@@ -206,7 +206,7 @@ def test_self_atari_size():
     assert (planes[28 + 8 - 1].sum() == 1)
 
     node.game.current_color = board.S_BLACK
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
 
     assert (planes[28 + 8 - 1, pure_moves['c']] == 1)
     assert (planes[28 + 8 - 1].sum() == 1)
@@ -232,29 +232,29 @@ def test_liberties_after_move():
     node.game.current_color = board.S_BLACK
 
     # after B 'a'
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 4 - 1, pure_moves['a']] == 1)
 
     # after B 'b'
     board.put_stone(node.game, moves['a'], board.S_BLACK)
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 6 - 1, pure_moves['b']] == 1)
 
     # after B 'c'
     board.put_stone(node.game, moves['b'], board.S_BLACK)
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 8 - 1, pure_moves['c']] == 1)
 
     # after B 'd'
     board.put_stone(node.game, moves['c'], board.S_BLACK)
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 8 - 1, pure_moves['d']] == 1)
 
     node.game.current_color = board.S_WHITE
 
     # after W 'e'
     board.put_stone(node.game, moves['d'], board.S_BLACK)
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 2 - 1, pure_moves['e']] == 1)
 
 
@@ -274,7 +274,7 @@ def test_liberties_after_move_1():
 
     node.game.current_color = board.S_BLACK
 
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 5 - 1, pure_moves['a']] == 1)
 
 
@@ -295,7 +295,7 @@ def test_liberties_after_move_dupe_empty():
 
     node.game.current_color = board.S_BLACK
 
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 5 - 1, pure_moves['a']] == 1)
 
 
@@ -316,7 +316,7 @@ def test_liberties_after_move_captured():
 
     node.game.current_color = board.S_BLACK
 
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 5 - 1, pure_moves['a']] == 1)
 
 
@@ -340,7 +340,7 @@ def test_liberties_after_move_captured_1():
 
     node.game.current_color = board.S_WHITE
 
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 6 - 1, pure_moves['a']] == 1)
 
 
@@ -366,7 +366,7 @@ def test_liberties_after_move_captured_2():
 
     node.game.current_color = board.S_WHITE
 
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[36 + 5 - 1, pure_moves['a']] == 1)
 
 
@@ -390,7 +390,7 @@ def test_sensibleness_not_suicide():
 
     node.game.current_color = board.S_WHITE
     
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert is_legal(node.game, moves['a'], board.S_WHITE)
     assert (planes[46, pure_moves['a']] == 1)
 
@@ -413,13 +413,13 @@ def test_sensibleness_true_eye():
 
     node.game.current_color = board.S_BLACK
     
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[46, pure_moves['a']] == 0)
     assert (planes[46, pure_moves['b']] == 0)
     assert (planes[46, pure_moves['c']] == 0)
     
     node.game.current_color = board.S_WHITE
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[46, pure_moves['d']] == 0)
     assert (planes[46, pure_moves['e']] == 0)
     assert (planes[46, pure_moves['f']] == 0)
@@ -446,12 +446,12 @@ def test_sensibleness_not_true_eye():
 
     node.game.current_color = board.S_BLACK
     
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[46, pure_moves['a']] == 1)
     
     node.game.current_color = board.S_WHITE
 
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[46, pure_moves['b']] == 1)
     assert (planes[46, pure_moves['c']] == 1)
     assert (planes[46, pure_moves['d']] == 1)
@@ -480,7 +480,7 @@ def test_sensibleness_true_eye_remove_stone():
 
     node.game.current_color = board.S_BLACK
     
-    policy_feature.update(feature, node)
+    policy_feature.update(feature, node.game)
     assert (planes[46, pure_moves['a']] == 0)
     assert (planes[46, pure_moves['c']] == 0)
 

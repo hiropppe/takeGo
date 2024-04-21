@@ -46,7 +46,7 @@ def print_value(vn_path, sgf, moves=[4, 5, 50, 51, 100, 101, 150, 151, 250, 251,
     node.game = sgf_iterator.game
     for i, move in enumerate(sgf_iterator):
         if i in moves:
-            update(feature, node)
+            update(feature, node.game)
 
             tensor = np.asarray(feature.planes).reshape(1, 49, 19, 19)
 

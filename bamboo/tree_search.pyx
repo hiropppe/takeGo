@@ -959,8 +959,9 @@ cdef class MCTS(object):
     cdef void eval_leaf_by_policy_network(self, tree_node_t *node):
         cdef int i, pos
         cdef tree_node_t *child
+        cdef game_state_t *game = node.game
 
-        update(self.policy_feature, node)
+        update(self.policy_feature, game)
 
         tensor = np.asarray(self.policy_feature.planes)
         tensor = tensor.reshape((1, MAX_POLICY_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
@@ -975,7 +976,7 @@ cdef class MCTS(object):
         for i in range(node.num_child):
             pos = node.children_pos[i]
             child = node.children[pos]
-            if child.do_not_put:
+            if self.policy_feature.do_not_put[pos]:
                 child.P = .0
             else:
                 child.P = probs[pos]
@@ -1021,8 +1022,9 @@ cdef class MCTS(object):
 
     cdef void eval_leaf_by_value_network(self, tree_node_t *node):
         cdef double vn_out
+        cdef game_state_t *game = node.game
 
-        update(self.value_feature, node)
+        update(self.value_feature, game)
 
         tensor = np.asarray(self.value_feature.planes)
         tensor = tensor.reshape((1, MAX_VALUE_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))

@@ -11,8 +11,8 @@ class KerasPolicy():
         self.model = model
 
     def eval_state(self, tensor):
-        output = self.model.predict(tensor)
-        return output[0]
+        output = self.model.predict(tensor, verbose=0)
+        return output
 
 
 def cnn_policy(**kwargs):

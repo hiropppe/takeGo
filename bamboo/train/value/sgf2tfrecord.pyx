@@ -416,7 +416,7 @@ cdef class GameConverter(object):
                 if i not in sampling_idx:
                     continue
                 s = time.time()
-                update(self.feature, node)
+                update(self.feature, node.game)
                 self.update_speeds.append(time.time()-s)
 
                 if onboard_index[move[0]] >= pure_board_max:

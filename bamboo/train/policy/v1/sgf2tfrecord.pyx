@@ -346,7 +346,7 @@ cdef class GameConverter(object):
         for i, move in enumerate(sgf_iter):
             if move[0] != PASS:
                 s = time.time()
-                update(self.feature, node)
+                update(self.feature, node.game)
                 self.update_speeds.append(time.time()-s)
                 if onboard_index[move[0]] >= pure_board_max:
                     continue
