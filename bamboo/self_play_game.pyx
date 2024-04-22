@@ -97,13 +97,13 @@ cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3, double te
             game = &games[i]
             state_tensor = state_to_tensor(feature, game)
             states.append(state_tensor)
-
+        
         moves = opponent.genmove(np.vstack(states))
 
-        for i in range(1, n_games, 2):
+        for j, i in enumerate(range(1, n_games, 2)):
             game = &games[i]
-            pos = moves[i-1]
-            ob_pos = onboard_pos[pos]            
+            pos = moves[j]
+            ob_pos = onboard_pos[pos]
             put_stone(game, ob_pos, game.current_color)
             game.current_color = FLIP_COLOR(game.current_color)
 
@@ -165,14 +165,14 @@ cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3, double te
                 
                 score = <double>calculate_score(game)
 
-                print('Score({:s}): {:s}'.format(str(i), str(calculate_score(game) - komi)))
-
                 if score - komi > 0:
                     winner = S_BLACK
                 else:
                     winner = S_WHITE
 
                 learner_won[i] = winner == learner_color[i]
+
+                print(f"[{i}] {'Black' if learner_color[i] == S_BLACK else 'White'} (Learner) {'Won' if learner_won[i] else 'Lost'}. Score: {calculate_score(game) - komi}")
 
                 #save_gamestate_to_sgf(game, '/usr/src/develop', f'self_play_{i}.sgf', 'B', 'W')
 
