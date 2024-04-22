@@ -54,7 +54,6 @@ def start_training(args):
             print("Resuming with weights {}".format(args.initial_weights))
         learner_weights = os.path.basename(args.initial_weights)
     
-    d = os.path.dirname(os.path.abspath(__file__))
     learner_model = cnn_policy()
     learner_model.load_weights(args.initial_weights)
     learner_policy = KerasPolicy(learner_model)

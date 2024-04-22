@@ -48,7 +48,7 @@ cdef np.ndarray[INT_t, ndim=4] state_to_tensor(PolicyFeature policy_feature, gam
     return state_tensor
 
 
-cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3):
+cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3, double temperature=0.67, bint verbose=False):
     cdef int i, j
     cdef game_state_t *games, *game
     cdef bint legal
@@ -87,8 +87,8 @@ cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3):
     #  Even games will have 'learner' black.
     learner_color = [S_BLACK if i % 2 == 0 else S_WHITE for i in range(n_games)]
 
-    player = PolicyPlayer(player_pn)
-    opponent = PolicyPlayer(opponent_pn)
+    player = PolicyPlayer(player_pn, temperature=temperature)
+    opponent = PolicyPlayer(opponent_pn, temperature=temperature)
     
     # Start all odd games with moves by 'opponent' because First current player is learner.
     if n_games > 1:
@@ -147,7 +147,8 @@ cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3):
             if is_legal(game, ob_pos, game.current_color) and pos != RESIGN and game.moves < 361:
                 put_stone(game, ob_pos, game.current_color)
 
-                print_board(game)
+                if verbose:
+                    print_board(game)
 
                 if learner_color[i] == game.current_color:
                     state_tensors[i].append(state_tensor)
