@@ -17,7 +17,7 @@ from .zobrist_hash cimport uct_hash_size
 
 cdef class PolicyPlayer(object):
 
-    def __cinit__(self, model, double temperature=0.1):
+    def __cinit__(self, model, double temperature=0.67):
         self.model = model
         self.temperature = temperature
 
@@ -38,25 +38,24 @@ cdef class PolicyPlayer(object):
 
         probs = self.model.eval_state(tensor)
         if any(np.abs(probs.sum(axis=1) - 1.0) > 0.01):
-            print('>> Warnings. Sum of PN evaluation values {:.3f} != 1.0', probs.sum(), file=sys.stderr)
+            print('>> Warnings. Sum of PN evaluation values {:.3f} != 1.0', probs.sum(axis=1), file=sys.stderr)
         
-        assert len(probs) == len(mask)
-        assert len(probs[0]) == len(mask[0])
-
-        #print(probs[0])
-        #print(mask)
         probs = probs * mask
-        #print(probs[0])
         probs = apply_temperature(probs, mask, temperature=self.temperature)
         # wa. nan prob
         probs = np.nan_to_num(probs)
-        pos = np.array([np.random.choice(len(prob), p=prob) for prob in probs], dtype=np.int32)
-
+        try:
+            pos = np.array([np.random.choice(len(prob), p=prob) for prob in probs], dtype=np.int32)
+        except ValueError as e:
+            print(e, file=sys.stderr)
+            pos = np.zeros(len(probs), dtype=np.int32)
+            for i, prob in enumerate(probs):
+                try:
+                    pos[i] = np.random.choice(len(prob), p=prob)
+                except ValueError as e:
+                    pos[i] = RESIGN
+        
         return pos
-
-    def __dealloc__(self):
-        pass
-        #pf.free_feature(self.policy_feature)
 
 
 def apply_temperature(x, mask, temperature):

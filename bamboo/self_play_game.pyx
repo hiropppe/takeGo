@@ -48,7 +48,7 @@ cdef np.ndarray[INT_t, ndim=4] state_to_tensor(PolicyFeature policy_feature, gam
     return state_tensor
 
 
-cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3, double temperature=0.67, bint verbose=False):
+cpdef run_n_games(object player_pn, object opponent_pn, int n_games=20, int move_limit=361, double temperature=0.67, bint verbose=0):
     cdef int i, j
     cdef game_state_t *games, *game
     cdef bint legal
@@ -144,10 +144,10 @@ cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3, double te
             #    y = PURE_BOARD_SIZE-CORRECT_Y(ob_pos, BOARD_SIZE, OB_SIZE)
             #    print(gtp.gtp_vertex((x, y)), is_legal(game, ob_pos, game.current_color), legal_moves_masks[j, pos])
             
-            if is_legal(game, ob_pos, game.current_color) and pos != RESIGN and game.moves < 361:
+            if is_legal(game, ob_pos, game.current_color) and pos != RESIGN and game.moves <= move_limit:
                 put_stone(game, ob_pos, game.current_color)
 
-                if verbose:
+                if verbose == 3:
                     print_board(game)
 
                 if learner_color[i] == game.current_color:
@@ -161,7 +161,8 @@ cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3, double te
                 games_in_play[i] = 0
                 n_games_in_play -= 1
 
-                print_board(game)
+                if verbose == 2:
+                    print_board(game)
                 
                 score = <double>calculate_score(game)
 
@@ -172,7 +173,8 @@ cpdef run_n_games(object player_pn, object opponent_pn, int n_games=3, double te
 
                 learner_won[i] = winner == learner_color[i]
 
-                print(f"[{i}] {'Black' if learner_color[i] == S_BLACK else 'White'} (Learner) {'Won' if learner_won[i] else 'Lost'}. Score: {calculate_score(game) - komi}")
+                if verbose:
+                    print(f"#{str(i).zfill(3)}. {'Black' if learner_color[i] == S_BLACK else 'White'} (Learner) {'Won' if learner_won[i] else 'Lost'}. Score: {calculate_score(game) - komi}")
 
                 #save_gamestate_to_sgf(game, '/usr/src/develop', f'self_play_{i}.sgf', 'B', 'W')
 
