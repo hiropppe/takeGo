@@ -12,6 +12,7 @@ from libc.string cimport memset, memcpy
 from libcpp.vector cimport vector as cppvector
 
 import os
+import subprocess
 import time
 
 from .models.keras_dcnn_policy import KerasPolicy, cnn_policy
@@ -48,7 +49,13 @@ cdef np.ndarray[INT_t, ndim=4] state_to_tensor(PolicyFeature policy_feature, gam
     return state_tensor
 
 
-cpdef run_n_games(object player_pn, object opponent_pn, int n_games=20, int move_limit=361, double temperature=0.67, bint verbose=0):
+cpdef run_n_games(object player_pn,
+                  object opponent_pn,
+                  int n_games=20,
+                  int move_limit=361,
+                  double temperature=0.67,
+                  bint greedy=0,
+                  int verbose=0):
     cdef int i, j
     cdef game_state_t *games, *game
     cdef bint legal
@@ -87,8 +94,8 @@ cpdef run_n_games(object player_pn, object opponent_pn, int n_games=20, int move
     #  Even games will have 'learner' black.
     learner_color = [S_BLACK if i % 2 == 0 else S_WHITE for i in range(n_games)]
 
-    player = PolicyPlayer(player_pn, temperature=temperature)
-    opponent = PolicyPlayer(opponent_pn, temperature=temperature)
+    player = PolicyPlayer(player_pn, temperature=temperature, greedy=greedy)
+    opponent = PolicyPlayer(opponent_pn, temperature=temperature, greedy=greedy)
     
     # Start all odd games with moves by 'opponent' because First current player is learner.
     if n_games > 1:
@@ -175,8 +182,8 @@ cpdef run_n_games(object player_pn, object opponent_pn, int n_games=20, int move
 
                 if verbose:
                     print(f"#{str(i).zfill(3)}. {'Black' if learner_color[i] == S_BLACK else 'White'} (Learner) {'Won' if learner_won[i] else 'Lost'}. Score: {calculate_score(game) - komi}")
-
-                #save_gamestate_to_sgf(game, '/usr/src/develop', f'self_play_{i}.sgf', 'B', 'W')
+                    #save_gamestate_to_sgf(game, '/tmp', f'self_play_{i}.sgf', 'B', 'W')
+                    #print(subprocess.check_output(["gnugo", "--score", "aftermath", "-l", f"/tmp/self_play_{i}.sgf"]))
 
             current, other = other, current
 

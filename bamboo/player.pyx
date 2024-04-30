@@ -17,9 +17,10 @@ from .zobrist_hash cimport uct_hash_size
 
 cdef class PolicyPlayer(object):
 
-    def __cinit__(self, model, double temperature=0.67):
+    def __cinit__(self, model, double temperature=0.67, bint greedy=0):
         self.model = model
         self.temperature = temperature
+        self.greedy = greedy
 
     cdef int[:] genmove(self, np.ndarray[INT_t, ndim=4] tensor):    
         cdef int[:] pos
@@ -28,9 +29,11 @@ cdef class PolicyPlayer(object):
         if any(np.abs(probs.sum(axis=1) - 1.0) > 0.01):
             print('>> Warnings. Sum of PN evaluation values {:.3f} != 1.0', probs.sum(), file=sys.stderr)
         
-        ## argmax
-        pos = np.argmax(probs, axis=1).astype(np.int32)
-        
+        if self.greedy:
+            pos = np.argmax(probs, axis=1).astype(np.int32)
+        else:
+            pos = np.array([np.random.choice(len(prob), p=prob) for prob in probs], dtype=np.int32)
+
         return pos
         
     cdef int[:] gen_masked_move(self, np.ndarray[INT_t, ndim=4] tensor, np.ndarray[np.npy_bool, ndim=2] mask):    
@@ -41,20 +44,23 @@ cdef class PolicyPlayer(object):
             print('>> Warnings. Sum of PN evaluation values {:.3f} != 1.0', probs.sum(axis=1), file=sys.stderr)
         
         probs = probs * mask
-        probs = apply_temperature(probs, mask, temperature=self.temperature)
-        # wa. nan prob
-        probs = np.nan_to_num(probs)
-        try:
-            pos = np.array([np.random.choice(len(prob), p=prob) for prob in probs], dtype=np.int32)
-        except ValueError as e:
-            print(e, file=sys.stderr)
-            pos = np.zeros(len(probs), dtype=np.int32)
-            for i, prob in enumerate(probs):
-                try:
-                    pos[i] = np.random.choice(len(prob), p=prob)
-                except ValueError as e:
-                    pos[i] = RESIGN
-        
+        if self.greedy:
+            pos = np.argmax(probs, axis=1).astype(np.int32)
+        else:
+            probs = apply_temperature(probs, mask, temperature=self.temperature)
+            # wa. nan prob
+            probs = np.nan_to_num(probs)
+            try:
+                pos = np.array([np.random.choice(len(prob), p=prob) for prob in probs], dtype=np.int32)
+            except ValueError as e:
+                print(e, file=sys.stderr)
+                pos = np.zeros(len(probs), dtype=np.int32)
+                for i, prob in enumerate(probs):
+                    try:
+                        pos[i] = np.random.choice(len(prob), p=prob)
+                    except ValueError as e:
+                        pos[i] = RESIGN
+                
         return pos
 
 

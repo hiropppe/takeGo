@@ -99,12 +99,13 @@ def start_training(args):
         opponent_model.load_weights(opp_path)
         if args.verbose:
             print("Batch {}\tsampled opponent is {}".format(i_iter, opp_weights))
-
+        
         state_tensors, move_tensors, learner_won, win_ratio = run_n_games(learner_policy,
                                                                           opponent_policy,
                                                                           n_games=args.game_batch,
                                                                           move_limit=args.move_limit,
                                                                           temperature=args.policy_temp,
+                                                                          greedy=args.greedy,
                                                                           verbose=args.verbose)
         print(f'iter.{i_iter} winning ratio: {win_ratio*100:.3f}')
         # Train on each game's results, setting the learning rate negative to 'unlearn' positions from
@@ -146,6 +147,7 @@ def main(cmd_line_args=None):
     train.add_argument("--game-batch", help="Number of games per mini-batch (Default: 20)", type=int, default=20)  # noqa: E501
     train.add_argument("--move-limit", help="Maximum number of moves per game", type=int, default=500)  # noqa: E501
     train.add_argument("--iterations", help="Number of training batches/iterations (Default: 10000)", type=int, default=1)  # noqa: E501
+    train.add_argument("--greedy", help="Greedy play", default=False, action="store_true")  # noqa: E501
     train.add_argument("--resume", help="Load latest weights in out_directory and resume", default=False, action="store_true")  # noqa: E501
     train.add_argument("--verbose", "-v", help="Turn on verbose mode", type=int, default=0)  # noqa: E501
     train.set_defaults(func=start_training)
@@ -160,13 +162,14 @@ def main(cmd_line_args=None):
         'out_directory': './test_training/rl_policy/',
         'learning_rate': 0.001,
         'policy_temp': 0.67,
-        'save_every': 1,
-        'record_every': 1, 
-        'game_batch': 10,
+        'save_every': 2,
+        'record_every': 1,
+        'game_batch': 2,
         'move_limit': 500,
-        'iterations': 3,
-        'resume': False, 
-        'verbose': 1,  # Turn on verbose mode
+        'iterations': 100,
+        'greedy': True,
+        'resume': False,
+        'verbose': 2,  # Turn on verbose mode
     }
 
     from types import SimpleNamespace

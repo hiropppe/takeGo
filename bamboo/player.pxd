@@ -11,5 +11,6 @@ ctypedef np.int32_t INT_t
 cdef class PolicyPlayer:
     cdef object model
     cdef double temperature
+    cdef bint greedy
     cdef int[:] genmove(self, np.ndarray[INT_t, ndim=4] tensors)
     cdef int[:] gen_masked_move(self, np.ndarray[INT_t, ndim=4] tensors, np.ndarray[np.npy_bool, ndim=2] mask)
