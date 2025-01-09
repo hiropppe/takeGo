@@ -162,11 +162,11 @@ cdef class GameConverter(object):
                 except TooFewMove as e:
                     n_too_few_move += 1
                     if not quiet:
-                        warnings.warn('Too few move. {:d} less than 50. {:s}'.format(e.n_moves, file_name))
+                        tqdm.write('Too few move. {:d} less than 50. {:s}'.format(e.n_moves, file_name))
                 except TooManyMove as e:
                     n_too_many_move += 1
                     if not quiet:
-                        warnings.warn('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, file_name))
+                        tqdm.write('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, file_name))
                 except KeyboardInterrupt:
                     break
                 finally:

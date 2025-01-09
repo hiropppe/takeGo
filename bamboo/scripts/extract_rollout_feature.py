@@ -1,9 +1,10 @@
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
-from bamboo.train.rollout.sgf2hdf5 import GameConverter as RolloutGameConverter
-from bamboo.train.rollout.sgf2hdf5_tree import GameConverter as TreeGameConverter
+from pathlib import Path
+
+from ..train.rollout.sgf2hdf5 import GameConverter as RolloutGameConverter
+from ..train.rollout.sgf2hdf5_tree import GameConverter as TreeGameConverter
 
 
 def run_game_converter(cmd_line_args=None):
@@ -11,6 +12,14 @@ def run_game_converter(cmd_line_args=None):
     """
     import argparse
     import sys
+
+    params_dir = os.path.join(os.path.dirname(__file__), '../../params')
+
+    default_rands_path = os.path.join(params_dir, "rollout/mt_rands.txt")
+    default_x33_path = os.path.join(params_dir, "rollout/x33.csv")
+    default_d12_path = os.path.join(params_dir, "rollout/d12.csv")
+    default_d12_rsp_path = os.path.join(params_dir, "rollout/d12_rsp.csv")
+    default_d12_rspos_path = os.path.join(params_dir, "rollout/d12_rspos.csv")
 
     parser = argparse.ArgumentParser(
         description='Prepare SGF Go game files for training the rollout model.')
@@ -22,16 +31,16 @@ def run_game_converter(cmd_line_args=None):
                         help="Choice policy to generate feature (Default: rollout)")
     parser.add_argument("--size", "-s", type=int, default=19,
                         help="Size of the game board. SGFs not matching this are discarded with a warning")
-    parser.add_argument("--mt_rands_file", "-mt", required=True, type=str, default=None,
-                        help="Mersenne twister random number file. Default: None")
-    parser.add_argument("--x33_csv", "-x33", required=True, default=None,
-                        help="Non-response 3x3 pattern file. Default: None")
-    parser.add_argument("--d12_csv", "-d12", default=None,
-                        help="Non-response 12 point diamond pattern file. Default:None")
-    parser.add_argument("--d12_rsp_csv", "-rd12", default=None,
-                        help="Response 12 point diamond pattern file. Default:None")
-    parser.add_argument("--d12_rspos_csv", "-rpd12", default=None,
-                        help="Response 12 point diamond pattern file (Include response move bits). Default:None")
+    parser.add_argument("--mt_rands_file", "-mt", required=False, type=str, default=default_rands_path,
+                        help=f"Mersenne twister random number file. Default: {default_rands_path}")
+    parser.add_argument("--x33_csv", "-x33", required=False, default=default_x33_path,
+                        help=f"Non-response 3x3 pattern file. Default: {default_x33_path}")
+    parser.add_argument("--d12_csv", "-d12", default=default_d12_path,
+                        help="Non-response 12 point diamond pattern file. Default: {default_d12_path}")
+    parser.add_argument("--d12_rsp_csv", "-rd12", default=default_d12_rsp_path,
+                        help=f"Response 12 point diamond pattern file. Default: {default_d12_rsp_path}")
+    parser.add_argument("--d12_rspos_csv", "-rpd12", default=default_d12_rspos_path,
+                        help=f"Response 12 point diamond pattern file (Include response move bits). Default:{default_d12_rspos_path}")
     parser.add_argument("--recurse", "-R", default=False, action="store_true",
                         help="Set to recurse through directories searching for SGF files")
     parser.add_argument("--verbose", "-v", default=False, action="store_true",

@@ -1,14 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import h5py as h5
 import numpy as np
 import os
 import sys
 import traceback
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../../'))
 
 from tqdm import tqdm
-from bamboo.train.rollout.optimizer import SGD, Momentum, AdaGrad, Adam, Nesterov, RMSprop
+from ..train.rollout.optimizer import SGD, Momentum, AdaGrad, Adam, Nesterov, RMSprop
 
 # default settings
 DEFAULT_EPOCH = 10
@@ -165,8 +164,8 @@ def start_training(args):
                 sys.stderr.write(traceback.format_exc())
 
             if (j+1) % REPORT_SIZE == 0:
-                print('\nAcc. {:.3f} Loss. {:.3f}'.format(n_report_acc*100/REPORT_SIZE,
-                                                          n_report_total_loss/REPORT_SIZE))
+                tqdm.write('\nAcc. {:.3f} Loss. {:.3f}'.format(n_report_acc*100/REPORT_SIZE,
+                                                               n_report_total_loss/REPORT_SIZE))
                 n_report_acc = 0
                 n_report_total_loss = 0.
 

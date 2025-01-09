@@ -3,98 +3,45 @@ This is partial and incomplete implementation of [Shodai AlphaGo (AlphaGo Fan pa
 
 CGOS rating does not reach 2600.  
 http://www.yss-aya.com/cgos/19x19/cross/take.html  
-http://www.yss-aya.com/cgos/19x19/cross/mishima-0.1.html
+http://www.yss-aya.com/cgos/19x19/cross/mishima-0.1.html 
 
-
-The following is a note for myself.  
-
-***(Re)development branch, the following notes are out of date.***
-
-## Playing Go
-### Build container
-gpu container is not working now:-)
-```
-# CPU machine
-docker build -t bbs -f ./docker/Dockerfile.tensorflow1.3.centos7 .
-
-# GPU machine
-docker build -t bbs -f ./docker/Dockerfile.tensorflow1.3.cuda8.0.cudnn6.centos7 .
-```
-### Run GTP Server
-```
-# CPU machine
-docker run --rm --name bbs -p 5000:5000 bbs gtp -t 2 -lgrf2 --nogpu
-
-# GPU machine
-docker run --rm --gpus all --name bbs -p 5000:5000 bbs gtp -t 10 -lgrf2
-```
-
-### Playing with gogui
-GoGUI is in this repository
-```
-java -jar tools/gogui-1.4.9/lib/gogui.jar
-```
-GoGUI command is set as follows
-```
-python /path/to/takeGo/bbc --host localhost --port 5000
-```
+***(Re)development branch***
 
 ## Development
 ### Build
 ```
-docker exec -it bbs bash
-cd ./gtp
-python setup.py build_ext -i
+python3 setup.py build_ext -i
 ```
-### Run GTP server
-```
-python bbs \
-  -pn ./params/policy/weights.hdf5 \
-  -ro ./params/rollout/rollout.hdf5 \
-  -tr ./params/rollout/tree.hdf5 \
-  -mt ./params/rollout/mt_rands.txt \
-  -x33 ./params/rollout/x33.csv \
-  -rd12 ./params/rollout/d12_rsp.csv \
-  -d12 ./params/rollout/d12.csv \
-  -t 10 \
-  -lgrf2 \
-  --nogpu \
-  --server
-
-# --nogpu (CPU only)
-```
-
 ## Training Networks
 ### Supervised Learning Policy
-this is not working now:-)
 ```
 # convert SGFs
-python bamboo/train/policy/sgf2hdf5_main.py -o /path/to/output/feature_planes.hdf5 -d /path/to/input/sgf/directory
+python3 -m bamboo.scripts.policy_feature -o /path/to/feature_planes.h5 -d /path/to/sgf/directory
 # run training
-python bamboo/train/policy/keras_supervised_policy_trainer.py train /path/to/weights/saved /path/to/feature_planes.h5
+python3 -m bamboo.scripts.keras_supervised_policy_trainer.py train /path/to/weights/saved /path/to/feature_planes.h5
 ```
-### Harvest patterns for rollout and tree policy
+### Patterns for rollout and tree policy
 ```
 # Response Pattern (12-point diamond)
-python bamboo/train/rollout/pattern_harvest_main.py -o /path/to/output/d12_rsp.csv -p d12_rsp -d /path/to/input/sgf/directory
+python3 -m bamboo.scripts.rollout_pattern -o /path/to/d12_rsp.csv -p d12_rsp -d /path/to/sgf/directory
 # Non-Response Pattern (3x3)
-python bamboo/train/rollout/pattern_harvest_main.py -o /path/to/output/x33.csv -p x33 -d /path/to/input/sgf/directory
+python3 -m bamboo.scripts.rollout_pattern -o /path/to/x33.csv -p x33 -d /path/to/sgf/directory
 # Non-Response Pattern (12-point diamond)
-python bamboo/train/rollout/pattern_harvest_main.py -o /path/to/output/d12.csv -p d12 -d /path/to/input/sgf/directory
+python3 -m bamboo.scripts.rollout_pattern -o /path/to/d12.csv -p d12 -d /path/to/sgf/directory
 ```
 ### Rollout Policy
 ```
 # convert SGFs
-python bamboo/train/rollout/sgf2hdf5_main.py -o /path/to/output/rollout_feature.h5 -d /path/to/input/sgf/directory -p rollout -mt ./params/rollout/mt_rands.txt -x33 /path/to/input/x33.csv -rd12 /path/to/input/d12_rsp.csv
+python3 -m bamboo.scripts.rollout_feature -o /path/to/rollout/feature.h5 -d /path/to/sgf/directory -p rollout
 # run training
-python bamboo/train/rollout/supervised_rollout_trainer.py -p rollout /path/to/input/rollout_feature.h5 /path/to/weights/saved
+python3 -m bamboo.scripts.supervised_rollout_trainer -p rollout /path/to/rollout/feature.h5 /path/to/weights/saved
 ```
 ### Tree Policy
 ```
 # convert SGFs
-python bamboo/train/rollout/sgf2hdf5_main.py -o /path/to/output/tree_feature.h5 -d /path/to/input/sgf/directory -p tree -mt ./params/rollout/mt_rands.txt -x33 /path/to/input/x33.csv -rd12 /path/to/input/d12_rsp.csv -d12 /path/to/input/d12.csv
+python3 -m bamboo.scripts.rollout_feature -o /path/to/tree/feature.h5 -d /path/to/sgf/directory -p tree
 # run training
-python bamboo/train/rollout/supervised_rollout_trainer.py -p tree /path/to/input/tree_feature.h5 /path/to/weights/saved
+python3 -m bamboo.scripts.supervised_rollout_trainer -p tree /path/to/tree/feature.h5 /path/to/weights/saved
 ```
 
 ## AlphaGo Papers
