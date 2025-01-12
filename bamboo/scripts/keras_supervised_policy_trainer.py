@@ -25,7 +25,8 @@ DEFAULT_EPOCH = 10
 FILE_METADATA = 'metadata_policy_supervised.json'
 # weight folder
 FOLDER_WEIGHT = 'policy_supervised_weights'
-
+# model foler
+FOLDER_MODEL = 'models'
 # shuffle files
 FILE_VALIDATE = 'shuffle_policy_validate.npz'
 FILE_TRAIN = 'shuffle_policy_train.npz'

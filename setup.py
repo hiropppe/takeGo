@@ -66,15 +66,12 @@ requires = [
 ]
 
 setup(
-  name='bambooStone',
+  name='take',
   version='0.0.1',
   author='take',
   url='',
   packages=find_packages(),
   scripts=[
-    'bbrpc',
-    'bbs',
-    'bbc'
   ],
   install_requires=requires,
   license='MIT',

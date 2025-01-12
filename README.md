@@ -18,7 +18,7 @@ python3 setup.py build_ext -i
 # convert SGFs
 python3 -m bamboo.scripts.policy_feature -o /path/to/feature_planes.h5 -d /path/to/sgf/directory
 # run training
-python3 -m bamboo.scripts.keras_supervised_policy_trainer.py train /path/to/weights/saved /path/to/feature_planes.h5
+python3 -m bamboo.scripts.keras_supervised_policy_trainer train /path/to/weights/saved /path/to/feature_planes.h5
 ```
 ### Patterns for rollout and tree policy
 ```
