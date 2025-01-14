@@ -137,28 +137,19 @@ class threading_shuffled_hdf5_batch_generator:
             return state, action, training_sample[1]
 
     def __next__(self):
-        state_batch_shape = (self.batch_size,) + self.state_dataset.shape[:-4:-1]
-        game_size = state_batch_shape[1]
+        game_size = self.state_dataset.shape[-1]
+        state, action, transformation = self.next_indice()
+        # get rotation symmetry belonging to state
+        transform = BOARD_TRANSFORMATIONS[transformation]
 
-        Xbatch = np.zeros(state_batch_shape)
-        Ybatch = np.zeros((self.batch_size, game_size * game_size))
+        # get state from dataset and transform it.
+        # loop comprehension is used so that the transformation acts on the
+        # 3rd and 4th dimensions
+        state_transform = np.array([transform(plane) for plane in state])
+        state_transform = np.transpose(state_transform, (1, 2, 0))
+        action_transform = transform(one_hot_action(action, game_size))
 
-        for batch_idx in range(self.batch_size):
-            state, action, transformation = self.next_indice()
-            # get rotation symmetry belonging to state
-            transform = BOARD_TRANSFORMATIONS[transformation]
-
-            # get state from dataset and transform it.
-            # loop comprehension is used so that the transformation acts on the
-            # 3rd and 4th dimensions
-            state_transform = np.array([transform(plane) for plane in state])
-            state_transform = np.transpose(state_transform, (1, 2, 0))
-            action_transform = transform(one_hot_action(action, game_size))
-
-            Xbatch[batch_idx] = state_transform
-            Ybatch[batch_idx] = action_transform.flatten()
-
-        return (Xbatch, Ybatch)
+        return state_transform, action_transform.flatten()
 
 
 class LrDecayCallback(keras.callbacks.Callback):
@@ -177,7 +168,7 @@ class LrDecayCallback(keras.callbacks.Callback):
         new_lr = self.learning_rate * (1. / (1. + self.decay * self.metadata["current_batch"]))
 
         # set new learning rate
-        K.set_value(self.model.optimizer.lr, K.get_value(new_lr))
+        self.model.optimizer.learning_rate.assign(new_lr)
 
     def on_train_begin(self, logs={}):
         # set initial learning rate
@@ -214,7 +205,7 @@ class LrStepDecayCallback(keras.callbacks.Callback):
         new_lr = self.learning_rate * (self.decay ** n_decay)
 
         # set new learning rate
-        K.set_value(self.model.optimizer.lr, K.get_value(new_lr))
+        self.model.optimizer.learning_rate.assign(new_lr)
 
         # print new learning rate if verbose
         if self.verbose:
@@ -643,7 +634,7 @@ def train(model, metadata, out_directory, verbose, weight_file, meta_file, save_
     meta_writer = EpochDataSaverCallback(meta_file, out_directory, metadata)
 
     #checkpoint_path = os.path.join(out_directory, FOLDER_WEIGHT, "weights.{epoch:05d}.hdf5")
-    checkpoint_path = os.path.join(out_directory, FOLDER_WEIGHT, "model.{epoch:05d}.ckpt")
+    checkpoint_path = os.path.join(out_directory, FOLDER_WEIGHT, "model.{epoch:05d}.keras")
 
     # Create a callback that saves the model's weights
     cp_callback = keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
@@ -696,15 +687,27 @@ def train(model, metadata, out_directory, verbose, weight_file, meta_file, save_
 
     if verbose:
         print("STARTING TRAINING")
-    
+
+    def generate_train_data():
+        while True:
+            yield train_data_generator.__next__()
+
+    def generate_val_data():
+        while True:
+            yield val_data_generator.__next__()
+
+
+    output_signature = (tf.TensorSpec(shape=(19, 19, 48), dtype=tf.int32),
+                        tf.TensorSpec(shape=(361), dtype=tf.int32))
+
     model.fit(
-        train_data_generator,
-        steps_per_epoch=int(metadata["epoch_length"]/metadata["batch_size"]),
+        tf.data.Dataset.from_generator(generate_train_data, output_signature=output_signature).batch(metadata["batch_size"]),
+        steps_per_epoch=metadata["epoch_length"]//metadata["batch_size"],
         epochs=metadata["epochs"],
         initial_epoch=len(metadata["epoch_logs"]),
         callbacks=[meta_writer, cp_callback, lr_scheduler_callback, tfboard_callback],
-        validation_data=val_data_generator,
-        validation_steps=int(len(val_indices)/metadata["batch_size"]))
+        validation_data=tf.data.Dataset.from_generator(generate_val_data, output_signature=output_signature).batch(metadata["batch_size"]),
+        validation_steps=len(val_indices)//metadata["batch_size"])
 
     # print weights and gradients at training stops
     print(f'Conv2D_1 weights : {model.weights[0][0, 0, 0, :10]}')

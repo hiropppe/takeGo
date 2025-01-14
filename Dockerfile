@@ -25,7 +25,7 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN pipx install poetry
 
 RUN pip3 install --upgrade pip
-RUN pip3 --no-cache-dir install tensorflow==2.11.1
+RUN pip3 --no-cache-dir install tensorflow==2.17.1
 RUN pip3 --no-cache-dir install \
         'numpy<2.0.0' \
         'Cython<3.1' \
