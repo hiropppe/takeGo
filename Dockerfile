@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /root
 
@@ -15,9 +15,9 @@ RUN pipx ensurepath
 
 RUN locale-gen ja_JP.UTF-8
 
-ENV LANG ja_JP.UTF-8
-ENV TZ Asia/Tokyo
-ENV PATH="${PATH}:/root/.local/bin"
+ENV LANG=ja_JP.UTF-8
+ENV TZ=Asia/Tokyo
+ENV PATH=${PATH}:/root/.local/bin
 
 RUN ln -sf /usr/bin/python3.10 /usr/bin/python3
 RUN ln -s /usr/bin/python3 /usr/bin/python
