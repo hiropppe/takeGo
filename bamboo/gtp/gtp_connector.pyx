@@ -2,8 +2,6 @@
 # cython: wraparound = False
 # cython: cdivision = True
 
-import pyjsonrpc 
-
 from bamboo.gtp import gtp
 from bamboo.models.keras_dcnn_policy import KerasPolicy, cnn_policy
 
@@ -30,24 +28,21 @@ class MCTSConnector(object):
                  playout_limit=0,
                  const_playout=0,
                  n_threads=1,
-                 intuition=False,
-                 nogpu=False):
+                 intuition=False):
         self.mcts = PyMCTS(
                 const_time=const_time,
                 playout_limit=playout_limit,
                 const_playout=const_playout,
                 n_threads=n_threads,
                 intuition=intuition,
-                nogpu=nogpu,
                 read_ahead=False,
                 self_play=False)
         if pn_path:
-            pn = cnn_policy()
-            pn.load_weights(pn_path)
-            self.mcts.set_policy_network(KerasPolicy(pn), temperature)
+            pn = KerasPolicy.load(pn_path)
+            self.mcts.set_policy_network(pn, temperature)
 
         if vn_path:
-            self.mcts.run_vn_session(vn_path)
+            pass
 
         if rollout_path:
             self.mcts.set_rollout_parameter(rollout_path)
@@ -122,74 +117,3 @@ class MCTSConnector(object):
     def quit(self):
         self.mcts.clear()
 
-
-class RemoteMCTSConnector(object):
-
-    def __init__(self, host='localhost', port=6000):
-        self.client = pyjsonrpc.HttpClient(
-            url='http://{:s}:{:d}/'.format(host, port),
-            timeout=24*60*60)
-
-    def clear(self):
-        self.client.clear()
-
-    def get_move(self, color):
-        cdef int x, y, pos
-
-        pos = self.client.genmove(color)
-
-        if pos == PASS:
-            return gtp.PASS
-        elif pos == RESIGN:
-            return gtp.RESIGN
-        else:
-            x = CORRECT_X(pos, BOARD_SIZE, OB_SIZE) + 1
-            y = PURE_BOARD_SIZE-CORRECT_Y(pos, BOARD_SIZE, OB_SIZE)
-            return (x, y)
-
-    def make_move(self, color, vertex):
-        # vertex in GTP language is 1-indexed, whereas GameState's are zero-indexed
-        cdef int pos, x, y
-        cdef bint is_legal
-
-        if vertex == gtp.PASS:
-            self.client.play(PASS, color)
-            return True
-
-        pos = POS(OB_SIZE+vertex[0]-1, OB_SIZE+PURE_BOARD_SIZE-vertex[1], BOARD_SIZE)
-
-        if self.client.play(pos, color):
-            return True
-        else:
-            return False
-
-    def set_size(self, bsize):
-        self.client.set_size(bsize)
-
-    def set_komi(self, komi):
-        self.client.set_komi(komi)
-
-    def set_time(self, m, b, stone):
-        self.client.set_time(m, b, stone)
-
-    def set_time_left(self, color, time, stone):
-        self.client.set_time_left(color, time, stone)
-
-    def set_const_time(self, limit):
-        self.client.set_const_time(limit)
-
-    def set_const_playout(self, limit):
-        self.client.set_const_playout(limit)
-
-    def get_current_state_as_sgf(self):
-        return self.client.save_sgf('Unknown', 'Unknown')
-
-    def place_handicaps(self, vertices):
-        # TODO
-        pass
-
-    def showboard(self):
-        self.client.showboard()
-
-    def quit(self):
-        self.client.clear()

@@ -11,13 +11,17 @@ class KerasPolicy():
         self.model = model
 
     @classmethod
-    def load(cls, model_path):
-        model = tf.keras.models.load_model(model_path)
+    def load(cls, model_or_weights):
+        if model_or_weights.endswith(".keras"):
+            model = tf.keras.models.load_model(model_or_weights)
+        else:
+            model = cnn_policy()
+            model.load_weights(model_or_weights)
         return KerasPolicy(model)
 
     def eval_state(self, tensor):
         output = self.model.predict(tensor, verbose=0)
-        return output
+        return output.ravel()
 
 
 def cnn_policy(**kwargs):

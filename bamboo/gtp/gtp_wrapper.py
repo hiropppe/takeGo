@@ -98,7 +98,7 @@ class ExtendedGtpEngine(gtp.Engine):
 def run_gtp(gtp_game, inpt_fn=None, name="Gtp Player", version="0.0"):
     gtp_engine = ExtendedGtpEngine(gtp_game, name, version)
     if inpt_fn is None:
-        inpt_fn = raw_input
+        inpt_fn = input
 
     sys.stderr.write("GTP engine ready\n")
     sys.stderr.flush()

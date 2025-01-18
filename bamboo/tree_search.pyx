@@ -36,7 +36,7 @@ from bamboo.board cimport put_stone, is_legal, is_legal_not_eye, is_legal_not_ey
 from bamboo.board cimport use_lgrf2_flag, check_seki_flag
 from bamboo.seki cimport check_seki
 from bamboo.zobrist_hash cimport uct_hash_size, uct_hash_limit, hash_bit, used
-from bamboo.zobrist_hash cimport mt, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
+from bamboo.zobrist_hash cimport mt, initialize_hash, initialize_uct_hash, delete_old_hash, find_same_hash_index, search_empty_index, check_remaining_hash_size
 from bamboo.policy_feature cimport MAX_POLICY_PLANES, MAX_VALUE_PLANES
 from bamboo.policy_feature cimport allocate_feature, initialize_feature, free_feature, update
 from bamboo.rollout_preprocess cimport set_rollout_parameter, set_tree_parameter
@@ -58,7 +58,6 @@ cdef class MCTS(object):
                   int playout_limit=0,
                   int n_threads=1,
                   bint intuition=False,
-                  bint nogpu=False,
                   bint self_play=False):
         cdef int i, j, k
         cdef tree_node_t *node
@@ -93,7 +92,6 @@ cdef class MCTS(object):
         self.policy_feature = allocate_feature(MAX_POLICY_PLANES)
         self.value_feature = allocate_feature(MAX_VALUE_PLANES)
         self.intuition = intuition
-        self.nogpu = nogpu
         self.use_pn = False
         self.use_vn = False
         self.use_rollout = False
@@ -965,9 +963,7 @@ cdef class MCTS(object):
 
         tensor = np.asarray(self.policy_feature.planes)
         tensor = tensor.reshape((1, MAX_POLICY_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
-        # Tensorflow CPU BiasOp only supports NHWC. 
-        if self.nogpu:
-            tensor = np.transpose(tensor, (0, 2, 3, 1))
+        tensor = np.transpose(tensor, (0, 2, 3, 1))
 
         probs = self.pn.eval_state(tensor)
         #if np.abs(probs.sum() - 1.0) > 0.01:
@@ -1107,16 +1103,16 @@ cdef class PyMCTS(object):
                   int const_playout=0,
                   int n_threads=1,
                   bint intuition=False,
-                  bint nogpu=False,
                   bint read_ahead=False,
                   bint self_play=False):
+
         self.mcts = MCTS(const_time=const_time,
                          playout_limit=playout_limit,
                          const_playout=const_playout,
                          n_threads=n_threads,
                          intuition=intuition,
-                         nogpu=nogpu,
                          self_play=self_play)
+
         self.game = allocate_game()
         self.const_time = const_time
         self.playout_limit = playout_limit
@@ -1125,6 +1121,7 @@ cdef class PyMCTS(object):
 
         initialize_board(self.game)
         initialize_rollout(self.game)
+        initialize_hash()
         initialize_uct_hash()
 
     def __dealloc__(self):
@@ -1151,6 +1148,7 @@ cdef class PyMCTS(object):
         self.game = allocate_game()
         initialize_board(self.game)
         initialize_rollout(self.game)
+        initialize_hash()
         initialize_uct_hash()
         printf('>> O.K.\n')
 
