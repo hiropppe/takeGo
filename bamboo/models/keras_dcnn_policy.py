@@ -10,6 +10,11 @@ class KerasPolicy():
     def __init__(self, model):
         self.model = model
 
+    @classmethod
+    def load(cls, model_path):
+        model = tf.keras.models.load_model(model_path)
+        return KerasPolicy(model)
+
     def eval_state(self, tensor):
         output = self.model.predict(tensor, verbose=0)
         return output

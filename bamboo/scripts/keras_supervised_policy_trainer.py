@@ -22,11 +22,11 @@ DEFAULT_DECAY = .0000000125
 DEFAULT_EPOCH = 10
 
 # metdata file
-FILE_METADATA = 'metadata_policy_supervised.json'
+FILE_METADATA = 'metadata.json'
 # weight folder
-FOLDER_WEIGHT = 'policy_supervised_weights'
+FOLDER_CHECKPOINT = 'ckpt'
 # model foler
-FOLDER_MODEL = 'models'
+FOLDER_MODEL = 'model'
 # shuffle files
 FILE_VALIDATE = 'shuffle_policy_validate.npz'
 FILE_TRAIN = 'shuffle_policy_train.npz'
@@ -273,7 +273,7 @@ class EpochDataSaverCallback(keras.callbacks.Callback):
         if logs.get(key) < best_loss:
             self.metadata["best_epoch"] = epoch
             # save complete model
-            model_path = os.path.join(self.root, FOLDER_MODEL)
+            model_path = os.path.join(self.root, FOLDER_MODEL, "sl_policy.model.keras")
             self.model.save(model_path)
 
         # save meta to file
@@ -605,7 +605,22 @@ def set_training_settings(resume, args, metadata, dataset_length):
             print("created new data shuffling indices")
 
 
-def train(model, metadata, out_directory, verbose, weight_file, meta_file, save_weights_only=True, save_best_only=True):
+def train(metadata, out_directory, verbose, weight_file, meta_file, save_weights_only=True, save_best_only=True):
+    # load model
+    if weight_file:
+      weight_path = os.path.join(out_directory, FOLDER_CHECKPOINT, weight_file)
+      if os.path.exists(weight_path):
+        if weight_path.endswith(".keras"):
+          model = tf.keras.models.load_model(weight_path)
+        else:
+          model = cnn_policy()
+          model.load_weights(weight_path)
+        #zero_grad = [tf.zeros_like(x) for x in model.weights]
+        #model.optimizer.apply_gradients(zip(zero_grad, model.weights))
+      else:
+        model = cnn_policy()
+    else:
+      model = cnn_policy()
 
     # Limit the GPU memory usage
     if K.backend() == 'tensorflow':
@@ -633,8 +648,10 @@ def train(model, metadata, out_directory, verbose, weight_file, meta_file, save_
     # We can add in anything else we like here
     meta_writer = EpochDataSaverCallback(meta_file, out_directory, metadata)
 
-    #checkpoint_path = os.path.join(out_directory, FOLDER_WEIGHT, "weights.{epoch:05d}.hdf5")
-    checkpoint_path = os.path.join(out_directory, FOLDER_WEIGHT, "model.{epoch:05d}.keras")
+    if save_weights_only:
+        checkpoint_path = os.path.join(out_directory, FOLDER_CHECKPOINT, "ckpt.{epoch:05d}.weights.h5")
+    else:
+        checkpoint_path = os.path.join(out_directory, FOLDER_CHECKPOINT, "ckpt.{epoch:05d}.model.keras")
 
     # Create a callback that saves the model's weights
     cp_callback = keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
@@ -669,21 +686,12 @@ def train(model, metadata, out_directory, verbose, weight_file, meta_file, save_
         # use step decay
         lr_scheduler_callback = LrStepDecayCallback(metadata, verbose)
 
-    tfboard_callback = keras.callbacks.TensorBoard(log_dir=os.path.join(out_directory, 'logs'), histogram_freq=1)
+    tfboard_callback = keras.callbacks.TensorBoard(log_dir=os.path.join(out_directory, 'tfboard_logs'), histogram_freq=1)
 
     sgd = keras.optimizers.SGD(learning_rate=metadata["learning_rate"])
     #sgd = keras.optimizers.Adam(learning_rate=metadata["learning_rate"])
     model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=["accuracy"])
 
-    # load weights
-    if weight_file:
-      zero_grad = [tf.zeros_like(x) for x in model.weights]
-      model.optimizer.apply_gradients(zip(zero_grad, model.weights))
-      weight_path = os.path.join(out_directory, FOLDER_WEIGHT, weight_file)
-      model.load_weights(weight_path)
-      # print weights and gradients at training resumes
-      print(f'Conv2D_1 weights : {model.weights[0][0, 0, 0, :10]}')
-      print(f'Conv2D_1 gradients : {model.optimizer.variables[1][0, 0, 0, :10]}')
 
     if verbose:
         print("STARTING TRAINING")
@@ -709,12 +717,8 @@ def train(model, metadata, out_directory, verbose, weight_file, meta_file, save_
         validation_data=tf.data.Dataset.from_generator(generate_val_data, output_signature=output_signature).batch(metadata["batch_size"]),
         validation_steps=len(val_indices)//metadata["batch_size"])
 
-    # print weights and gradients at training stops
-    print(f'Conv2D_1 weights : {model.weights[0][0, 0, 0, :10]}')
-    print(f'Conv2D_1 gradients : {model.optimizer.variables[1][0, 0, 0, :10]}')
 
-
-def start_training(model, args):
+def start_training(args):
     # set resume
     resume = args.weights is not None
 
@@ -722,7 +726,7 @@ def start_training(model, args):
         if resume:
             print("trying to resume from %s with weights %s" %
                   (args.out_directory,
-                   os.path.join(args.out_directory, FOLDER_WEIGHT, args.weights)))
+                   os.path.join(args.out_directory, FOLDER_CHECKPOINT, args.weights)))
         else:
             if os.path.exists(args.out_directory):
                 print("directory %s exists. any previous data will be overwritten" %
@@ -736,9 +740,14 @@ def start_training(model, args):
         os.makedirs(args.out_directory)
 
     # create supervised weight file folder
-    weight_folder = os.path.join(args.out_directory, FOLDER_WEIGHT)
+    weight_folder = os.path.join(args.out_directory, FOLDER_CHECKPOINT)
     if not os.path.exists(weight_folder):
         os.makedirs(weight_folder)
+
+    # create supervised model folder
+    model_folder = os.path.join(args.out_directory, FOLDER_MODEL)
+    if not os.path.exists(model_folder):
+        os.makedirs(model_folder)
 
     # metadata json file location
     meta_file = os.path.join(args.out_directory, FILE_METADATA)
@@ -774,10 +783,10 @@ def start_training(model, args):
     set_training_settings(resume, args, metadata, len(dataset["states"]))
 
     # start training
-    train(model, metadata, args.out_directory, args.verbose, args.weights, meta_file, args.save_weights_only, args.save_best_only)
+    train(metadata, args.out_directory, args.verbose, args.weights, meta_file, args.save_weights_only, args.save_best_only)
 
 
-def resume_training(model, args):
+def resume_training(args):
     # metadata json file location
     meta_file = os.path.join(args.out_directory, FILE_METADATA)
 
@@ -790,8 +799,15 @@ def resume_training(model, args):
 
     # determine what weight file to use
     if args.weights is None:
-        # newest epoch weight file from json
-        weight_file = "model.{epoch:05d}.ckpt".format(epoch=metadata["current_epoch"])
+        ckpts = os.listdir(os.path.join(args.out_directory, FOLDER_CHECKPOINT))
+        if ckpts:
+            weight_file = sorted(ckpts)[-1]
+        else:
+            # newest epoch weight file from json
+            if args.save_weights_only:
+                weight_file = "ckpt.{epoch:05d}.weights.h5".format(epoch=metadata["current_epoch"])
+            else:
+                weight_file = "ckpt.{epoch:05d}.model.keras".format(epoch=metadata["current_epoch"])
     else:
         # user weight argument
         weight_file = args.weights
@@ -802,10 +818,10 @@ def resume_training(model, args):
 
     if args.verbose:
         print("trying to resume training from %s with weights %s" %
-              (meta_file, os.path.join(args.out_directory, FOLDER_WEIGHT, weight_file)))
+              (meta_file, os.path.join(args.out_directory, FOLDER_CHECKPOINT, weight_file)))
 
     # start training
-    train(model, metadata, args.out_directory, args.verbose, weight_file, meta_file, args.save_weights_only, args.save_best_only)
+    train(metadata, args.out_directory, args.verbose, weight_file, meta_file, args.save_weights_only, args.save_best_only)
 
 
 
@@ -851,6 +867,8 @@ def handle_arguments(cmd_line_args=None):
     resume.add_argument("--verbose", "-v", help="Turn on verbose mode", default=False, action="store_true")  # noqa: E501
     resume.add_argument("--weights", help="Name of a .h5 weights file (in the output directory) to load to resume training. Default: #Newest weight file.", default=None)  # noqa: E501
     resume.add_argument("--epochs", "-E", help="Total number of iterations on the data. Defaukt: #Epochs set on previous run", type=int, default=None)  # noqa: E501
+    resume.add_argument("--save_weights_only", help="Save weights only at each checkpoint", default=False, action="store_true")  # noqa: E501
+    resume.add_argument("--save_best_only", help="Save best only at each checkpoint", default=False, action="store_true")  # noqa: E501
     # function to call when resume training
     resume.set_defaults(func=resume_training)
 
@@ -860,10 +878,8 @@ def handle_arguments(cmd_line_args=None):
     else:
         args = parser.parse_args(cmd_line_args)
 
-    model = cnn_policy()
-
     # execute function (train or resume)
-    args.func(model, args)
+    args.func(args)
 
 
 if __name__ == '__main__':
