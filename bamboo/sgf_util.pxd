@@ -1,9 +1,6 @@
 from bamboo.board cimport game_state_t
 
 
-cpdef min_sgf_extract(sgf_string)
-
-
 cdef class SGFMoveIterator:
     cdef int bsize
     cdef game_state_t *game

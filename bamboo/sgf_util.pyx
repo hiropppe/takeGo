@@ -5,7 +5,8 @@ import re
 import sgf
 import sys
 import traceback
-import warnings
+
+from tqdm import tqdm
 
 from bamboo.sgf_error import SizeMismatchError, IllegalMove, TooManyMove, TooFewMove, NoResultError
 
@@ -32,17 +33,6 @@ def _parse_sgf_move(node_value):
         x = LETTERS.index(node_value[0].upper())
         y = LETTERS.index(node_value[1].upper())
         return POS(x+OB_SIZE, y+OB_SIZE, board_size)
-
-
-cpdef min_sgf_extract(sgf_string):
-    size = ''.join(re.findall(r'SZ\[.+?\]', sgf_string, flags=re.IGNORECASE))
-    player = ''.join(re.findall(r'PL\[.+?\]', sgf_string, flags=re.IGNORECASE))
-    kiryoku = ''.join(re.findall(r'[BW]R\[.+?\]', sgf_string, flags=re.IGNORECASE))
-    komi = ''.join(re.findall(r'KM\[.+?\]', sgf_string, flags=re.IGNORECASE))
-    result = ''.join(re.findall(r'RE\[.+?\]', sgf_string, flags=re.IGNORECASE))
-    add_stone = ''.join(re.findall(r'A[BW](?:\[[a-z]+\]\s*)+', sgf_string, flags=re.IGNORECASE))
-    moves = ''.join(re.findall(r';[WB]\[[a-z]*?\]', sgf_string, flags=re.IGNORECASE))
-    return '(;{:s}{:s}{:s}{:s}{:s}{:s}{:s})'.format(size, player, kiryoku, komi, result, add_stone, moves)
 
 
 cdef class SGFMoveIterator:
@@ -72,27 +62,24 @@ cdef class SGFMoveIterator:
         self.rollout = rollout
         self.verbose = verbose
 
-        sgf_string = min_sgf_extract(sgf_string)
         try:
             collection = sgf.parse(sgf_string)
         except sgf.ParseException:
-            warnings.warn('ParseException\n{:s}\n'.format(sgf_string))
+            tqdm.write('ParseException\n{:s}\n'.format(sgf_string), file=sys.stderr)
             if self.verbose:
                 err, msg, _ = sys.exc_info()
-                sys.stderr.write("{:s} {:s}\n{:s}".format(err, msg, sgf_string))
-                sys.stderr.write(traceback.format_exc())
+                tqdm.write("{:s} {:s}\n{:s}".format(err, msg, sgf_string), file=sys.stderr)
+                tqdm.write(traceback.format_exc(), file=sys.stderr)
             raise
 
         sgf_game = collection[0]
-        if len(sgf_game.nodes) < self.too_few_moves_threshold:
-            raise TooFewMove(len(sgf_game.nodes))
-        if len(sgf_game.nodes) > self.too_many_moves_threshold:
-            raise TooManyMove(len(sgf_game.nodes))
 
         self.sgf_init_game(sgf_game.root)
 
         if sgf_game.rest is not None:
-            for node in sgf_game.rest:
+            for i, node in enumerate(sgf_game.rest):
+                if i > self.too_many_moves_threshold:
+                    raise TooManyMove(i)
                 props = node.properties
                 if 'W' in props:
                     pos = _parse_sgf_move(props['W'][0])
@@ -100,6 +87,9 @@ cdef class SGFMoveIterator:
                 elif 'B' in props:
                     pos = _parse_sgf_move(props['B'][0])
                     self.moves.append((pos, S_BLACK))
+
+        if len(self.moves) < self.too_few_moves_threshold:
+            raise TooFewMove(i)
 
         self.i = 0
         self.next_move = self.moves[self.i]

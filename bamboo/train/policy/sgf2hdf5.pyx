@@ -5,7 +5,6 @@
 import numpy as np
 cimport numpy as np
 import os
-import warnings
 import sgf
 import sys
 import traceback
@@ -75,7 +74,6 @@ cdef class GameConverter(object):
                     else:
                         planes = np.asarray(self.feature.planes)
                         planes = planes.reshape(1, self.n_features, self.bsize, self.bsize)
-                        planes = planes.transpose(0, 1, 3, 2)  # required?
                         yield (planes, onboard_index_to_np_move(onboard_index[move[0]], self.bsize))
         finally:
             free_feature_games(self.feature)
@@ -127,7 +125,7 @@ cdef class GameConverter(object):
             for file_name in sgf_files:
                 pbar.update(1)
                 if verbose:
-                    print(file_name)
+                    tqdm.write(file_name)
                 n_pairs = 0
                 file_start_idx = next_idx
                 try:
@@ -141,19 +139,19 @@ cdef class GameConverter(object):
                         next_idx += 1
                 except sgf.ParseException:
                     n_parse_error += 1
-                    warnings.warn('ParseException. {:s}'.format(file_name))
+                    tqdm.write('ParseException. {:s}'.format(file_name))
                     if verbose:
                         err, msg, _ = sys.exc_info()
-                        sys.stderr.write("{} {}\n".format(err, msg))
-                        sys.stderr.write(traceback.format_exc())
+                        tqdm.write("{} {}\n".format(err, msg), file=sys.stderr)
+                        tqdm.write(traceback.format_exc(), file=sys.stderr)
                 except SizeMismatchError:
                     n_not19 += 1
                 except TooFewMove as e:
                     n_too_few_move += 1
-                    warnings.warn('Too few move. {:d} less than 50. {:s}'.format(e.n_moves, file_name))
+                    tqdm.write('Too few move. {:d} less than 50. {:s}'.format(e.n_moves, file_name), file=sys.stderr)
                 except TooManyMove as e:
                     n_too_many_move += 1
-                    warnings.warn('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, file_name))
+                    tqdm.write('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, file_name), file=sys.stderr)
                 except KeyboardInterrupt:
                     break
                 finally:
@@ -163,9 +161,9 @@ cdef class GameConverter(object):
                         file_name_key = file_name.replace('/', ':')
                         file_offsets[file_name_key] = [file_start_idx, n_pairs]
                         if verbose:
-                            print("\t%d state/action pairs extracted" % n_pairs)
+                            tqdm.write("\t%d state/action pairs extracted" % n_pairs)
                     elif verbose:
-                        print("\t-no usable data-")
+                        tqdm.write("\t-no usable data-")
         except Exception as e:
             print("sgfs_to_hdf5 failed")
             err, msg, _ = sys.exc_info()
@@ -180,8 +178,8 @@ cdef class GameConverter(object):
             print("finished. renaming %s to %s" % (tmp_file, hdf5_file))
 
         print('Total {:d}/{:d} (Not19 {:d} ParseErr {:d} TooFewMove {:d} TooManyMove {:d})'.format(
-            len(sgf_files) - n_parse_error - n_not19 - n_too_few_move - n_too_many_move,
-            len(sgf_files),
+            sgf_total - n_parse_error - n_not19 - n_too_few_move - n_too_many_move,
+            sgf_total,
             n_parse_error,
             n_not19,
             n_too_few_move,
