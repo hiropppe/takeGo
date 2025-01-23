@@ -15,17 +15,9 @@ from bamboo.models.keras_dcnn_policy import KerasPolicy, cnn_policy
 from bamboo.self_play_game import run_n_games
 
 
-def log_loss(y_true, y_pred):
-    '''Keras 'loss' function for the REINFORCE algorithm, where y_true is the action that was
-    taken, and updates with the negative gradient will make that action more likely. We use the
-    negative gradient because keras expects training data to minimize a loss function.
-    '''
-    return -y_true * K.log(K.clip(y_pred, K.epsilon(), 1.0 - K.epsilon()))
-
-
 def start_training(args):
 
-    ZEROTH_FILE = "weights.00000.hdf5"
+    ZEROTH_FILE = "sl_policy.h5"
 
     if args.resume:
         if not os.path.exists(os.path.join(args.out_directory, "metadata.json")):
@@ -55,7 +47,7 @@ def start_training(args):
         learner_weights = os.path.basename(args.initial_weights)
     
     learner_model = cnn_policy()
-    learner_model.load_weights(args.initial_weights)
+    learner_model.load_weights(os.path.join(args.out_directory, learner_weights))
     learner_policy = KerasPolicy(learner_model)
  
     opponent_model = cnn_policy()
@@ -87,7 +79,6 @@ def start_training(args):
             json.dump(metadata, f, sort_keys=True, indent=2)
 
     optimizer = keras.optimizers.SGD(learning_rate=args.learning_rate)
-    learner_model.compile(loss=log_loss, optimizer=optimizer)
 
     for i_iter in range(1, args.iterations + 1):
         # Randomly choose opponent from pool (possibly self), and playing
@@ -110,17 +101,27 @@ def start_training(args):
         print(f'iter.{i_iter} winning ratio: {win_ratio*100:.3f}')
         # Train on each game's results, setting the learning rate negative to 'unlearn' positions from
         # games where the learner lost.
+        grads = None
         for (st_tensor, mv_tensor, won) in zip(state_tensors, move_tensors, learner_won):
-            # optimizer.lr = K.abs(optimizer.lr) * (+1 if won else -1)
-            K.set_value(optimizer.lr, abs(args.learning_rate) * (+1 if won else -1))
-            learner_model.train_on_batch(np.concatenate(st_tensor, axis=0),
-                                 np.concatenate(mv_tensor, axis=0))
+            st_tensor = tf.cast(tf.constant(np.concatenate(st_tensor, axis=0)), tf.float32)
+            mv_tensor = tf.cast(tf.constant(np.concatenate(mv_tensor, axis=0)), tf.float32)
+            #z = tf.constant(+1 if won else -1)
+            z = +1 if won else -1
+            game_grads = train_step(st_tensor, mv_tensor, learner_model, tf.keras.losses.categorical_crossentropy, optimizer)
+            if grads:
+                for i, g in enumerate(game_grads):
+                    grads[i] += z*g/args.game_batch
+            else:
+                grads = [z*g/args.game_batch for g in game_grads]
+
+        optimizer.apply_gradients(zip(grads, learner_model.trainable_variables))
+        grads = None
 
         metadata["win_ratio"][learner_weights] = (opp_weights, win_ratio)
 
         # Save intermediate models.
         if i_iter % args.record_every == 0:
-            learner_weights = "weights.{:05d}.hdf5".format(i_iter)
+            learner_weights = "{:05d}.weights.h5".format(i_iter)
             learner_model.save_weights(os.path.join(args.out_directory, learner_weights))
 
         # Add player to batch of oppenents once in a while.
@@ -128,6 +129,20 @@ def start_training(args):
             metadata["opponents"].append(learner_weights)
         
         save_metadata()
+
+
+@tf.function
+def train_step(states: tf.Tensor,
+               moves: tf.Tensor,
+               model: tf.keras.Model,
+               loss_fn: tf.keras.losses.Loss,
+               optimizer: tf.keras.optimizers.Optimizer):
+    with tf.GradientTape() as tape:
+        tape.watch(states)
+        output = model(states)
+        loss = tf.reduce_mean(loss_fn(moves, output))
+    grads = tape.gradient(loss, model.trainable_variables)
+    return grads
 
 
 def main(cmd_line_args=None):
@@ -158,16 +173,16 @@ def main(cmd_line_args=None):
         args = parser.parse_args(cmd_line_args)
 
     args = {
-        'initial_weights': './test_data/rl_policy/kihuu.hdf5',
-        'out_directory': './test_training/rl_policy/',
+        'initial_weights': './params/policy/kihuu.hdf5',
+        'out_directory': './train/rl_policy/',
         'learning_rate': 0.001,
         'policy_temp': 0.67,
         'save_every': 2,
         'record_every': 1,
-        'game_batch': 2,
+        'game_batch': 5,
         'move_limit': 500,
         'iterations': 100,
-        'greedy': True,
+        'greedy': False,
         'resume': False,
         'verbose': 2,  # Turn on verbose mode
     }
