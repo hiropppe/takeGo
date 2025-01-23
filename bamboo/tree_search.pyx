@@ -965,7 +965,7 @@ cdef class MCTS(object):
         tensor = tensor.reshape((1, MAX_POLICY_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
         tensor = np.transpose(tensor, (0, 2, 3, 1))
 
-        probs = self.pn.eval_state(tensor)
+        probs = self.pn.eval_state(tensor)[0]
         #if np.abs(probs.sum() - 1.0) > 0.01:
         #    print('>> Warnings. Sum of PN evaluation values {:.3f} != 1.0', probs.sum())
         probs = self.apply_temperature(probs)

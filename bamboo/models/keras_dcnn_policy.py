@@ -21,7 +21,7 @@ class KerasPolicy():
 
     def eval_state(self, tensor):
         output = self.model.predict(tensor, verbose=0)
-        return output.ravel()
+        return output
 
 
 def cnn_policy(**kwargs):
@@ -54,7 +54,8 @@ def cnn_policy(**kwargs):
     # such that the output dimensions are also board x board
     model = models.Sequential()
 
-    input_shape = (params["board"], params["board"], params["input_dim"])
+    # create input layer
+    model.add(layers.Input(shape=(params["board"], params["board"], params["input_dim"])))
 
     # create first layer
     model.add(layers.Conv2D(
@@ -63,7 +64,6 @@ def cnn_policy(**kwargs):
         kernel_initializer=initializers.RandomUniform(minval=-0.05, maxval=0.05),
         activation='relu',
         padding='same',
-        input_shape=input_shape,
         name='Conv2D_1'))
 
     # create all other layers
