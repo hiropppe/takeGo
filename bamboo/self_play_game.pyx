@@ -46,7 +46,7 @@ cdef np.ndarray[INT_t, ndim=4] state_to_tensor(PolicyFeature policy_feature, gam
         .reshape((1, MAX_POLICY_PLANES, PURE_BOARD_SIZE, PURE_BOARD_SIZE))
     state_tensor = np.transpose(state_tensor, (0, 2, 3, 1)) 
 
-    return state_tensor
+    return state_tensor.copy()
 
 
 cpdef run_n_games(object player_pn,
@@ -65,7 +65,7 @@ cpdef run_n_games(object player_pn,
     cdef np.ndarray[INT_t, ndim=4] state_tensor
     cdef PolicyFeature policy_feature
     cdef list states = []
-    cdef list masks = []
+    #cdef list masks = []
     cdef int[:] moves
     cdef int[:] games_in_play = np.ones(n_games, dtype=np.int32)
     cdef list i_games_in_play = []
@@ -119,7 +119,7 @@ cpdef run_n_games(object player_pn,
     while n_games_in_play > 0:
         del states[:]
         del i_games_in_play[:]
-        del masks[:]
+        #del masks[:]
         for i in range(n_games):
             if games_in_play[i]:
                 i_games_in_play.append(i)
@@ -127,13 +127,13 @@ cpdef run_n_games(object player_pn,
                 state_tensor = state_to_tensor(feature, game)
                 states.append(state_tensor)
 
-                legal_moves_mask = get_legal_moves_mask(game, game.current_color)
-                masks.append(legal_moves_mask)
+                #legal_moves_mask = get_legal_moves_mask(game, game.current_color)
+                #masks.append(legal_moves_mask)
 
-        legal_moves_masks = np.vstack(masks)
-        moves = current.gen_masked_move(np.vstack(states), legal_moves_masks)
+        moves = current.genmove(np.vstack(states))
 
-        #moves = current.genmove(np.vstack(states))
+        #legal_moves_masks = np.vstack(masks)
+        #moves = current.gen_masked_move(np.vstack(states), legal_moves_masks)
 
         assert len(states) == len(moves) == n_games_in_play
 
@@ -144,13 +144,6 @@ cpdef run_n_games(object player_pn,
             game = &games[i]
             state_tensor = states[j]
 
-            #if pos == PASS or pos == RESIGN:
-            #    print(gtp.gtp_vertex(pos))
-            #else:
-            #    x = CORRECT_X(ob_pos, BOARD_SIZE, OB_SIZE) + 1
-            #    y = PURE_BOARD_SIZE-CORRECT_Y(ob_pos, BOARD_SIZE, OB_SIZE)
-            #    print(gtp.gtp_vertex((x, y)), is_legal(game, ob_pos, game.current_color), legal_moves_masks[j, pos])
-            
             if is_legal(game, ob_pos, game.current_color) and pos != RESIGN and game.moves <= move_limit:
                 put_stone(game, ob_pos, game.current_color)
 
@@ -168,9 +161,6 @@ cpdef run_n_games(object player_pn,
                 games_in_play[i] = 0
                 n_games_in_play -= 1
 
-                if verbose == 2:
-                    print_board(game)
-                
                 score = <double>calculate_score(game)
 
                 if score - komi > 0:
@@ -181,9 +171,23 @@ cpdef run_n_games(object player_pn,
                 learner_won[i] = winner == learner_color[i]
 
                 if verbose:
-                    print(f"#{str(i).zfill(3)}. {'Black' if learner_color[i] == S_BLACK else 'White'} (Learner) {'Won' if learner_won[i] else 'Lost'}. Score: {calculate_score(game) - komi}")
+                    np.set_printoptions(suppress=True, linewidth=200, precision=3)
+                    cx = CORRECT_X(ob_pos, BOARD_SIZE, OB_SIZE)
+                    cy = CORRECT_Y(ob_pos, BOARD_SIZE, OB_SIZE)
+                    px = cx + 1
+                    py = PURE_BOARD_SIZE - cy
+                    last_move = gtp.gtp_vertex((px, py))
+                    print(f"#{str(i).zfill(3)}. {'Black' if learner_color[i] == S_BLACK else 'White'} (Learner) {'Won' if learner_won[i] else 'Lost'}. Score: {calculate_score(game) - komi} Last Move: {'Black' if game.current_color == S_BLACK else 'White'} > {last_move} ({cx}, {cy})")
                     #save_gamestate_to_sgf(game, '/tmp', f'self_play_{i}.sgf', 'B', 'W')
                     #print(subprocess.check_output(["gnugo", "--score", "aftermath", "-l", f"/tmp/self_play_{i}.sgf"]))
+
+                if verbose >= 2:
+                    print_board(game)
+                    #print(state_tensor[0, :, :, 46])  # Whether a move is legal and does not fill its own eyes
+                    probs = current.model.eval_state(state_tensor)
+                    probs = probs[0]
+                    probs = (probs - np.mean(probs))/np.std(probs)
+                    print(probs.reshape(19, 19))
 
             current, other = other, current
 

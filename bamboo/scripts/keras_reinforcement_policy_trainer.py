@@ -4,6 +4,7 @@ import os
 import time
 
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from shutil import copyfile
 
@@ -101,21 +102,8 @@ def start_training(args):
         print(f'iter.{i_iter} winning ratio: {win_ratio*100:.3f}')
         # Train on each game's results, setting the learning rate negative to 'unlearn' positions from
         # games where the learner lost.
-        grads = None
-        for (st_tensor, mv_tensor, won) in zip(state_tensors, move_tensors, learner_won):
-            st_tensor = tf.cast(tf.constant(np.concatenate(st_tensor, axis=0)), tf.float32)
-            mv_tensor = tf.cast(tf.constant(np.concatenate(mv_tensor, axis=0)), tf.float32)
-            #z = tf.constant(+1 if won else -1)
-            z = +1 if won else -1
-            game_grads = train_step(st_tensor, mv_tensor, learner_model, tf.keras.losses.categorical_crossentropy, optimizer)
-            if grads:
-                for i, g in enumerate(game_grads):
-                    grads[i] += z*g/args.game_batch
-            else:
-                grads = [z*g/args.game_batch for g in game_grads]
-
-        optimizer.apply_gradients(zip(grads, learner_model.trainable_variables))
-        grads = None
+        #learna(state_tensors, move_tensors, learner_won, learner_model, tf.keras.losses.categorical_crossentropy, optimizer)
+        learnb(state_tensors, move_tensors, learner_won, learner_model, optimizer)
 
         metadata["win_ratio"][learner_weights] = (opp_weights, win_ratio)
 
@@ -131,6 +119,34 @@ def start_training(args):
         save_metadata()
 
 
+def learna(state_tensors,
+           move_tensors,
+           learner_won,
+           model: tf.keras.Model,
+           loss_fn: tf.keras.losses.Loss,
+           optimizer: tf.keras.optimizers.Optimizer):
+    game_batch = len(state_tensors)
+    grads = None
+    for (st_tensor, mv_tensor, won) in zip(state_tensors, move_tensors, learner_won):
+        try:
+            st_tensor = tf.cast(tf.constant(np.concatenate(st_tensor, axis=0)), tf.float32)
+            mv_tensor = tf.cast(tf.constant(np.concatenate(mv_tensor, axis=0)), tf.float32)
+        except ValueError as e:
+            print(st_tensor, mv_tensor)
+            continue
+        z = +1 if won else -1
+            
+        game_grads = train_step(st_tensor, mv_tensor, model, loss_fn, optimizer) 
+
+        if grads:
+            for i, g in enumerate(game_grads):
+                grads[i] += z*g/game_batch
+        else:
+            grads = [z*g/game_batch for g in game_grads]
+        
+    optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+
 @tf.function
 def train_step(states: tf.Tensor,
                moves: tf.Tensor,
@@ -143,6 +159,53 @@ def train_step(states: tf.Tensor,
         loss = tf.reduce_mean(loss_fn(moves, output))
     grads = tape.gradient(loss, model.trainable_variables)
     return grads
+
+
+def learnb(state_tensors,
+           move_tensors,
+           learner_won,
+           model: tf.keras.Model,
+           optimizer: tf.keras.optimizers.Optimizer):
+    game_batch = len(state_tensors)
+    grads = None
+    loss = 0
+    for (st_tensor, mv_tensor, won) in zip(state_tensors, move_tensors, learner_won):
+        st_tensor = tf.cast(tf.constant(np.concatenate(st_tensor, axis=0)), tf.float32)
+        mv_tensor = tf.cast(tf.constant(np.concatenate(mv_tensor, axis=0)), tf.float32)
+        z = tf.constant(+1.0 if won else -1.0)
+            
+        game_loss, game_grads = compute_game_grads(st_tensor, mv_tensor, z, model, optimizer)
+        loss += game_loss
+
+        if grads:
+            for i, g in enumerate(game_grads):
+                grads[i] += g/game_batch
+        else:
+            grads = [g/game_batch for g in game_grads]
+
+    global_norm = tf.linalg.global_norm(grads)
+    print(f"Loss: {loss} Grads norm: {global_norm}")
+    #grads = tape.gradient(loss, model.trainable_variables)
+    optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+
+@tf.function
+def compute_game_grads(states: tf.Tensor,
+                       moves: tf.Tensor,
+                       z: tf.Tensor,
+                       model: tf.keras.Model,
+                       optimizer: tf.keras.optimizers.Optimizer):
+    with tf.GradientTape() as tape:
+        tape.watch(states)
+        probs = model(states)
+        probs = tfp.distributions.Categorical(probs=probs)
+        log_probs = probs[:, tf.newaxis].log_prob(moves)
+        log_probs = tf.squeeze(log_probs)
+        loss = tf.reduce_mean(log_probs) * z
+        #loss = tf.reduce_sum(log_probs) * z
+        grads = tape.gradient(loss, model.trainable_variables)
+        #grads, _ = tf.clip_by_global_norm(grads, clip_norm=1.0)
+    return loss, grads
 
 
 def main(cmd_line_args=None):
@@ -173,15 +236,15 @@ def main(cmd_line_args=None):
         args = parser.parse_args(cmd_line_args)
 
     args = {
-        'initial_weights': './params/policy/kihuu.hdf5',
+        'initial_weights': './params/policy/weights.hdf5',
         'out_directory': './train/rl_policy/',
         'learning_rate': 0.001,
         'policy_temp': 0.67,
-        'save_every': 2,
-        'record_every': 1,
-        'game_batch': 5,
+        'save_every': 500,
+        'record_every': 10,
+        'game_batch': 3,
         'move_limit': 500,
-        'iterations': 100,
+        'iterations': 10000,
         'greedy': False,
         'resume': False,
         'verbose': 2,  # Turn on verbose mode

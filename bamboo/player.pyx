@@ -32,6 +32,7 @@ cdef class PolicyPlayer(object):
         if self.greedy:
             pos = np.argmax(probs, axis=1).astype(np.int32)
         else:
+            #probs = apply_temperature(probs, temperature=self.temperature)
             pos = np.array([np.random.choice(len(prob), p=prob) for prob in probs], dtype=np.int32)
 
         return pos
@@ -39,21 +40,21 @@ cdef class PolicyPlayer(object):
     cdef int[:] gen_masked_move(self, np.ndarray[INT_t, ndim=4] tensor, np.ndarray[np.npy_bool, ndim=2] mask):    
         cdef int[:] pos
 
-        probs = self.model.eval_state(tensor)
-        if any(np.abs(probs.sum(axis=1) - 1.0) > 0.01):
-            print('>> Warnings. Sum of PN evaluation values {:.3f} != 1.0', probs.sum(axis=1), file=sys.stderr)
+        output = self.model.eval_state(tensor)
+        if any(np.abs(output.sum(axis=1) - 1.0) > 0.01):
+            print('>> Warnings. Sum of PN evaluation values {:.3f} != 1.0', output.sum(axis=1), file=sys.stderr)
         
-        probs = probs * mask
+        probs = output * mask
         if self.greedy:
             pos = np.argmax(probs, axis=1).astype(np.int32)
         else:
-            probs = apply_temperature(probs, mask, temperature=self.temperature)
+            #probs = apply_temperature(probs, temperature=self.temperature)
             # wa. nan prob
-            probs = np.nan_to_num(probs)
+            #probs = np.nan_to_num(probs)
             try:
                 pos = np.array([np.random.choice(len(prob), p=prob) for prob in probs], dtype=np.int32)
             except ValueError as e:
-                print(e, file=sys.stderr)
+                print(type(e).__name__, str(e), probs.sum(axis=1), output.sum(axis=1), file=sys.stderr)
                 pos = np.zeros(len(probs), dtype=np.int32)
                 for i, prob in enumerate(probs):
                     try:
@@ -64,15 +65,15 @@ cdef class PolicyPlayer(object):
         return pos
 
 
-def apply_temperature(x, mask, temperature):
+def apply_temperature(x, temperature=0.67):
     beta = 1.0/temperature
     if x.ndim == 2:
         x = x.T
         x = x * beta
-        ex = np.exp(x - np.max(x, axis=0)) * mask.T
+        ex = np.exp(x - np.max(x, axis=0))
         y = ex / np.sum(ex, axis=0)
         return y.T
     
     x = x * beta
-    ex = np.exp(x - np.max(x)) * mask
+    ex = np.exp(x - np.max(x))
     return ex / np.sum(ex)

@@ -21,7 +21,7 @@ RUN ln -sf /usr/bin/python3.10 /usr/bin/python3
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 RUN pip3 install --upgrade pip
-RUN pip3 --no-cache-dir install tensorflow==2.17.1
+RUN pip3 --no-cache-dir install tensorflow==2.18.0 tf-keras==2.18.0 tensorflow-probability==0.25.0
 RUN pip3 --no-cache-dir install \
         'numpy<2.0.0' \
         'Cython<3.1' \
