@@ -120,6 +120,7 @@ cdef class GameConverter(object):
             n_not19 = 0
             n_too_few_move = 0
             n_too_many_move = 0
+            n_other_error = 0
 
             pbar = tqdm(total=sgf_total)
             for file_name in sgf_files:
@@ -154,6 +155,11 @@ cdef class GameConverter(object):
                     tqdm.write('Too many move. {:d} more than 500. {:s}'.format(e.n_moves, file_name), file=sys.stderr)
                 except KeyboardInterrupt:
                     break
+                except Exception:
+                    n_other_error += 1
+                    err, msg, _ = sys.exc_info()
+                    sys.stderr.write("{} {}\n".format(err, msg))
+                    sys.stderr.write(traceback.format_exc())
                 finally:
                     if n_pairs > 0:
                         # '/' has special meaning in HDF5 key names, so they
@@ -177,13 +183,14 @@ cdef class GameConverter(object):
         if verbose:
             print("finished. renaming %s to %s" % (tmp_file, hdf5_file))
 
-        print('Total {:d}/{:d} (Not19 {:d} ParseErr {:d} TooFewMove {:d} TooManyMove {:d})'.format(
+        print('Total {:d}/{:d} (Not19 {:d} ParseErr {:d} TooFewMove {:d} TooManyMove {:d} OtherErr {:d})'.format(
             sgf_total - n_parse_error - n_not19 - n_too_few_move - n_too_many_move,
             sgf_total,
             n_parse_error,
             n_not19,
             n_too_few_move,
-            n_too_many_move))
+            n_too_many_move,
+            n_other_error))
         print('Update Speed: Avg. {:3f} us'.format(np.mean(self.update_speeds)*1000*1000))
 
         # processing complete; rename tmp_file to hdf5_file

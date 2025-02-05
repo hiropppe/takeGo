@@ -5,6 +5,7 @@ import re
 import sgf
 import sys
 import traceback
+import unicodedata
 
 from tqdm import tqdm
 
@@ -74,7 +75,7 @@ cdef class SGFMoveIterator:
 
         sgf_game = collection[0]
 
-        self.sgf_init_game(sgf_game.root)
+        self.sgf_init_game(sgf_game.nodes)
 
         if sgf_game.rest is not None:
             for i, node in enumerate(sgf_game.rest):
@@ -128,10 +129,11 @@ cdef class SGFMoveIterator:
 
         return move
 
-    cdef int sgf_init_game(self, object sgf_root) except? -1:
+    cdef int sgf_init_game(self, object sgf_nodes) except? -1:
         """Helper function to set up a GameState object from the root node
         of an SGF file
         """
+        sgf_root = sgf_nodes[0]
         props = sgf_root.properties
         s_size = props.get('SZ', ['19'])[0]
         s_player = props.get('PL', ['B'])[0]
@@ -168,18 +170,20 @@ cdef class SGFMoveIterator:
         # set winner
         self.winner = 0
         self.resign = False
-        s_re = props.get('RE')
-        if s_re:
-            s_re = s_re[0].strip().upper()
-            winner = s_re[0]
-            if winner == 'B':
-                self.winner = S_BLACK
-            elif winner == 'W':
-                self.winner = S_WHITE
-            self.resign = s_re.endswith('+R')
-        else:
-            if not self.ignore_no_result:
-                raise NoResultError
+        for node in sgf_nodes:
+            props = node.properties
+            if "RE" in props:
+                s_re = props.get("RE")[0].strip().upper()
+                s_re = unicodedata.normalize("NFKC", s_re)
+                if any(b in s_re for b in ("B", "黒", "黑")):
+                    self.winner = S_BLACK
+                elif any(w in s_re for w in ("W", "白")):
+                    self.winner = S_WHITE
+                self.resign = s_re.endswith('+R')
+                break
+
+        if self.winner == 0 and not self.ignore_no_result:
+            raise NoResultError
 
 
 cdef void save_gamestate_to_sgf(game_state_t *game,
