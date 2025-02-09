@@ -5,6 +5,7 @@
 import numpy as np
 
 cimport numpy as np
+np.set_printoptions(suppress=True, linewidth=200, precision=3)
 
 from libc.stdlib cimport malloc, free
 from libc.string cimport memset, memcpy
@@ -34,6 +35,8 @@ from .player cimport PolicyPlayer
 
 from .sgf_util cimport save_gamestate_to_sgf
 
+from .goscorer import final_territory_score, territory_scoring
+
 ctypedef np.int32_t INT_t
 
 
@@ -47,6 +50,26 @@ cdef np.ndarray[INT_t, ndim=4] state_to_tensor(PolicyFeature policy_feature, gam
     state_tensor = np.transpose(state_tensor, (0, 2, 3, 1)) 
 
     return state_tensor.copy()
+
+
+cdef double territory_score(game_state_t *game, double komi):
+    cdef int pos, ob_pos, color
+
+    stones = np.zeros(PURE_BOARD_MAX)
+    for pos in range(PURE_BOARD_MAX):
+        ob_pos = onboard_pos[pos]
+        color = game.board[ob_pos]
+        stones[pos] = color
+    stones = stones.reshape(PURE_BOARD_SIZE, PURE_BOARD_SIZE)
+    marked_dead = np.full((PURE_BOARD_SIZE, PURE_BOARD_SIZE), False)
+    final_score = final_territory_score(
+        stones,
+        marked_dead,
+        black_points_from_captures=0,
+        white_points_from_captures=0,
+        komi=komi,
+    )
+    return final_score[S_BLACK] - final_score[S_WHITE]
 
 
 cpdef run_n_games(object player_pn,
@@ -144,40 +167,62 @@ cpdef run_n_games(object player_pn,
             game = &games[i]
             state_tensor = states[j]
 
+            if verbose >= 4:
+                ## display moves
+                print_board(game)
+                print("")
+                probs = current.model.eval_state(state_tensor)
+                probs = probs[0]
+                print(probs.reshape(19, 19))
+                print("")
+
+                cx = CORRECT_X(ob_pos, BOARD_SIZE, OB_SIZE)
+                cy = CORRECT_Y(ob_pos, BOARD_SIZE, OB_SIZE)
+                px = cx + 1
+                py = PURE_BOARD_SIZE - cy
+                vtx = gtp.gtp_vertex((px, py))
+                print(f"#{str(i).zfill(3)}. Moves: {game.moves} {'Black' if game.current_color == S_BLACK else 'White'} > {vtx} ({cx}, {cy})")
+                print("")
+
+            if learner_color[i] == game.current_color:
+                state_tensors[i].append(state_tensor)
+                move_tensor = np.zeros((1, PURE_BOARD_MAX))
+                move_tensor[(0, pos)] = 1                    
+                move_tensors[i].append(move_tensor)
+
             if is_legal(game, ob_pos, game.current_color) and pos != RESIGN and game.moves <= move_limit:
                 put_stone(game, ob_pos, game.current_color)
 
                 if verbose == 3:
                     print_board(game)
 
-                if learner_color[i] == game.current_color:
-                    state_tensors[i].append(state_tensor)
-                    move_tensor = np.zeros((1, PURE_BOARD_MAX))
-                    move_tensor[(0, pos)] = 1                    
-                    move_tensors[i].append(move_tensor)
-
                 game.current_color = FLIP_COLOR(game.current_color)
             else:
                 games_in_play[i] = 0
                 n_games_in_play -= 1
 
-                score = <double>calculate_score(game)
+                score = territory_score(game, komi)
 
-                if score - komi > 0:
+                if score > 0:
                     winner = S_BLACK
                 else:
                     winner = S_WHITE
 
+                #if game.moves <= 100:
+                #    winner = FLIP_COLOR(game.current_color)
+
                 learner_won[i] = winner == learner_color[i]
 
                 if verbose:
-                    np.set_printoptions(suppress=True, linewidth=200, precision=3)
                     cx = CORRECT_X(ob_pos, BOARD_SIZE, OB_SIZE)
                     cy = CORRECT_Y(ob_pos, BOARD_SIZE, OB_SIZE)
                     px = cx + 1
                     py = PURE_BOARD_SIZE - cy
                     last_move = gtp.gtp_vertex((px, py))
-                    print(f"#{str(i).zfill(3)}. {'Black' if learner_color[i] == S_BLACK else 'White'} (Learner) {'Won' if learner_won[i] else 'Lost'}. Score: {calculate_score(game) - komi} Last Move: {'Black' if game.current_color == S_BLACK else 'White'} > {last_move} ({cx}, {cy})")
+                    print(f"#{str(i).zfill(3)}. {'Won' if learner_won[i] else 'Lost'} ({'B' if learner_color[i] == S_BLACK else 'W'}) Score: {score} Moves: {game.moves} Last Color: {'B' if game.current_color == S_BLACK else 'W'} Last Move: {last_move} ({cx}, {cy})")
+
+                    #print(f"#{str(i).zfill(3)}. {'*' if np.sign(score) != np.sign(calculate_score(game) - komi) else ''}{'Won' if learner_won[i] else 'Lost'} ({'B' if learner_color[i] == S_BLACK else 'W'}) Score: {score} ({calculate_score(game) - komi}) Moves: {game.moves} Last Color: {'B' if game.current_color == S_BLACK else 'W'} Last Move: {last_move} ({cx}, {cy})")
+
                     #save_gamestate_to_sgf(game, '/tmp', f'self_play_{i}.sgf', 'B', 'W')
                     #print(subprocess.check_output(["gnugo", "--score", "aftermath", "-l", f"/tmp/self_play_{i}.sgf"]))
 
@@ -186,7 +231,6 @@ cpdef run_n_games(object player_pn,
                     #print(state_tensor[0, :, :, 46])  # Whether a move is legal and does not fill its own eyes
                     probs = current.model.eval_state(state_tensor)
                     probs = probs[0]
-                    probs = (probs - np.mean(probs))/np.std(probs)
                     print(probs.reshape(19, 19))
 
             current, other = other, current

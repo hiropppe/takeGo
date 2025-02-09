@@ -1208,7 +1208,7 @@ cdef bint is_superko(game_state_t *game, int pos, char color) nogil:
     return False
 
 
-cdef int calculate_score(game_state_t *game) nogil:
+cdef double calculate_score(game_state_t *game) nogil:
     cdef int i
     cdef int pos
     cdef int color

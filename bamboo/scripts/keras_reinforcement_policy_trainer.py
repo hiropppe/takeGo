@@ -15,10 +15,10 @@ from bamboo.models.keras_dcnn_policy import KerasPolicy, cnn_policy
 
 from bamboo.self_play_game import run_n_games
 
+np.set_printoptions(suppress=True, linewidth=200, precision=3)
+
 
 def start_training(args):
-
-    ZEROTH_FILE = "sl_policy.h5"
 
     if args.resume:
         if not os.path.exists(os.path.join(args.out_directory, "metadata.json")):
@@ -31,6 +31,11 @@ def start_training(args):
 
     if not args.resume:
         # make a copy of weights file, "weights.00000.hdf5" in the output directory
+        if args.initial_weights.endswith(".weights.h5"):
+            ZEROTH_FILE = "sl_policy.weights.h5"
+        else:
+            ZEROTH_FILE = "sl_policy.h5"
+
         copyfile(args.initial_weights, os.path.join(args.out_directory, ZEROTH_FILE))
         if args.verbose:
             print("copied {} to {}".format(args.initial_weights,
@@ -184,8 +189,8 @@ def learnb(state_tensors,
             grads = [g/game_batch for g in game_grads]
 
     global_norm = tf.linalg.global_norm(grads)
-    print(f"Loss: {loss} Grads norm: {global_norm}")
-    #grads = tape.gradient(loss, model.trainable_variables)
+    print(f"Loss: {loss/game_batch} Grads norm: {global_norm}")
+    ##grads = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
 
@@ -198,13 +203,18 @@ def compute_game_grads(states: tf.Tensor,
     with tf.GradientTape() as tape:
         tape.watch(states)
         probs = model(states)
-        probs = tfp.distributions.Categorical(probs=probs)
-        log_probs = probs[:, tf.newaxis].log_prob(moves)
-        log_probs = tf.squeeze(log_probs)
-        loss = tf.reduce_mean(log_probs) * z
-        #loss = tf.reduce_sum(log_probs) * z
+        probs = probs * moves
+
+        # We set 1 in the position of probability 0 so that the log probability is 0 instead of nan
+        safe_probs = tf.where(tf.equal(probs, 0.), tf.ones_like(probs), probs)
+        log_probs = tf.math.log(safe_probs)
+
+        # We take the average of step loss (-log(p(a|s))) since the number of moves varies from game to game
+        loss = -tf.reduce_mean(tf.reduce_sum(log_probs, axis=1)) * z
+        #loss = -tf.reduce_mean(log_probs) * z
+
         grads = tape.gradient(loss, model.trainable_variables)
-        #grads, _ = tf.clip_by_global_norm(grads, clip_norm=1.0)
+
     return loss, grads
 
 
@@ -236,18 +246,18 @@ def main(cmd_line_args=None):
         args = parser.parse_args(cmd_line_args)
 
     args = {
-        'initial_weights': './params/policy/weights.hdf5',
+        'initial_weights': './params/policy/kihuu.hdf5',
         'out_directory': './train/rl_policy/',
         'learning_rate': 0.001,
         'policy_temp': 0.67,
         'save_every': 500,
-        'record_every': 10,
-        'game_batch': 3,
+        'record_every': 1,
+        'game_batch': 128,
         'move_limit': 500,
         'iterations': 10000,
         'greedy': False,
         'resume': False,
-        'verbose': 2,  # Turn on verbose mode
+        'verbose': 1,  # Turn on verbose mode
     }
 
     from types import SimpleNamespace

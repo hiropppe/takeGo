@@ -251,7 +251,7 @@ cdef bint is_legal_not_eye_rollout(game_state_t *game, int pos, char color) nogi
 cdef bint is_suicide(game_state_t *game, int pos, char color) nogil
 cdef bint is_true_eye(game_state_t *game, int pos, char color, char other_color, int empty_diagonal_stack[200], int empty_diagonal_top) nogil
 cdef bint is_superko(game_state_t *game, int pos, char color) nogil
-cdef int calculate_score(game_state_t *game) nogil
+cdef double calculate_score(game_state_t *game) nogil
 cdef void check_bent_four_in_the_corner(game_state_t *game) nogil
 
 cdef cppvector[int] get_legal_moves(game_state_t *game, char color) nogil
