@@ -178,8 +178,6 @@ def test_capture_size():
 
 
 def test_self_atari_size():
-    pass
-    """
     cdef tree_node_t *node
     node = <tree_node_t *>malloc(sizeof(tree_node_t))
     node.game = board.allocate_game()
@@ -211,9 +209,6 @@ def test_self_atari_size():
     assert (planes[28 + 8 - 1, pure_moves['c']] == 1)
     assert (planes[28 + 8 - 1].sum() == 1)
 
-    board.free_game(node.node)
-    policy_feature.free_feature(feature)
-    """
 
 def test_liberties_after_move():
     cdef tree_node_t *node

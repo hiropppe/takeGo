@@ -40,7 +40,7 @@ def setup_pattern(rands_file, d12_rsp_csv, x33_csv):
     initialize_rollout_const(nakade_size, x33_size, d12_rsp_size, 0)
 
 
-def setup_supervised_policy(path, nogpu=True):
+def setup_supervised_policy(path):
     global pn_path
 
     pn_path = path
@@ -262,7 +262,7 @@ def test_eval_leaf_by_policy_network():
     cdef int i
     cdef double prob_sum = 0.0
 
-    mcts = MCTS(nogpu=True)
+    mcts = MCTS()
     pn = cnn_policy()
     pn.load_weights(pn_path)
     mcts.set_policy_network(KerasPolicy(pn))

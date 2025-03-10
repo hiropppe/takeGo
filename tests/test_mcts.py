@@ -18,7 +18,7 @@ class TestMCTS():
         d = os.path.dirname(os.path.abspath(__file__))
         # setup supervised policy
         pn_path = os.path.join(d, '../params/policy/weights.hdf5')
-        ctest.setup_supervised_policy(pn_path, nogpu=True)
+        ctest.setup_supervised_policy(pn_path)
         # setup rollout policy
         rollout_weights = os.path.join(d, '../params/rollout/rollout.hdf5')
         ctest.setup_rollout_policy(rollout_weights)

@@ -23,11 +23,13 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN pip3 install --upgrade pip
 RUN pip3 --no-cache-dir install tensorflow==2.18.0 tf-keras==2.18.0 tensorflow-probability==0.25.0
 RUN pip3 --no-cache-dir install \
-        'numpy<2.0.0' \
-        'Cython<3.1' \
+        numpy==1.26.4 \
+        Cython==3.0.11 \
+        scikit-learn==1.6.1 \
+        scipy==1.15.1 \
+        pandas==2.2.3 \
+        pyarrow==18.1.0 \
         sgf \
-        pandas \
-        pyarrow \
         pytest \
         tqdm
 
