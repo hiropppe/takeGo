@@ -33,7 +33,11 @@ def _parse_sgf_move(node_value):
     else:
         x = LETTERS.index(node_value[0].upper())
         y = LETTERS.index(node_value[1].upper())
-        return POS(x+OB_SIZE, y+OB_SIZE, board_size)
+        pos = POS(x+OB_SIZE, y+OB_SIZE, board_size)
+        if BOARD_MAX <= pos:
+            return PASS
+        else:
+            return pos
 
 
 cdef class SGFMoveIterator:

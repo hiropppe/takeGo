@@ -479,3 +479,67 @@ def test_sensibleness_true_eye_remove_stone():
     assert (planes[46, pure_moves['a']] == 0)
     assert (planes[46, pure_moves['c']] == 0)
 
+
+def test_hung_up_after_ob_pos():
+    cdef tree_node_t *node
+    node = <tree_node_t *>malloc(sizeof(tree_node_t))
+    node.game = board.allocate_game()
+    for i in range(361):
+        node.children[i] = <tree_node_t *>malloc(sizeof(tree_node_t))
+    """
+         A B C D E F G H J K L M N O P Q R S T
+       +---------------------------------------+
+    19:| + + + + + + + + + W W W B B + + + + + |
+    18:| + W + + + + + + W W B B W + B + B W + |
+    17:| + B W W + W + + W B B + + W B B W W + |
+    16:| + + B W + + + + + W B B + W + B B W + |
+    15:| + B B B W + + + + W W B B + + B W B + |
+    14:| + + W W W B + + + + W W B B W B W B + |
+    13:| + W + + + + + + W + W W B W + + + + + |
+    12:| + B + W + + B W + W + + W B B B + + + |
+    11:| + B B B B B W W W + W W W W W B + + + |
+    10:| W B W + W B W W B W W W B W + W B + + |
+     9:| W W W W W W B B B B W B B W W B + + + |
+     8:| B W B B W W B B + + B B W W W B B + + |
+     7:| B W B W + + W B B + + + B B B W + + + |
+     6:| B B B W W W W W B B B B + + + + + + + |
+     5:| + B W W + + + + W B B W W B + W + + + |
+     4:| B + B W + + + + W W W B + B B B B + + |
+     3:| + + B W + B W + + W B B + + + W B + + |
+     2:| + + B B W W + + + W W B + + + + + + + |
+     1:| + + + B B W + + + W B B + + + + + + + |
+       +---------------------------------------+
+    """
+    (moves, pure_moves) = parseboard.parse(node.game,
+        ". . . . . . . . . W W W B B . . . . .|"
+        ". W . . . . . . W W B B W . B . B W .|"
+        ". B W W . W . . W B B . . W B B W W .|"
+        ". . B W . . . . . W B B . W . B B W .|"
+        ". B B B W . . . . W W B B . . B W B .|"
+        ". . W W W B . . . . W W B B W B W B .|"
+        ". W . . . . . . W . W W B W . . . . .|"
+        ". B . W . . B W . W . . W B B B . . .|"
+        ". B B B B B W W W . W W W W W B . . .|"
+        "W B W . W B W W B W W W B W a W B . .|"
+        "W W W W W W B B B B W B B W W B . . .|"
+        "B W B B W W B B . . B B W W W B B . .|"
+        "B W B W . . W B B . . . B B B W . . .|"
+        "B B B W W W W W B B B B . . . . . . .|"
+        ". B W W . . . . W B B W W B . W . . .|"
+        "B . B W . . . . W W W B . B B B B . .|"
+        ". . B W . B W . . W B B . . . W B . .|"
+        ". . B B W W . . . W W B . . . . . . .|"
+        ". . . B B W . . . W B B . . . . . . .|")
+
+    feature = policy_feature.allocate_feature(MAX_POLICY_PLANES)
+    policy_feature.initialize_feature(feature)
+    planes = np.asarray(feature.planes)
+
+    board.put_stone(node.game, 624, board.S_BLACK)  # illegal pos(yy) in samples
+    node.game.current_color = board.S_WHITE
+    policy_feature.update(feature, node.game)
+
+    board.put_stone(node.game, moves['a'], board.S_WHITE)
+    node.game.current_color = board.S_BLACK
+    policy_feature.update(feature, node.game)
+

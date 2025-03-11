@@ -23,7 +23,7 @@ from bamboo.tree_search cimport EXPLORATION_CONSTANT
 
 
 cdef void print_board(game_state_t *game) nogil:
-    cdef char *stone = [b'+', b'X', b'O', b'#']
+    cdef char *stone = [b'+', b'B', b'W', b'#']
     cdef int i, x, y, pos
     cdef char buf[10]
     cdef cppstring s

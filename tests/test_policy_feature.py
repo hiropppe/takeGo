@@ -47,3 +47,7 @@ class TestPolicyFeature():
 
     def test_sensibleness_true_eye_remove_stone(self):
         ctest.test_sensibleness_true_eye_remove_stone()
+
+    def test_hung_up_after_ob_pos(self):
+        ctest.test_hung_up_after_ob_pos()
+

@@ -1039,6 +1039,9 @@ cdef bint is_legal(game_state_t *game, int pos, char color) nogil:
     if pos == PASS:
         return True
 
+    if pos >= board_max:
+        return False
+
     if game.board[pos] != S_EMPTY:
         return False
 
@@ -1061,6 +1064,9 @@ cdef bint is_legal_not_eye(game_state_t *game, int pos, char color) nogil:
 
     if pos == PASS:
         return True
+
+    if pos >= board_max:
+        return False
 
     if game.board[pos] != S_EMPTY:
         return False
